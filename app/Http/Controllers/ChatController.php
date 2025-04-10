@@ -560,7 +560,7 @@ class ChatController extends Controller
                     'evening' => [
                         "İyi akşamlar! $emoji Bu akşam ne keşfetmek istersin?",
                         "İyi akşamlar! $emoji Merak ettiğin bir konu var mı?",
-                        "İyi akşamlar! $emoji Akşam vakti öğrenmek için ideal, değil mi?"
+                        "İyi akşamlar! $emoji Akşam vakti öğrenmek için ideal değil mi?"
                     ],
                     'night' => [
                         "İyi geceler! $emoji Yarın keşfedilecek yeni şeyler olacak!",
@@ -607,7 +607,7 @@ class ChatController extends Controller
                     'morning' => [
                         "Günaydın! $emoji Bugün her şeyin üstesinden geleceğiz!",
                         "Günaydın! $emoji Yeni bir günde yeni başarılar bizi bekliyor!",
-                        "Günaydın! $emoji Bugün tüm sorularınızı kesinlikle yanıtlayacağım!"
+                        "Günaydın! $emoji Bugün tüm sorularınıza kesinlikle yanıtlayacağım!"
                     ],
                     'evening' => [
                         "İyi akşamlar! $emoji Gün bitmeden tüm sorularınızı çözeceğiz!",
@@ -1487,7 +1487,7 @@ class ChatController extends Controller
                             " kelimeleri geliyor.",
                             " kavramları çağrıştırıyor.",
                             " gelir.",
-                            " gibi şeyler düşündürüyor.",
+                            " gibi şeyler düşünüyorum.",
                             " düşünüyorum."
                         ];
                         
@@ -1591,7 +1591,7 @@ class ChatController extends Controller
             $antonyms = $wordRelations->getAntonyms($startWord);
             $definition = $wordRelations->getDefinition($startWord);
             
-            // Eğer veritabanında yeterli veri yoksa generateSmartSentence metodunu kullan
+            // Eğer veritabanında yeterli veri yoksa, generateSmartSentence metodunu kullan
             if (empty($relatedWords) && empty($synonyms) && empty($definition)) {
                 return $this->generateSmartSentence();
             }
@@ -2248,15 +2248,7 @@ class ChatController extends Controller
         }
         
         // 5. Mesajda bilinmeyen bir kelime varsa, öğretmesini iste
-        // Önce tek kelimelik mesajları kontrol et
-        if (str_word_count($message) <= 2 && strlen($message) >= 2) {
-            $knownWord = $this->isKnownWord($message);
-            if (!$knownWord) {
-                return $this->askToTeachWord($message);
-            }
-        }
-        
-        // Sonra mesajdaki tüm anahtar kelimeleri kontrol et
+        // Anahtar kelimeleri kontrol et
         $keywords = $this->extractKeywords($message);
         foreach ($keywords as $keyword) {
             if (strlen($keyword) >= 3 && !$this->isKnownWord($keyword)) {
@@ -3016,13 +3008,16 @@ class ChatController extends Controller
      */
     private function processNedirQuestion($message)
     {
+        // Son bilinmeyen sorgu değerini sıfırla
+        session(['last_unknown_query' => '']);
+        
         // Özet modu bayrağı
         $summaryMode = preg_match('/\b(kısalt|özetle|özet|kısa|açıkla)\b/i', $message);
         
         // "Nedir" kalıbını kontrol et - daha esnek pattern
         if (preg_match('/(?:.*?)(\b\w+\b)(?:\s+nedir)(?:\?)?$/i', $message, $matches) || 
             preg_match('/(?:.*?)(\b\w+(?:\s+\w+){0,3}\b)(?:\s+ned[iı]r)(?:\?)?$/i', $message, $matches) ||
-            preg_match('/^(?:.*?\s+)?(.+?)(?:\s+ned[iı]r)?(?:\?)?$/i', $message, $matches)) {
+            preg_match('/^(.+?)\s+ned[iı]r\??$/i', $message, $matches)) {
             
             $term = trim($matches[1]);
             
@@ -3041,11 +3036,6 @@ class ChatController extends Controller
             // Minimum uzunluk kontrolü
             if (strlen($term) < 2) {
                 return null;
-            }
-            
-            // Kelime bilinmiyor mu kontrol et
-            if (!$this->isKnownWord($term)) {
-                return $this->askToTeachWord($term);
             }
             
             Log::info("Web araştırması yapılıyor: $term" . ($summaryMode ? " (Özet mod)" : ""));
@@ -3090,6 +3080,14 @@ class ChatController extends Controller
             } catch (\Exception $e) {
                 Log::error("Web araştırması hatası: " . $e->getMessage());
                 return "Bu konu hakkında araştırma yaparken bir sorun oluştu. Lütfen tekrar deneyin.";
+            }
+        } else {
+            // Eğer nedir kalıbı yoksa ve tek kelime ise, bilinmiyor mu diye kontrol et
+            if (str_word_count($message) <= 2 && strlen($message) >= 2) {
+                $term = trim($message);
+                if (!$this->isKnownWord($term)) {
+                    return $this->askToTeachWord($term);
+                }
             }
         }
         
@@ -3433,7 +3431,7 @@ class ChatController extends Controller
             // Cümle kalıpları - sorunun özelliğine göre farklı kalıplar kullanılabilir
             $sentenceTemplates = [
                 "Sorunuzu düşünürken \"$mainWord\" kelimesi üzerinde durdum ve bunun \"$relatedWord\" ile ilişkisini inceledim. $emoji",
-                "\"$mainWord\" kavramı ile ilgili farklı bir bakış açısı: \"$relatedWord\" bağlamında düşününce ilginç sonuçlar çıkıyor. $emoji",
+                "\"$mainWord\" kavramı ile ilgili farklı bir bakış açısı: \"$relatedWord\" bağlamında düşünce ilginç sonuçlar çıkıyor. $emoji",
                 "Sorununuz bana \"$mainWord\" kavramını hatırlattı, bu da \"$relatedWord\" ile bağlantılı. $emoji",
                 "Aklıma gelen ilk kelime \"$mainWord\" oldu, bununla ilgili \"$relatedWord\" kelimesi de önemli. $emoji",
                 "\"$mainWord\" üzerine düşünüyorum... Bu \"$relatedWord\" ile nasıl ilişkili olabilir? $emoji"

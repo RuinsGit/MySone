@@ -2247,11 +2247,20 @@ class ChatController extends Controller
             return $questionResponse;
         }
         
-        // 5. Tek kelimelik mesajlarda, eğer bilinmeyen bir kelimeyse öğretmesini iste
+        // 5. Mesajda bilinmeyen bir kelime varsa, öğretmesini iste
+        // Önce tek kelimelik mesajları kontrol et
         if (str_word_count($message) <= 2 && strlen($message) >= 2) {
             $knownWord = $this->isKnownWord($message);
             if (!$knownWord) {
                 return $this->askToTeachWord($message);
+            }
+        }
+        
+        // Sonra mesajdaki tüm anahtar kelimeleri kontrol et
+        $keywords = $this->extractKeywords($message);
+        foreach ($keywords as $keyword) {
+            if (strlen($keyword) >= 3 && !$this->isKnownWord($keyword)) {
+                return $this->askToTeachWord($keyword);
             }
         }
         
@@ -3032,6 +3041,11 @@ class ChatController extends Controller
             // Minimum uzunluk kontrolü
             if (strlen($term) < 2) {
                 return null;
+            }
+            
+            // Kelime bilinmiyor mu kontrol et
+            if (!$this->isKnownWord($term)) {
+                return $this->askToTeachWord($term);
             }
             
             Log::info("Web araştırması yapılıyor: $term" . ($summaryMode ? " (Özet mod)" : ""));

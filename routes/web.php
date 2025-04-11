@@ -9,6 +9,7 @@ use App\Http\Controllers\ChatController;
 use App\Http\Controllers\ManageController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\AIController;
+use App\Http\Controllers\ConsciousnessController;
 
 /*
 |--------------------------------------------------------------------------
@@ -152,4 +153,16 @@ Route::prefix('api/manage')->group(function () {
     Route::post('/learning/clear', [ManageController::class, 'clearLearningSystem']);
     Route::post('/learning/generate-sentences', [ManageController::class, 'generateSmartSentences']);
     Route::post('/learning/auto-sentences', [ManageController::class, 'generateAutoSentences']);
+});
+
+// Bilinç Sistemi Rotaları
+Route::prefix('consciousness')->group(function () {
+    Route::get('/', [ConsciousnessController::class, 'index'])->name('consciousness.index');
+    Route::post('/activate', [ConsciousnessController::class, 'activate'])->name('consciousness.activate');
+    Route::post('/deactivate', [ConsciousnessController::class, 'deactivate'])->name('consciousness.deactivate');
+    Route::post('/process-message', [ConsciousnessController::class, 'processMessage'])->name('consciousness.process-message');
+    Route::post('/learning-rate', [ConsciousnessController::class, 'setLearningRate'])->name('consciousness.learning-rate');
+    Route::post('/personality', [ConsciousnessController::class, 'updatePersonality'])->name('consciousness.personality');
+    Route::post('/identity', [ConsciousnessController::class, 'updateSelfIdentity'])->name('consciousness.identity');
+    Route::get('/metrics', [ConsciousnessController::class, 'getMetrics'])->name('consciousness.metrics');
 });

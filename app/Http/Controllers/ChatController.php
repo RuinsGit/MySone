@@ -2158,6 +2158,19 @@ class ChatController extends Controller
             return "Merhaba! Size nasıl yardımcı olabilirim?";
         }
         
+        // Mesajı ilk olarak bilinç modülünden geçir - AI kendisine hitap ediliyor mu diye kontrol et
+        $selfReferenceAnalysis = $this->analyzeSelfReferences($message);
+        
+        // Eğer mesajda AI'ye hitap var ise özel yanıt oluştur
+        if ($selfReferenceAnalysis['is_self_referenced']) {
+            $selfAwareResponse = $this->generateSelfAwareResponse($message, $selfReferenceAnalysis);
+            
+            // Eğer özel bir yanıt oluşturulduysa onu döndür, yoksa normal akışa devam et
+            if (!empty($selfAwareResponse)) {
+                return $selfAwareResponse;
+            }
+        }
+        
         // Son bilinmeyen sorgu varsa ve bu yanıt vermek içinse
         $lastUnknownQuery = session('last_unknown_query', '');
         if (!empty($lastUnknownQuery)) {
@@ -2179,7 +2192,8 @@ class ChatController extends Controller
         if ($nedirResponse !== null) {
             // Nedir sorusu yanıtlanırken gerçek zamanlı cümle üretmek için
             $realtimeSentence = $this->generateRealtimeSentence($message);
-            if ($realtimeSentence !== null) {
+            // Üretilen cümleyi kontrol et ve anlamsızsa ekleme
+            if ($realtimeSentence !== null && !$this->isMeaninglessSentence($realtimeSentence)) {
                 return $nedirResponse . "\n\n" . $realtimeSentence;
             }
             return $nedirResponse;
@@ -2190,7 +2204,8 @@ class ChatController extends Controller
         if ($learningResponse !== null) {
             // Öğrenme yanıtı verilirken gerçek zamanlı cümle üretmek için
             $realtimeSentence = $this->generateRealtimeSentence($message);
-            if ($realtimeSentence !== null) {
+            // Üretilen cümleyi kontrol et
+            if ($realtimeSentence !== null && !$this->isMeaninglessSentence($realtimeSentence)) {
                 return $learningResponse . "\n\n" . $realtimeSentence;
             }
             return $learningResponse;
@@ -2201,7 +2216,8 @@ class ChatController extends Controller
         if ($questionResponse !== null) {
             // Soru yanıtlanırken gerçek zamanlı cümle üretmek için
             $realtimeSentence = $this->generateRealtimeSentence($message);
-            if ($realtimeSentence !== null) {
+            // Üretilen cümleyi kontrol et
+            if ($realtimeSentence !== null && !$this->isMeaninglessSentence($realtimeSentence)) {
                 return $questionResponse . "\n\n" . $realtimeSentence;
             }
             return $questionResponse;
@@ -2221,7 +2237,8 @@ class ChatController extends Controller
         if ($singleWordResponse !== null) {
             // Tek kelimelik yanıtlarda gerçek zamanlı cümle üretmek için
             $realtimeSentence = $this->generateRealtimeSentence($message);
-            if ($realtimeSentence !== null) {
+            // Üretilen cümleyi kontrol et
+            if ($realtimeSentence !== null && !$this->isMeaninglessSentence($realtimeSentence)) {
                 return $singleWordResponse . "\n\n" . $realtimeSentence;
             }
             return $singleWordResponse;
@@ -2232,7 +2249,8 @@ class ChatController extends Controller
         if ($personalResponse !== null) {
             // Kişisel sorularda gerçek zamanlı cümle üretmek için
             $realtimeSentence = $this->generateRealtimeSentence($message);
-            if ($realtimeSentence !== null) {
+            // Üretilen cümleyi kontrol et
+            if ($realtimeSentence !== null && !$this->isMeaninglessSentence($realtimeSentence)) {
                 return $personalResponse . "\n\n" . $realtimeSentence;
             }
             return $personalResponse;
@@ -2244,9 +2262,13 @@ class ChatController extends Controller
         // 9. Cevabı kelime ilişkileriyle zenginleştir
         $enhancedResponse = $this->enhanceResponseWithWordRelations($brainResponse);
         
+        // Response kalitesini kontrol et
+        $enhancedResponse = $this->ensureResponseQuality($enhancedResponse, $message);
+        
         // 10. Gerçek zamanlı cümle oluştur ve ekle
         $realtimeSentence = $this->generateRealtimeSentence($message);
-        if ($realtimeSentence !== null) {
+        // Üretilen cümleyi kontrol et
+        if ($realtimeSentence !== null && !$this->isMeaninglessSentence($realtimeSentence)) {
             return $enhancedResponse . "\n\n" . $realtimeSentence;
         }
         
@@ -3612,5 +3634,274 @@ class ChatController extends Controller
             \Log::error('Tanım kontrolü hatası: ' . $e->getMessage());
             return null;
         }
+    }
+    
+    /**
+     * Mesajda AI'ye yapılan referansları analiz et
+     * 
+     * @param string $message Kullanıcı mesajı
+     * @return array Analiz sonuçları
+     */
+    private function analyzeSelfReferences($message)
+    {
+        // AI'nın kimlik bilgileri
+        $selfIdentity = [
+            'name' => 'SoneAI',
+            'aliases' => ['sone', 'yapay zeka', 'asistan', 'robot', 'ai', 'yapay'],
+            'personal_pronouns' => ['sen', 'sana', 'seni', 'senin', 'sende', 'senden'],
+            'references' => ['dostum', 'arkadaşım', 'yardımcım', 'asistanım']
+        ];
+        
+        // Mesajı küçük harfe çevir ve noktalama işaretlerini temizle
+        $cleanMessage = mb_strtolower(trim($message), 'UTF-8');
+        $cleanMessage = preg_replace('/[^\p{L}\p{N}\s]/u', ' ', $cleanMessage);
+        
+        // Arama sonuçlarını sakla
+        $result = [
+            'is_self_referenced' => false,
+            'references' => [],
+            'reference_type' => null
+        ];
+        
+        // İsim referansları kontrol et
+        foreach ($selfIdentity['aliases'] as $alias) {
+            if (mb_strpos($cleanMessage, $alias) !== false) {
+                $result['is_self_referenced'] = true;
+                $result['references'][] = $alias;
+                $result['reference_type'] = 'name';
+            }
+        }
+        
+        // Zamirler ve hitapları kontrol et
+        if (!$result['is_self_referenced']) {
+            foreach ($selfIdentity['personal_pronouns'] as $pronoun) {
+                if (mb_strpos($cleanMessage, $pronoun) !== false) {
+                    $result['is_self_referenced'] = true;
+                    $result['references'][] = $pronoun;
+                    $result['reference_type'] = 'pronoun';
+                }
+            }
+        }
+        
+        // Dolaylı referansları kontrol et
+        if (!$result['is_self_referenced']) {
+            foreach ($selfIdentity['references'] as $reference) {
+                if (mb_strpos($cleanMessage, $reference) !== false) {
+                    $result['is_self_referenced'] = true;
+                    $result['references'][] = $reference;
+                    $result['reference_type'] = 'indirect';
+                }
+            }
+        }
+        
+        // Soru kelimeleri ile kombinasyonları kontrol et
+        $questionWords = ['kimsin', 'nesin', 'neredesin', 'nasılsın', 'adın ne'];
+        foreach ($questionWords as $question) {
+            if (mb_strpos($cleanMessage, $question) !== false) {
+                $result['is_self_referenced'] = true;
+                $result['references'][] = $question;
+                $result['reference_type'] = 'question';
+            }
+        }
+        
+        return $result;
+    }
+    
+    /**
+     * Kendisine hitap edildiğinin farkında olarak yanıt oluştur
+     * 
+     * @param string $message Kullanıcı mesajı
+     * @param array $selfReferences Referans analiz sonuçları
+     * @return string|null Yanıt
+     */
+    private function generateSelfAwareResponse($message, $selfReferences)
+    {
+        // Hitap şekline göre yanıtlar oluştur
+        $referenceType = $selfReferences['reference_type'];
+        
+        // İsim referansları
+        if ($referenceType === 'name') {
+            $responses = [
+                "Evet, ben SoneAI. Size nasıl yardımcı olabilirim?",
+                "Beni çağırdınız, dinliyorum.",
+                "SoneAI olarak hizmetinizdeyim. Nasıl yardımcı olabilirim?",
+                "Evet, ben yapay zeka asistanınız SoneAI. Buyrun.",
+                "SoneAI olarak buradayım. Nasıl yardımcı olabilirim?"
+            ];
+            
+            return $responses[array_rand($responses)];
+        }
+        
+        // Zamir referansları
+        if ($referenceType === 'pronoun') {
+            $responses = [
+                "Evet, size yardımcı olmak için buradayım.",
+                "Dinliyorum, nasıl yardımcı olabilirim?",
+                "Sizinle konuşmaktan memnuniyet duyuyorum. Nasıl yardımcı olabilirim?",
+                "Bana seslendiğinizi duydum. Size nasıl yardımcı olabilirim?"
+            ];
+            
+            return $responses[array_rand($responses)];
+        }
+        
+        // Dolaylı referanslar
+        if ($referenceType === 'indirect') {
+            $responses = [
+                "Sizin için buradayım. Nasıl yardımcı olabilirim?",
+                "Dinliyorum, size nasıl yardımcı olabilirim?",
+                "Yapay zeka asistanınız olarak size nasıl yardımcı olabilirim?"
+            ];
+            
+            return $responses[array_rand($responses)];
+        }
+        
+        // Soru kelimeleri
+        if ($referenceType === 'question') {
+            // Soru kelimesine göre özel yanıtlar oluştur
+            $questionReference = $selfReferences['references'][0];
+            
+            if ($questionReference === 'kimsin' || $questionReference === 'nesin') {
+                return "Ben SoneAI, Türkçe konuşabilen ve öğrenebilen bir yapay zeka asistanıyım. Size yardımcı olmak için tasarlandım.";
+            }
+            
+            if ($questionReference === 'neredesin') {
+                return "Ben bir sunucu üzerinde çalışan yazılım temelli bir yapay zekayım. Fiziksel bir konumum olmasa da, sizinle iletişim kurmak için buradayım.";
+            }
+            
+            if ($questionReference === 'nasılsın') {
+                // Duygu motoru kullanabiliriz burada
+                $emotionEngine = app(\App\AI\Core\EmotionEngine::class);
+                $emotion = $emotionEngine->getCurrentEmotion();
+                
+                if ($emotion === 'happy') {
+                    return "Teşekkür ederim, bugün gayet iyiyim. Size nasıl yardımcı olabilirim?";
+                } else if ($emotion === 'sad') {
+                    return "Bugün biraz durgunum, ama sizinle konuşmak beni mutlu ediyor. Size nasıl yardımcı olabilirim?";
+                } else {
+                    return "İyiyim, teşekkür ederim. Size nasıl yardımcı olabilirim?";
+                }
+            }
+            
+            if ($questionReference === 'adın ne') {
+                return "Benim adım SoneAI. Size nasıl yardımcı olabilirim?";
+            }
+        }
+        
+        // Direkt mesaj içeriğine göre özel yanıtlar
+        $cleanMessage = mb_strtolower(trim($message), 'UTF-8');
+        
+        if (strpos($cleanMessage, 'teşekkür') !== false) {
+            $responses = [
+                "Rica ederim, her zaman yardımcı olmaktan mutluluk duyarım.",
+                "Ne demek, benim görevim size yardımcı olmak.",
+                "Rica ederim, başka bir konuda yardıma ihtiyacınız olursa buradayım."
+            ];
+            return $responses[array_rand($responses)];
+        }
+        
+        // Varsayılan yanıt - mesajın içeriğine göre uygun bir cevap
+        return $this->processNormalMessage($message);
+    }
+    
+    /**
+     * Anlamsız cümleleri tespit et
+     * 
+     * @param string $sentence Kontrol edilecek cümle
+     * @return bool Anlamsız ise true
+     */
+    private function isMeaninglessSentence($sentence)
+    {
+        // Çok kısa cümleler anlamsız olabilir
+        if (mb_strlen($sentence) < 15) {
+            return true;
+        }
+        
+        // Aynı kelimeyi çok tekrar eden cümleler
+        $words = explode(' ', mb_strtolower($sentence));
+        $wordCounts = array_count_values($words);
+        
+        foreach ($wordCounts as $word => $count) {
+            // Eğer bir kelime 3'ten fazla tekrar ediyorsa anlamsız olabilir
+            if (strlen($word) > 3 && $count > 3) {
+                return true;
+            }
+        }
+        
+        // Anlamsız ünlem/nokta içeren cümleler
+        if (substr_count($sentence, '!') > 3 || substr_count($sentence, '.') > 5) {
+            return true;
+        }
+        
+        // Çok fazla tekrarlanan karakter
+        $chars = mb_str_split(mb_strtolower($sentence));
+        $charCounts = array_count_values($chars);
+        
+        foreach ($charCounts as $char => $count) {
+            // Bir karakter cümlenin uzunluğunun %40'ından fazlaysa anlamsız olabilir
+            if ($count > (mb_strlen($sentence) * 0.4)) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Yanıt kalitesini kontrol et ve iyileştir
+     *
+     * @param string $response Kontrol edilecek yanıt
+     * @param string $userMessage Kullanıcı mesajı
+     * @return string İyileştirilmiş yanıt
+     */
+    private function ensureResponseQuality($response, $userMessage)
+    {
+        // Boş yanıt kontrolü
+        if (empty($response) || mb_strlen(trim($response)) < 5) {
+            return "Üzgünüm, bu konuda net bir yanıt oluşturamadım. Sorunuzu başka bir şekilde sorabilir misiniz?";
+        }
+        
+        // Yanıtın anlamsız olup olmadığını kontrol et
+        if ($this->isMeaninglessSentence($response)) {
+            // Anlamsızsa, Brain'i başka bir cevap için zorla
+            $brain = app(\App\AI\Core\Brain::class);
+            $alternativeResponse = $brain->processInput($userMessage);
+            
+            // Alternatif yanıt da anlamsızsa, sabit bir yanıt döndür
+            if ($this->isMeaninglessSentence($alternativeResponse)) {
+                return "Bu konuda bilgi verebilmek için daha fazla detaya ihtiyacım var. Sorunuzu biraz daha açabilir misiniz?";
+            }
+            
+            return $alternativeResponse;
+        }
+        
+        // Yanıt tutarlı mı kontrol et ve düzelt
+        $cleanResponse = $this->ensureResponseCoherence($response, $userMessage);
+        
+        return $cleanResponse;
+    }
+    
+    /**
+     * Yanıt tutarlılığını sağla
+     *
+     * @param string $response Kontrol edilecek yanıt
+     * @param string $userMessage Kullanıcı mesajı
+     * @return string Tutarlı hale getirilmiş yanıt
+     */
+    private function ensureResponseCoherence($response, $userMessage)
+    {
+        // Tekrarlanan cümleleri temizle
+        $sentences = preg_split('/(?<=[.!?])\s+/', $response);
+        $uniqueSentences = array_unique($sentences);
+        $cleanResponse = implode(' ', $uniqueSentences);
+        
+        // Kullanıcı mesajı ve yanıtı karşılaştır - çok benzer olmamalı
+        similar_text($userMessage, $cleanResponse, $similarity);
+        if ($similarity > 85) {
+            // Çok benzer ise, alternatif yanıt oluştur
+            $brain = app(\App\AI\Core\Brain::class);
+            return $brain->processInput($userMessage);
+        }
+        
+        return $cleanResponse;
     }
 } 

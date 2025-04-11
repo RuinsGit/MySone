@@ -110,6 +110,10 @@ Route::prefix('manage')->name('manage.')->group(function () {
     
     // Veritabanı bakımı
     Route::post('/learning/clear', [ManageController::class, 'clearLearningSystem']);
+    Route::post('/maintenance/delete-recent', [ManageController::class, 'deleteRecentData']);
+    Route::post('/maintenance/delete-old', [ManageController::class, 'deleteOldData']);
+    Route::post('/maintenance/cleanup', [ManageController::class, 'cleanupData']);
+    Route::post('/maintenance/optimize', [ManageController::class, 'optimizeDatabase']);
 });
 
 // Kelime listesi sayfası için yeni rota

@@ -8,6 +8,7 @@ use App\AI\Learn\LearningSystem;
 use App\AI\Core\CategoryManager;
 use App\AI\Core\WordRelations;
 use App\Models\AIData;
+use Illuminate\Support\Facades\DB;
 
 class ManageController extends Controller
 {
@@ -114,14 +115,97 @@ class ManageController extends Controller
     public function getLearningSystemStats()
     {
         try {
+            // CategoryManager ve WordRelations istatistiklerini al
+            $categoryStats = app(CategoryManager::class)->getStats();
+            $relationStats = app(WordRelations::class)->getStats();
+            
+            // Temel kelime ilişki sayıları
+            $synonymPairs = $relationStats['synonym_pairs'] ?? 0;
+            $antonymPairs = $relationStats['antonym_pairs'] ?? 0;
+            $associationPairs = $relationStats['association_pairs'] ?? 0;
+            $totalRelations = $synonymPairs + $antonymPairs + $associationPairs;
+            
+            // Kategorileri düzenle
+            $topCategories = [];
+            if (isset($categoryStats['top_categories'])) {
+                $totalCategoryWords = 0;
+                foreach ($categoryStats['top_categories'] as $category) {
+                    $totalCategoryWords += $category['usage_count'];
+                }
+                
+                foreach ($categoryStats['top_categories'] as $category) {
+                    $percent = $totalCategoryWords > 0 ? round(($category['usage_count'] / $totalCategoryWords) * 100, 1) : 0;
+                    $topCategories[] = [
+                        'category' => $category['name'],
+                        'count' => $category['usage_count'],
+                        'percent' => $percent
+                    ];
+                }
+            }
+            
+            // En çok ilişkili kelimeleri al
+            $topRelatedWords = [];
+            $words = AIData::orderBy('frequency', 'desc')->take(10)->get();
+            
+            foreach ($words as $word) {
+                // İlişki sayısını hesapla
+                $relations = json_decode($word->related_words ?? '[]', true);
+                $relationCount = count($relations);
+                $strongestRelation = '';
+                
+                if (!empty($relations)) {
+                    // En güçlü ilişkiyi bul
+                    $maxStrength = 0;
+                    foreach ($relations as $relation => $info) {
+                        if (isset($info['strength']) && $info['strength'] > $maxStrength) {
+                            $maxStrength = $info['strength'];
+                            $strongestRelation = $relation;
+                        }
+                    }
+                }
+                
+                $topRelatedWords[] = [
+                    'word' => $word->word,
+                    'relation_count' => $relationCount,
+                    'strongest_relation' => $strongestRelation
+                ];
+            }
+            
+            // Kelime türleri dağılımını hesapla
+            $wordTypes = [];
+            
+            // Kategori bazlı kelime sayıları
+            $categories = AIData::select('category', DB::raw('count(*) as count'))
+                ->groupBy('category')
+                ->orderBy('count', 'desc')
+                ->whereNotNull('category')
+                ->where('category', '!=', '')
+                ->limit(10)
+                ->get();
+            
+            $totalWords = AIData::count();
+            
+            foreach ($categories as $category) {
+                $percent = $totalWords > 0 ? round(($category->count / $totalWords) * 100, 1) : 0;
+                $wordTypes[] = [
+                    'type' => $category->category,
+                    'count' => $category->count,
+                    'percent' => $percent
+                ];
+            }
+            
+            // Veritabanı boyutu hesapla (MB cinsinden)
+            $dbSize = '≈' . round(AIData::count() * 0.005, 2) . ' MB';
+            
             // İstatistik verileri
             $stats = [
-                'word_count' => AIData::count(),
-                'categories' => app(CategoryManager::class)->getStats(),
-                'relations' => app(WordRelations::class)->getStats(),
-                'recent_words' => AIData::orderBy('created_at', 'desc')
-                    ->take(10)
-                    ->get(['word', 'category', 'created_at'])
+                'total_words' => $totalWords,
+                'total_categories' => $categoryStats['total_categories'] ?? 0,
+                'total_relations' => $totalRelations,
+                'db_size' => $dbSize,
+                'word_types' => $wordTypes,
+                'top_related_words' => $topRelatedWords,
+                'top_categories' => $topCategories,
             ];
             
             return response()->json([
@@ -588,6 +672,236 @@ class ManageController extends Controller
                 'words' => collect(),
                 'categories' => collect()
             ]);
+        }
+    }
+    
+    /**
+     * Son eklenen belirli sayıda veriyi sil
+     * 
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function deleteRecentData(Request $request)
+    {
+        try {
+            // Parametreleri doğrula
+            $request->validate([
+                'count' => 'required|integer|min:1|max:100',
+                'confirm' => 'required|string'
+            ]);
+            
+            // Güvenlik kontrolü
+            if ($request->input('confirm') !== 'yes') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'İşlemi onaylamanız gerekiyor.'
+                ]);
+            }
+            
+            $count = $request->input('count', 20);
+            
+            // Son eklenen verileri bul
+            $recentData = AIData::orderBy('created_at', 'desc')
+                ->limit($count)
+                ->get();
+                
+            // Verileri sil
+            foreach ($recentData as $data) {
+                $data->delete();
+            }
+            
+            return response()->json([
+                'success' => true,
+                'message' => "Son eklenen $count veri başarıyla silindi.",
+                'count' => $recentData->count()
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Son verileri silme hatası: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Son verileri silme hatası: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Belirli bir tarihten önce eklenmiş verileri sil
+     * 
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function deleteOldData(Request $request)
+    {
+        try {
+            // Parametreleri doğrula
+            $request->validate([
+                'days' => 'required|integer|min:1|max:365',
+                'confirm' => 'required|string'
+            ]);
+            
+            // Güvenlik kontrolü
+            if ($request->input('confirm') !== 'yes') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'İşlemi onaylamanız gerekiyor.'
+                ]);
+            }
+            
+            $days = $request->input('days', 30);
+            $date = now()->subDays($days);
+            
+            // Belirli tarihten önce eklenmiş verileri sil
+            $count = AIData::where('created_at', '<', $date)->count();
+            AIData::where('created_at', '<', $date)->delete();
+            
+            return response()->json([
+                'success' => true,
+                'message' => "$days günden eski $count veri başarıyla silindi.",
+                'count' => $count
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Eski verileri silme hatası: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Eski verileri silme hatası: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Düşük kaliteli verileri temizle (örn. tekrarlanan veriler, kısa tanımlar)
+     * 
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function cleanupData(Request $request)
+    {
+        try {
+            // Parametreleri doğrula
+            $request->validate([
+                'confirm' => 'required|string'
+            ]);
+            
+            // Güvenlik kontrolü
+            if ($request->input('confirm') !== 'yes') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'İşlemi onaylamanız gerekiyor.'
+                ]);
+            }
+            
+            // Düşük kaliteli verileri bul
+            $deleted = 0;
+            
+            // 1. Çok kısa tanımlı verileri sil
+            $shortDataCount = AIData::whereRaw('LENGTH(sentence) < 10')->count();
+            AIData::whereRaw('LENGTH(sentence) < 10')->delete();
+            $deleted += $shortDataCount;
+            
+            // 2. Tekrarlanan kelimeleri temizle (ilkini tut)
+            $uniqueWords = [];
+            $duplicates = [];
+            
+            $allWords = AIData::select('id', 'word')->get();
+            
+            foreach ($allWords as $data) {
+                $word = strtolower(trim($data->word));
+                
+                if (in_array($word, $uniqueWords)) {
+                    $duplicates[] = $data->id;
+                } else {
+                    $uniqueWords[] = $word;
+                }
+            }
+            
+            // Tekrar eden verileri sil
+            if (!empty($duplicates)) {
+                AIData::whereIn('id', $duplicates)->delete();
+                $deleted += count($duplicates);
+            }
+            
+            return response()->json([
+                'success' => true,
+                'message' => "Toplam $deleted düşük kaliteli veri temizlendi.",
+                'details' => [
+                    'short_data' => $shortDataCount,
+                    'duplicates' => count($duplicates)
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Veri temizleme hatası: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Veri temizleme hatası: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Veritabanını optimize et
+     * 
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function optimizeDatabase(Request $request)
+    {
+        try {
+            // Güvenlik kontrolü
+            if ($request->input('confirm') !== 'yes') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'İşlemi onaylamanız gerekiyor.'
+                ]);
+            }
+            
+            // 1. Kullanılmayan ilişkileri temizle
+            $orphanedRelations = DB::table('word_relations')
+                ->leftJoin('ai_data as w1', 'word_relations.word1', '=', 'w1.word')
+                ->leftJoin('ai_data as w2', 'word_relations.word2', '=', 'w2.word')
+                ->whereNull('w1.id')
+                ->orWhereNull('w2.id')
+                ->count();
+                
+            DB::table('word_relations')
+                ->leftJoin('ai_data as w1', 'word_relations.word1', '=', 'w1.word')
+                ->leftJoin('ai_data as w2', 'word_relations.word2', '=', 'w2.word')
+                ->whereNull('w1.id')
+                ->orWhereNull('w2.id')
+                ->delete();
+            
+            // 2. Boş kategorileri temizle
+            $emptyCategories = DB::table('word_categories')
+                ->leftJoin('word_category_items', 'word_categories.id', '=', 'word_category_items.category_id')
+                ->whereNull('word_category_items.id')
+                ->count();
+                
+            DB::table('word_categories')
+                ->leftJoin('word_category_items', 'word_categories.id', '=', 'word_category_items.category_id')
+                ->whereNull('word_category_items.id')
+                ->delete();
+            
+            // 3. Frekans ve geçerlilik değerlerini güncelle
+            AIData::whereNull('frequency')->update(['frequency' => 1]);
+            AIData::whereNull('confidence')->update(['confidence' => 0.7]);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Veritabanı başarıyla optimize edildi.',
+                'details' => [
+                    'orphaned_relations' => $orphanedRelations,
+                    'empty_categories' => $emptyCategories
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Veritabanı optimizasyon hatası: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Veritabanı optimizasyon hatası: ' . $e->getMessage()
+            ], 500);
         }
     }
 }

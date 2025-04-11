@@ -239,9 +239,62 @@
                                                 <i class="bi bi-exclamation-triangle-fill me-1"></i> <strong>Dikkat!</strong> Bu işlemler geri alınamaz!
                 </div>
                 
-                                            <button type="button" id="clearLearningBtn" class="btn btn-danger">
-                                                <i class="bi bi-trash me-1"></i> Öğrenme Sistemini Temizle
-                                            </button>
+                                            <div class="row">
+                                                <div class="col-md-6 mb-4">
+                                                    <div class="card">
+                                                        <div class="card-header bg-danger text-white">
+                                                            <i class="bi bi-trash me-1"></i> Veri Temizleme
+                                                        </div>
+                                                        <div class="card-body">
+                                                            <button type="button" id="clearLearningBtn" class="btn btn-danger mb-3 w-100">
+                                                                <i class="bi bi-trash me-1"></i> Tüm Öğrenme Verilerini Sil
+                                                            </button>
+                                                            
+                                                            <form id="deleteRecentForm" class="mb-3">
+                                                                <label for="recentCount" class="form-label">Son eklenen veri sayısı:</label>
+                                                                <div class="input-group">
+                                                                    <input type="number" class="form-control" id="recentCount" min="1" max="100" value="20">
+                                                                    <button type="submit" class="btn btn-warning">
+                                                                        <i class="bi bi-trash me-1"></i> Son Verileri Sil
+                                                                    </button>
+                                                                </div>
+                                                            </form>
+                                                            
+                                                            <form id="deleteOldForm">
+                                                                <label for="oldDays" class="form-label">Belirtilen günden eski verileri sil:</label>
+                                                                <div class="input-group">
+                                                                    <input type="number" class="form-control" id="oldDays" min="1" max="365" value="30">
+                                                                    <span class="input-group-text">gün</span>
+                                                                    <button type="submit" class="btn btn-warning">
+                                                                        <i class="bi bi-trash me-1"></i> Eski Verileri Sil
+                                                                    </button>
+                                                                </div>
+                                                            </form>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div class="col-md-6 mb-4">
+                                                    <div class="card">
+                                                        <div class="card-header bg-primary text-white">
+                                                            <i class="bi bi-tools me-1"></i> Optimizasyon
+                                                        </div>
+                                                        <div class="card-body">
+                                                            <button type="button" id="cleanupDataBtn" class="btn btn-primary mb-3 w-100">
+                                                                <i class="bi bi-broom me-1"></i> Düşük Kaliteli Verileri Temizle
+                                                            </button>
+                                                            
+                                                            <button type="button" id="optimizeDatabaseBtn" class="btn btn-success w-100">
+                                                                <i class="bi bi-lightning-charge me-1"></i> Veritabanını Optimize Et
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <div id="maintenanceResult" class="mt-3">
+                                                <!-- İşlem sonuçları buraya yüklenecek -->
+                                            </div>
                         </div>
                     </div>
                 </div>
@@ -924,6 +977,186 @@ $(document).ready(function() {
             }
         });
     });
+
+    // Bakım işlemleri - Son eklenen verileri sil
+    $('#deleteRecentForm').submit(function(e) {
+        e.preventDefault();
+        
+        const count = $('#recentCount').val();
+        
+        if (count < 1 || count > 100) {
+            alert('Silinecek veri sayısı 1 ile 100 arasında olmalıdır.');
+            return;
+        }
+        
+        if (!confirm(`Son ${count} veriyi silmek istediğinize emin misiniz? Bu işlem geri alınamaz!`)) {
+            return;
+        }
+        
+        $('#maintenanceResult').html('<div class="spinner-border text-primary" role="status"></div><p class="text-center">İşlem gerçekleştiriliyor...</p>');
+        
+        $.ajax({
+            url: '/manage/maintenance/delete-recent',
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            data: {
+                count: count,
+                confirm: 'yes'
+            },
+            success: function(response) {
+                if (response.success) {
+                    $('#maintenanceResult').html('<div class="alert alert-success">' + response.message + '</div>');
+                } else {
+                    $('#maintenanceResult').html('<div class="alert alert-danger">' + response.message + '</div>');
+                }
+            },
+            error: function(xhr) {
+                let errorMessage = 'Bir hata oluştu';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMessage = xhr.responseJSON.message;
+                }
+                $('#maintenanceResult').html('<div class="alert alert-danger">' + errorMessage + '</div>');
+            }
+        });
     });
+    
+    // Bakım işlemleri - Eski verileri sil
+    $('#deleteOldForm').submit(function(e) {
+        e.preventDefault();
+        
+        const days = $('#oldDays').val();
+        
+        if (days < 1 || days > 365) {
+            alert('Gün sayısı 1 ile 365 arasında olmalıdır.');
+            return;
+        }
+        
+        if (!confirm(`${days} günden eski verileri silmek istediğinize emin misiniz? Bu işlem geri alınamaz!`)) {
+            return;
+        }
+        
+        $('#maintenanceResult').html('<div class="spinner-border text-primary" role="status"></div><p class="text-center">İşlem gerçekleştiriliyor...</p>');
+        
+        $.ajax({
+            url: '/manage/maintenance/delete-old',
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            data: {
+                days: days,
+                confirm: 'yes'
+            },
+            success: function(response) {
+                if (response.success) {
+                    $('#maintenanceResult').html('<div class="alert alert-success">' + response.message + '</div>');
+                } else {
+                    $('#maintenanceResult').html('<div class="alert alert-danger">' + response.message + '</div>');
+                }
+            },
+            error: function(xhr) {
+                let errorMessage = 'Bir hata oluştu';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMessage = xhr.responseJSON.message;
+                }
+                $('#maintenanceResult').html('<div class="alert alert-danger">' + errorMessage + '</div>');
+            }
+        });
+    });
+    
+    // Bakım işlemleri - Düşük kaliteli verileri temizle
+    $('#cleanupDataBtn').click(function() {
+        if (!confirm('Düşük kaliteli verileri temizlemek istediğinize emin misiniz? Bu işlem geri alınamaz!')) {
+            return;
+        }
+        
+        $('#maintenanceResult').html('<div class="spinner-border text-primary" role="status"></div><p class="text-center">Düşük kaliteli veriler temizleniyor...</p>');
+        
+        $.ajax({
+            url: '/manage/maintenance/cleanup',
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            data: {
+                confirm: 'yes'
+            },
+            success: function(response) {
+                if (response.success) {
+                    let html = '<div class="alert alert-success">' + response.message + '</div>';
+                    
+                    if (response.details) {
+                        html += '<div class="table-responsive mt-3">';
+                        html += '<table class="table table-bordered">';
+                        html += '<thead><tr><th>Temizleme Türü</th><th>Silinen Kayıt Sayısı</th></tr></thead>';
+                        html += '<tbody>';
+                        html += '<tr><td>Kısa Tanımlı Veriler</td><td>' + response.details.short_data + '</td></tr>';
+                        html += '<tr><td>Tekrarlanan Kelimeler</td><td>' + response.details.duplicates + '</td></tr>';
+                        html += '</tbody></table></div>';
+                    }
+                    
+                    $('#maintenanceResult').html(html);
+                } else {
+                    $('#maintenanceResult').html('<div class="alert alert-danger">' + response.message + '</div>');
+                }
+            },
+            error: function(xhr) {
+                let errorMessage = 'Bir hata oluştu';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMessage = xhr.responseJSON.message;
+                }
+                $('#maintenanceResult').html('<div class="alert alert-danger">' + errorMessage + '</div>');
+            }
+        });
+    });
+    
+    // Bakım işlemleri - Veritabanı optimizasyonu
+    $('#optimizeDatabaseBtn').click(function() {
+        if (!confirm('Veritabanını optimize etmek istediğinize emin misiniz?')) {
+            return;
+        }
+        
+        $('#maintenanceResult').html('<div class="spinner-border text-primary" role="status"></div><p class="text-center">Veritabanı optimize ediliyor...</p>');
+        
+        $.ajax({
+            url: '/manage/maintenance/optimize',
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            data: {
+                confirm: 'yes'
+            },
+            success: function(response) {
+                if (response.success) {
+                    let html = '<div class="alert alert-success">' + response.message + '</div>';
+                    
+                    if (response.details) {
+                        html += '<div class="table-responsive mt-3">';
+                        html += '<table class="table table-bordered">';
+                        html += '<thead><tr><th>Optimizasyon İşlemi</th><th>Etkilenen Kayıt Sayısı</th></tr></thead>';
+                        html += '<tbody>';
+                        html += '<tr><td>Sahipsiz İlişki Kayıtları</td><td>' + response.details.orphaned_relations + '</td></tr>';
+                        html += '<tr><td>Boş Kategoriler</td><td>' + response.details.empty_categories + '</td></tr>';
+                        html += '</tbody></table></div>';
+                    }
+                    
+                    $('#maintenanceResult').html(html);
+                } else {
+                    $('#maintenanceResult').html('<div class="alert alert-danger">' + response.message + '</div>');
+                }
+            },
+            error: function(xhr) {
+                let errorMessage = 'Bir hata oluştu';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMessage = xhr.responseJSON.message;
+                }
+                $('#maintenanceResult').html('<div class="alert alert-danger">' + errorMessage + '</div>');
+            }
+        });
+    });
+});
 </script>
 @endsection 

@@ -2,6 +2,10 @@
 
 @section('content')
 <div class="container">
+
+
+
+
     <div class="row justify-content-center">
         <div class="col-md-12">
             <div class="card">
@@ -68,6 +72,7 @@
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <div>
                                 <span class="badge bg-primary">Toplam: {{ $words->total() }} kelime</span>
+                             
                                 @if(!empty($search))
                                     <span class="badge bg-info">Arama: "{{ $search }}"</span>
                                 @endif
@@ -99,6 +104,8 @@
                                     @forelse($words as $index => $word)
                                         <tr>
                                             <td>{{ $words->firstItem() + $index }}</td>
+
+                                           
                                             <td><strong>{{ $word->word }}</strong></td>
                                             <td>{{ $word->category }}</td>
                                             <td>

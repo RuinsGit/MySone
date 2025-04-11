@@ -12,7 +12,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Bu kısımda artık AI servislerini kaydetmiyoruz, 
+        // çünkü AIServiceProvider'a taşındı
     }
 
     /**

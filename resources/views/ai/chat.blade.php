@@ -95,62 +95,186 @@
         70% { box-shadow: 0 0 0 6px rgba(66, 133, 244, 0); }
         100% { box-shadow: 0 0 0 0 rgba(66, 133, 244, 0); }
     }
+    
+    /* Kodlama modu için stiller */
+    .chat-container {
+        transition: all 0.3s ease;
+    }
+    
+    .chat-layout {
+        display: flex;
+        flex-direction: row;
+        gap: 16px;
+        height: 600px;
+    }
+    
+    .chat-section {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        background: white;
+        border-radius: 0.5rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        padding: 1.5rem;
+        height: 100%;
+    }
+    
+    .code-section {
+        flex: 1;
+        display: none;
+        flex-direction: column;
+        border-radius: 0.5rem;
+        overflow: hidden;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        height: 100%;
+        background: #1e1e1e;
+        border: 1px solid #252525;
+    }
+    
+    .coding-mode .code-section {
+        display: flex;
+    }
+    
+    .code-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 16px;
+        background: #1e1e1e;
+        color: #e0e0e0;
+        border-bottom: 1px solid #3b3b3b;
+    }
+    
+    .code-header .language-selector {
+        background: #333;
+        border: none;
+        color: #fff;
+        padding: 4px 8px;
+        border-radius: 4px;
+    }
+    
+    .code-content {
+        flex: 1;
+        padding: 16px;
+        background: #1e1e1e;
+        color: #d4d4d4;
+        font-family: 'Consolas', 'Monaco', monospace;
+        overflow-y: auto;
+        font-size: 14px;
+        line-height: 1.5;
+    }
+    
+    .code-content pre {
+        margin: 0;
+        white-space: pre-wrap;
+        color: #dcddde;
+        font-family: Consolas, "Courier New", monospace;
+    }
+    
+    .code-footer {
+        display: flex;
+        justify-content: flex-end;
+        padding: 12px 16px;
+        background: #1e1e1e;
+        border-top: 1px solid #3b3b3b;
+    }
+    
+    .code-footer button {
+        background: #0e639c;
+        border: none;
+        color: white;
+        padding: 6px 12px;
+        border-radius: 4px;
+        margin-left: 8px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 500;
+    }
+    
+    .code-footer button:hover {
+        background: #1177bb;
+    }
 </style>
 @endsection
 
 @section('content')
 <div class="container mx-auto px-4 py-8">
-    <div class="max-w-4xl mx-auto">
+    <div class="max-w-6xl mx-auto">
         <!-- Header -->
         <div class="bg-white rounded-lg shadow-md p-6 mb-6">
             <h1 class="text-3xl font-bold text-gray-800">SoneAI</h1>
             <p class="text-gray-600">Yapay Zeka Asistanı</p>
         </div>
 
-        <!-- Chat Container -->
-        <div class="bg-white rounded-lg shadow-md p-6 mb-6 h-[600px] flex flex-col">
-            <!-- Messages Area -->
-            <div id="messages" class="flex-1 overflow-y-auto mb-4 space-y-4">
-                <!-- AI Message -->
-                <div class="flex items-start">
-                    <div class="flex-shrink-0">
-                        <div class="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center">
-                            <i class="fas fa-robot text-white"></i>
+        <!-- Chat and Code Layout -->
+        <div id="chat-container" class="chat-layout">
+            <!-- Chat Section -->
+            <div class="chat-section">
+                <!-- Messages Area -->
+                <div id="messages" class="flex-1 overflow-y-auto mb-4 space-y-4">
+                    <!-- AI Message -->
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0">
+                            <div class="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center">
+                                <i class="fas fa-robot text-white"></i>
+                            </div>
+                        </div>
+                        <div class="ml-3 bg-blue-100 rounded-lg p-3 max-w-[70%]">
+                            <p class="text-gray-800">Merhaba! Ben SoneAI. Size nasıl yardımcı olabilirim?</p>
                         </div>
                     </div>
-                    <div class="ml-3 bg-blue-100 rounded-lg p-3 max-w-[70%]">
-                        <p class="text-gray-800">Merhaba! Ben SoneAI. Size nasıl yardımcı olabilirim?</p>
+                    
+                    <!-- Sone düşünüyor animasyonu (kaldırılacak) -->
+                    <div id="sone-thinking" class="sone-thinking" style="display: none;">
+                        <span>Yaziyor</span>
+                        <div class="dots">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                        </div>
                     </div>
                 </div>
-                
-                <!-- Sone düşünüyor animasyonu (kaldırılacak) -->
-                <div id="sone-thinking" class="sone-thinking" style="display: none;">
-                    <span>Yaziyor</span>
-                    <div class="dots">
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                    </div>
+
+                <!-- Input Area -->
+                <div class="border-t pt-4">
+                    <form id="chat-form" class="flex space-x-4">
+                        <input type="text" 
+                               id="message-input" 
+                               class="flex-1 border rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500"
+                               placeholder="Mesajınızı yazın...">
+                        <button type="submit" 
+                                class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 focus:outline-none">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </form>
                 </div>
             </div>
 
-            <!-- Input Area -->
-            <div class="border-t pt-4">
-                <form id="chat-form" class="flex space-x-4">
-                    <input type="text" 
-                           id="message-input" 
-                           class="flex-1 border rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500"
-                           placeholder="Mesajınızı yazın...">
-                    <button type="submit" 
-                            class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 focus:outline-none">
-                        <i class="fas fa-paper-plane"></i>
-                    </button>
-                </form>
+            <!-- Code Section -->
+            <div id="code-section" class="code-section">
+                <div class="code-header">
+                    <span>Kod Editörü</span>
+                    <select class="language-selector" id="code-language" disabled>
+                        <option value="javascript">JavaScript</option>
+                        <option value="php">PHP</option>
+                        <option value="python">Python</option>
+                        <option value="html">HTML</option>
+                        <option value="css">CSS</option>
+                        <option value="sql">SQL</option>
+                    </select>
+                </div>
+                <div class="code-content">
+                    <pre id="code-content" contenteditable="false">// Buraya kod yanıtları alabilirsiniz</pre>
+                </div>
+                <div class="code-footer">
+                    <button id="clear-code">Temizle</button>
+                    <button id="copy-code">Kopyala</button>
+                </div>
             </div>
         </div>
 
         <!-- Status Bar -->
-        <div class="bg-white rounded-lg shadow-md p-4">
+        <div class="bg-white rounded-lg shadow-md p-4 mt-6">
             <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-2">
                     <div class="w-3 h-3 bg-green-500 rounded-full"></div>
@@ -161,6 +285,12 @@
                         <span class="mr-3 text-sm font-medium text-gray-700">Yaratıcı Mod</span>
                         <button type="button" id="creative-toggle" class="inline-flex items-center px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-medium rounded-md">
                             <span id="button-text">Kapalı</span>
+                        </button>
+                    </div>
+                    <div class="flex items-center">
+                        <span class="mr-3 text-sm font-medium text-gray-700">Kodlama Modu</span>
+                        <button type="button" id="coding-toggle" class="inline-flex items-center px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-medium rounded-md">
+                            <span id="coding-button-text">Kapalı</span>
                         </button>
                     </div>
                     <div class="text-gray-500 text-sm">
@@ -190,13 +320,30 @@
         const soneThinking = document.getElementById('sone-thinking');
         const creativeToggle = document.getElementById('creative-toggle');
         const buttonText = document.getElementById('button-text');
+        const codingToggle = document.getElementById('coding-toggle');
+        const codingButtonText = document.getElementById('coding-button-text');
+        const chatContainer = document.getElementById('chat-container');
+        const codeSection = document.getElementById('code-section');
+        const codeContent = document.getElementById('code-content');
+        const codeLanguage = document.getElementById('code-language');
+        const clearCodeBtn = document.getElementById('clear-code');
+        const copyCodeBtn = document.getElementById('copy-code');
         
-        // Sayfa yüklendiğinde Creative Mode durumunu kontrol et
+        // Sayfa yüklendiğinde Creative Mode ve Kodlama Modu durumlarını kontrol et
         let isCreativeMode = localStorage.getItem('creative_mode') === 'true';
+        let isCodingMode = localStorage.getItem('coding_mode') === 'true';
+        
         if (isCreativeMode) {
             buttonText.textContent = 'Açık';
             creativeToggle.classList.remove('bg-gray-200');
             creativeToggle.classList.add('bg-green-500', 'text-white');
+        }
+        
+        if (isCodingMode) {
+            codingButtonText.textContent = 'Açık';
+            codingToggle.classList.remove('bg-gray-200');
+            codingToggle.classList.add('bg-green-500', 'text-white');
+            toggleCodingMode(true);
         }
         
         // Mesaj göndermeden önce form kontrolü
@@ -206,7 +353,7 @@
             console.error('Chat form bulunamadı!');
         }
         
-        // Yaratıcı mod değişikliğini sakla
+        // Yaratıcı mod ve Kodlama Modu değişikliklerini sakla
         if (creativeToggle) {
             creativeToggle.addEventListener('click', function() {
                 isCreativeMode = !isCreativeMode;
@@ -224,6 +371,61 @@
             });
         } else {
             console.error('Creative toggle bulunamadı!');
+        }
+        
+        if (codingToggle) {
+            codingToggle.addEventListener('click', function() {
+                isCodingMode = !isCodingMode;
+                localStorage.setItem('coding_mode', isCodingMode);
+                
+                if (isCodingMode) {
+                    codingButtonText.textContent = 'Açık';
+                    this.classList.remove('bg-gray-200', 'hover:bg-gray-300');
+                    this.classList.add('bg-green-500', 'hover:bg-green-600', 'text-white');
+                } else {
+                    codingButtonText.textContent = 'Kapalı';
+                    this.classList.remove('bg-green-500', 'hover:bg-green-600', 'text-white');
+                    this.classList.add('bg-gray-200', 'hover:bg-gray-300', 'text-gray-800');
+                }
+                
+                // Kodlama modunu aç/kapat
+                toggleCodingMode(isCodingMode);
+            });
+        } else {
+            console.error('Coding toggle bulunamadı!');
+        }
+        
+        // Kodlama modunu aç/kapat
+        function toggleCodingMode(isActive) {
+            if (isActive) {
+                chatContainer.classList.add('coding-mode');
+            } else {
+                chatContainer.classList.remove('coding-mode');
+            }
+        }
+        
+        // Kod paneli işlemleri
+        if (clearCodeBtn) {
+            clearCodeBtn.addEventListener('click', function() {
+                codeContent.textContent = '';
+            });
+        }
+        
+        if (copyCodeBtn) {
+            copyCodeBtn.addEventListener('click', function() {
+                navigator.clipboard.writeText(codeContent.textContent)
+                    .then(() => {
+                        // Kopyalama başarılı olduğunda geçici bildirim göster
+                        const originalText = this.textContent;
+                        this.textContent = 'Kopyalandı!';
+                        setTimeout(() => {
+                            this.textContent = originalText;
+                        }, 2000);
+                    })
+                    .catch(err => {
+                        console.error('Kopyalama hatası:', err);
+                    });
+            });
         }
         
         async function handleSubmit(e) {
@@ -268,7 +470,9 @@
                     },
                     body: JSON.stringify({ 
                         message, 
-                        creative_mode: isCreativeMode 
+                        creative_mode: isCreativeMode,
+                        coding_mode: isCodingMode,
+                        preferred_language: codeLanguage.value
                     })
                 });
                 
@@ -295,14 +499,54 @@
                     // JSON yanıtını doğrudan kullan
                     const aiResponse = data.response || "Yanıt alınamadı.";
                     
-                    // Hata ayıklama - ne tür bir yanıt geldiğini kontrol et
-                    console.log("AI yanıt tipi:", typeof aiResponse);
-                    
                     // Temizlenmiş yanıtı al
                     let cleanedResponse = cleanResponseText(aiResponse);
                     
                     // AI yanıtını ekle - temizlenmiş metin olarak
                     addMessage(cleanedResponse, 'ai');
+                    
+                    // Kodlama modu açıksa ve kod yanıtı varsa
+                    if (isCodingMode && data.code) {
+                        // Kod dilini tespit et
+                        const detectedLanguage = detectLanguage(data.code);
+                        
+                        // Tespit edilen dile göre select değerini güncelle
+                        codeLanguage.value = detectedLanguage;
+                        
+                        // Syntax highlighting uygula
+                        const highlightedCode = highlightCode(data.code, detectedLanguage);
+                        
+                        // Kod paneline ekle
+                        codeContent.textContent = highlightedCode;
+                    } else if (isCodingMode) {
+                        // Eğer kod yanıtı yoksa ama kodlama modu açıksa, bir kod çıkarma işlemi yap
+                        try {
+                            // Yanıtta bir kod bloğu var mı kontrol et (markdown code block)
+                            const codeBlockMatch = cleanedResponse.match(/```([a-zA-Z]*)\n([\s\S]*?)```/);
+                            if (codeBlockMatch) {
+                                const language = codeBlockMatch[1].toLowerCase() || 'javascript';
+                                const code = codeBlockMatch[2];
+                                
+                                // Dil uygunsa select değerini güncelle
+                                const options = Array.from(codeLanguage.options);
+                                const option = options.find(opt => opt.value === language);
+                                if (option) {
+                                    codeLanguage.value = language;
+                                }
+                                
+                                // Kod paneline ekle
+                                codeContent.textContent = code;
+                                
+                                // Yanıttan kod bloğunu kaldır
+                                cleanedResponse = cleanedResponse.replace(/```[a-zA-Z]*\n[\s\S]*?```/, '**Kod panelde gösteriliyor**');
+                                
+                                // Güncellenmiş yanıtı ekle
+                                updateLastMessage(cleanedResponse);
+                            }
+                        } catch (e) {
+                            console.error('Kod çıkarma hatası:', e);
+                        }
+                    }
                 } else if (data.error) {
                     // Sunucudan dönen özel hata mesajı
                     addMessage(data.error, 'ai');
@@ -634,6 +878,63 @@
             
             console.log("Temizlenmiş yanıt:", text);
             return text;
+        }
+
+        // AI'dan gelen kod için syntax highlighting işlevi
+        function highlightCode(code, language) {
+            // Basit bir syntax highlighting - prodüksiyon için bir kütüphane kullanmak daha iyi olur
+            if (!code) return '';
+            
+            // Kod başlangıcında dil yorumunu kaldır
+            code = code.replace(/\/\/ Dil: [a-zA-Z]+\n/, '');
+            
+            // Burada Prism.js veya Highlight.js gibi bir kütüphane entegre edilebilir
+            return code;
+        }
+        
+        // AI'dan gelen kodun dil bilgisini tespit et
+        function detectLanguage(code) {
+            // Kodun başında bir dil belirtimi var mı kontrol et
+            const langMatch = code.match(/\/\/ Dil: ([a-zA-Z]+)/);
+            if (langMatch && langMatch[1]) {
+                const detectedLang = langMatch[1].toLowerCase();
+                
+                // Select opsiyonlarında bu dil var mı kontrol et
+                const options = Array.from(codeLanguage.options);
+                const option = options.find(opt => opt.value === detectedLang);
+                
+                if (option) {
+                    return detectedLang;
+                }
+            }
+            
+            // Tespit edilemezse varsayılan JavaScript
+            return 'javascript';
+        }
+
+        // Son mesajı güncelle
+        function updateLastMessage(newText) {
+            if (!messagesContainer) return;
+            
+            // Son mesajı bul
+            const messages = messagesContainer.querySelectorAll('.flex.items-start');
+            if (messages.length === 0) return;
+            
+            const lastMessage = messages[messages.length - 1];
+            
+            // AI mesajı olduğundan emin ol
+            if (lastMessage.innerHTML.includes('fa-robot')) {
+                // Mesaj içeriğini güncelle
+                const messageContent = lastMessage.querySelector('p');
+                if (messageContent) {
+                    // XSS koruması için metin işleme
+                    const div = document.createElement('div');
+                    div.textContent = newText;
+                    const safeText = div.innerHTML.replace(/\n/g, '<br>');
+                    
+                    messageContent.innerHTML = safeText;
+                }
+            }
         }
     });
 </script>

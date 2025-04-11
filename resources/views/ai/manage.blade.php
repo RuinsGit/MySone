@@ -35,6 +35,22 @@
                                 <i class="bi bi-list-ul me-1"></i> Kelime Listesi
                             </a>
                         </li>
+
+                        <li class="nav-item" role="presentation">
+                            <a class="nav-link" href="{{ route('ai.code-consciousness') }}">
+                                <i class="bi bi-book-half me-1"></i> Bilinç Sistemi
+                            </a>
+                        </li>
+
+                        <li class="nav-item" role="presentation">
+                            <a class="nav-link" href="{{ route('ai.code-learning') }}">
+                                <i class="bi bi-code-slash me-1"></i> Kod Öğrenme
+                            </a>
+                        </li>
+
+                        <li class="nav-item" role="presentation">
+                        
+                        
                     </ul>
                     
                     <div class="tab-content mt-3" id="myTabContent">

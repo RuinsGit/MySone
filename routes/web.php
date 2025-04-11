@@ -166,3 +166,57 @@ Route::prefix('consciousness')->group(function () {
     Route::post('/identity', [ConsciousnessController::class, 'updateSelfIdentity'])->name('consciousness.identity');
     Route::get('/metrics', [ConsciousnessController::class, 'getMetrics'])->name('consciousness.metrics');
 });
+
+// AI Kod Öğrenme Sayfası
+Route::get('/ai/code-learning', [App\Http\Controllers\AICodeLearningController::class, 'showLearningInterface'])->name('ai.code-learning');
+
+// AI Kod Bilinç Sistemi Sayfası
+Route::get('/ai/code-consciousness', function() {
+    return view('ai.consciousness.realtime-processing');
+})->name('ai.code-consciousness');
+
+// AI Kod Öğrenme API Rotaları
+Route::prefix('api/ai/code-learning')->group(function () {
+    Route::get('/status', [App\Http\Controllers\AICodeLearningController::class, 'getStatus']);
+    Route::post('/start', [App\Http\Controllers\AICodeLearningController::class, 'startLearning']);
+    Route::post('/stop', [App\Http\Controllers\AICodeLearningController::class, 'stopLearning']);
+    Route::post('/settings', [App\Http\Controllers\AICodeLearningController::class, 'updateSettings']);
+    Route::post('/add-code', [App\Http\Controllers\AICodeLearningController::class, 'addCode']);
+    Route::get('/code-example', [App\Http\Controllers\AICodeLearningController::class, 'getCodeExample']);
+    Route::get('/search-code', [App\Http\Controllers\AICodeLearningController::class, 'searchCode']);
+    Route::post('/reset-cache', [App\Http\Controllers\AICodeLearningController::class, 'resetCache']);
+    Route::post('/force-learning', [App\Http\Controllers\AICodeLearningController::class, 'forceLearning']);
+    Route::get('/consciousness-status', [App\Http\Controllers\AICodeLearningController::class, 'getConsciousnessStatus']);
+    Route::post('/consciousness-think', [App\Http\Controllers\AICodeLearningController::class, 'triggerConsciousnessThinking']);
+    Route::post('/consciousness-toggle', [App\Http\Controllers\AICodeLearningController::class, 'toggleConsciousness']);
+    
+    // Yeni eklenen özellikler için rotalar
+    Route::post('/recommendations', [App\Http\Controllers\AICodeLearningController::class, 'getCodeRecommendations']);
+    Route::get('/system-analysis', [App\Http\Controllers\AICodeLearningController::class, 'analyzeSystemPerformance']);
+    Route::get('/languages', [App\Http\Controllers\AICodeLearningController::class, 'getLanguageStats']);
+    Route::get('/categories', [App\Http\Controllers\AICodeLearningController::class, 'getCategoryStats']);
+});
+
+// AI Kod Bilinç Sistemi API Rotaları
+Route::prefix('api/ai/code-consciousness')->group(function () {
+    Route::get('/test', [App\Http\Controllers\AICodeConsciousnessController::class, 'test']);
+    Route::get('/status', [App\Http\Controllers\AICodeConsciousnessController::class, 'status']);
+    Route::post('/activate', [App\Http\Controllers\AICodeConsciousnessController::class, 'activate']);
+    Route::post('/deactivate', [App\Http\Controllers\AICodeConsciousnessController::class, 'deactivate']);
+    Route::post('/think', [App\Http\Controllers\AICodeConsciousnessController::class, 'think']);
+    Route::get('/notifications', [App\Http\Controllers\AICodeConsciousnessController::class, 'getNotifications']);
+    
+    // Gerçek zamanlı kod işleme rotaları
+    Route::post('/process-single', [App\Http\Controllers\AICodeConsciousnessController::class, 'processSingleCode']);
+    Route::post('/process-batch', [App\Http\Controllers\AICodeConsciousnessController::class, 'processBatchCodes']);
+    Route::get('/processing-status', [App\Http\Controllers\AICodeConsciousnessController::class, 'getProcessingStatus']);
+    Route::post('/reset-processed', [App\Http\Controllers\AICodeConsciousnessController::class, 'resetProcessedCodes']);
+    Route::get('/recent-processed', [App\Http\Controllers\AICodeConsciousnessController::class, 'getRecentProcessedCodes']);
+    
+    // Kod ilişki ve kategori analizi rotaları
+    Route::post('/analyze-relations', [App\Http\Controllers\AICodeConsciousnessController::class, 'analyzeRelations']);
+    Route::post('/categorize', [App\Http\Controllers\AICodeConsciousnessController::class, 'categorize']);
+    Route::post('/analyze-effectiveness', [App\Http\Controllers\AICodeConsciousnessController::class, 'analyzeEffectiveness']);
+    Route::get('/suggest-codes', [App\Http\Controllers\AICodeConsciousnessController::class, 'suggestCodes']);
+    Route::get('/suggest-flow', [App\Http\Controllers\AICodeConsciousnessController::class, 'suggestCodeFlow']);
+});

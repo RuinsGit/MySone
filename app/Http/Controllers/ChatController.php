@@ -1892,75 +1892,35 @@ class ChatController extends Controller
      */
     private function sendResponse($message, $chatId)
     {
+        $emotionalContext = $this->getEmotionalState();
+        
         try {
-            // Chat yanıtını kaydet
-            $chatMessage = new ChatMessage();
-            $chatMessage->chat_id = $chatId;
-            $chatMessage->content = $message;
-            $chatMessage->sender = 'ai';
-            $chatMessage->save();
+            $initialResponse = $message;
             
-            // Rastgele cümle ekleme (% 20 olasılıkla)
-            if (mt_rand(1, 100) <= 20) {
-                $sentenceTypes = ['normal', 'smart', 'emotional', 'dynamic'];
-                $selectedType = $sentenceTypes[array_rand($sentenceTypes)];
-                
-                $introductions = [
-                    "Bu arada, ", 
-                    "Düşündüm de, ", 
-                    "Aklıma geldi: ", 
-                    "Şunu fark ettim: ", 
-                    "İlginç bir şekilde, ", 
-                    "Bunu düşünmekten kendimi alamıyorum: ", 
-                    "Belki de şöyle düşünmek gerekir: ",
-                    "Eklemek isterim ki, "
-                ];
-                
-                $introduction = $introductions[array_rand($introductions)];
-                $randomSentence = "";
-                
-                switch ($selectedType) {
-                    case 'normal':
-                        $randomSentence = $this->generateRandomSentence();
-                        break;
-                    case 'smart':
-                        $randomSentence = $this->generateSmartSentence();
-                        break;
-                    case 'emotional':
-                        $randomSentence = $this->generateEmotionalSentence();
-                        break;
-                    case 'dynamic':
-                        $randomSentence = $this->generateDynamicSentence();
-                        break;
-                }
-                
-                // Cümleyi ekle (eğer üretildiyse)
-                if (!empty($randomSentence)) {
-                    $message .= "\n\n" . $introduction . $randomSentence;
-                    
-                    // Üretilen cümleyi öğren
-                    $this->learnWordRelations($randomSentence);
-                    
-                    // Eklenen cümleyi de veritabanına kaydet (alternatif davranış)
-                    $chatMessage->content = $message;
-                    $chatMessage->save();
-                }
-            }
+            // Kelime ilişkileriyle yanıtı zenginleştir
+            $enhancedResponse = $this->enhanceResponseWithWordRelations($initialResponse);
             
-            // Duygusal durumu al
-            $emotionalState = $this->getEmotionalState();
+            // Eğer değişiklik olduysa, onu kullan; olmadıysa normal yanıtı kullan
+            $finalResponse = $enhancedResponse ?: $initialResponse;
             
-            // Yanıtı JSON olarak döndür
+            // Yanıtı ve mesajları kaydet
+            $this->saveMessages($initialResponse, $finalResponse, $chatId);
+            
+            // Yanıtı döndür
             return response()->json([
-                'message' => $message, 
+                'message' => $finalResponse,
                 'chat_id' => $chatId,
-                'emotional_state' => $emotionalState
+                'emotional_context' => $emotionalContext
             ]);
-            
         } catch (\Exception $e) {
-            // Hata durumunda loglama yap ve hata yanıtı döndür
-            \Log::error('Yanıt gönderme hatası: ' . $e->getMessage());
-            return response()->json(['error' => 'Yanıt gönderilirken bir hata oluştu'], 500);
+            Log::error("Yanıt gönderme hatası: " . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            
+            // Hata durumunda basit yanıt
+            return response()->json([
+                'message' => "Üzgünüm, bir sorun oluştu: " . $e->getMessage(),
+                'chat_id' => $chatId,
+                'emotional_context' => ['emotion' => 'confused', 'intensity' => 0.7]
+            ], 500);
         }
     }
 
@@ -2302,104 +2262,81 @@ class ChatController extends Controller
     private function enhanceResponseWithWordRelations($response)
     {
         try {
-            // Kelime ilişkileri sınıfını yükle
+            // Kelime ilişkilerini yönetecek sınıfı yükle
             $wordRelations = app(\App\AI\Core\WordRelations::class);
             
-            // Yanıt zaten yeterince uzunsa veya %30 ihtimalle ek yapmıyoruz
-            if (strlen($response) > 150 || mt_rand(1, 100) <= 30) {
+            // İlişki kalıplarını bul
+            $patterns = [
+                '/\b(\w+)(?:\'(?:n[iı]n|[iıuü]n))? (?:eş ?anlamlısı|eş ?anlamlıları|aynı ?anlama ?gelen|benzer ?anlama ?gelen)\b/ui',
+                '/\b(\w+)(?:\'(?:n[iı]n|[iıuü]n))? (?:zıt ?anlamlısı|zıt ?anlamlıları|karşıt ?anlamlısı|karşıt ?anlamlı)\b/ui',
+                '/\b(\w+)(?:\'(?:n[iı]n|[iıuü]n))? (?:anlam(?:ın)?ı|ne ?demek|ne ?anlama ?gel[ir])\b/ui',
+                '/\b(\w+)(?:\'(?:n[iı]n|[iıuü]n))? (?:ilişkili|bağlantılı) (?:kelime(?:ler)?i|sözcük(?:ler)?i)\b/ui'
+            ];
+            
+            // Herhangi bir desen eşleşti mi kontrol et
+            $detectedRelation = null;
+            $detectedWord = null;
+            
+            foreach ($patterns as $index => $pattern) {
+                if (preg_match($pattern, $response, $matches)) {
+                    $detectedWord = $matches[1];
+                    $detectedRelation = $index;
+                    break;
+                }
+            }
+            
+            // Kelime ve ilişki tanımlanmadıysa normal yanıtı döndür
+            if (!$detectedWord || $detectedRelation === null) {
                 return $response;
             }
             
-            // Yanıttaki önemli kelimeleri bul
-            $words = preg_split('/\s+/', preg_replace('/[^\p{L}\p{N}\s]/u', ' ', $response));
-            $importantWords = [];
+            Log::info("Kelime ilişkisi tespit edildi: $detectedWord, tür: $detectedRelation");
             
-            foreach ($words as $word) {
-                if (strlen($word) >= 3 && !in_array(strtolower($word), ['için', 'gibi', 'daha', 'bile', 'kadar', 'nasıl', 'neden'])) {
-                    $importantWords[] = $word;
-                }
+            // İlişki tipine göre işlem yap
+            switch ($detectedRelation) {
+                case 0: // Eş anlamlı
+                    $synonyms = $wordRelations->getSynonyms($detectedWord);
+                    if (!empty($synonyms)) {
+                        $synonymList = array_keys($synonyms);
+                        $formattedSynonyms = '"' . implode('", "', array_slice($synonymList, 0, 5)) . '"';
+                        $replacementText = $detectedWord . " kelimesinin eş anlamlıları: " . $formattedSynonyms;
+                        $response = preg_replace($pattern, $replacementText, $response);
+                    }
+                    break;
+                    
+                case 1: // Zıt anlamlı
+                    $antonyms = $wordRelations->getAntonyms($detectedWord);
+                    if (!empty($antonyms)) {
+                        $antonymList = array_keys($antonyms);
+                        $formattedAntonyms = '"' . implode('", "', array_slice($antonymList, 0, 5)) . '"';
+                        $replacementText = $detectedWord . " kelimesinin zıt anlamlıları: " . $formattedAntonyms;
+                        $response = preg_replace($pattern, $replacementText, $response);
+                    }
+                    break;
+                    
+                case 2: // Tanım
+                    $definition = $wordRelations->getDefinition($detectedWord);
+                    if (!empty($definition)) {
+                        $replacementText = $detectedWord . " kelimesinin anlamı: " . $definition;
+                        $response = preg_replace($pattern, $replacementText, $response);
+                    }
+                    break;
+                    
+                case 3: // İlişkili kelimeler
+                    $related = $wordRelations->getRelatedWords($detectedWord, 0.4);
+                    if (!empty($related)) {
+                        $relatedList = array_keys($related);
+                        $formattedRelated = '"' . implode('", "', array_slice($relatedList, 0, 7)) . '"';
+                        $replacementText = $detectedWord . " kelimesi ile ilişkili kelimeler: " . $formattedRelated;
+                        $response = preg_replace($pattern, $replacementText, $response);
+                    }
+                    break;
             }
             
-            // Önemli kelime yoksa orijinal yanıtı döndür
-            if (empty($importantWords)) {
-                return $response;
-            }
-            
-            // Rasgele bir kelime seç
-            $selectedWord = $importantWords[array_rand($importantWords)];
-            
-            // 50% ihtimalle eş anlamlı, 25% ihtimalle zıt anlamlı, 25% ihtimalle akıllı cümle
-            $random = mt_rand(1, 100);
-            
-            if ($random <= 50) {
-                // Eş anlamlılarla ilgili bilgi ekle
-                $synonyms = $wordRelations->getSynonyms($selectedWord);
-                
-                if (!empty($synonyms)) {
-                    $synonym = array_rand($synonyms);
-                    $additions = [
-                        "Bu arada, '$selectedWord' kelimesinin eş anlamlısı '$synonym' kelimesidir.",
-                        "'$selectedWord' ve '$synonym' benzer anlamlara sahiptir.",
-                        "$selectedWord yerine $synonym da kullanılabilir."
-                    ];
-                    
-                    $selectedAddition = $additions[array_rand($additions)];
-                    
-                    // Doğruluk kontrolü
-                    $accuracy = $wordRelations->calculateSentenceAccuracy($selectedAddition, $selectedWord);
-                    
-                    if ($accuracy >= 0.6) {
-                        Log::info("Eş anlamlı bilgi eklendi: $selectedAddition (Doğruluk: $accuracy)");
-                        return $response . " " . $selectedAddition;
-                    } else {
-                        Log::info("Eş anlamlı bilgi doğruluk kontrolünden geçemedi: $selectedAddition (Doğruluk: $accuracy)");
-                    }
-                }
-            } elseif ($random <= 75) {
-                // Zıt anlamlılarla ilgili bilgi ekle
-                $antonyms = $wordRelations->getAntonyms($selectedWord);
-                
-                if (!empty($antonyms)) {
-                    $antonym = array_rand($antonyms);
-                    $additions = [
-                        "Bu arada, '$selectedWord' kelimesinin zıt anlamlısı '$antonym' kelimesidir.",
-                        "'$selectedWord' ve '$antonym' zıt anlamlara sahiptir.",
-                        "$selectedWord kelimesinin tam tersi $antonym olarak ifade edilir."
-                    ];
-                    
-                    $selectedAddition = $additions[array_rand($additions)];
-                    
-                    // Doğruluk kontrolü
-                    $accuracy = $wordRelations->calculateSentenceAccuracy($selectedAddition, $selectedWord);
-                    
-                    if ($accuracy >= 0.6) {
-                        Log::info("Zıt anlamlı bilgi eklendi: $selectedAddition (Doğruluk: $accuracy)");
-                        return $response . " " . $selectedAddition;
-                    } else {
-                        Log::info("Zıt anlamlı bilgi doğruluk kontrolünden geçemedi: $selectedAddition (Doğruluk: $accuracy)");
-                    }
-                }
-            } else {
-                // Akıllı cümle üret - doğruluk kontrolü bu metod içinde yapılıyor
-                try {
-                    // Minimum doğruluk değeri 0.6 ile cümle üret
-                    $sentences = $wordRelations->generateSmartSentences($selectedWord, true, 1, 0.6);
-                    
-                    if (!empty($sentences)) {
-                        Log::info("Akıllı cümle eklendi: " . $sentences[0]);
-                        return $response . " " . $sentences[0];
-                    }
-                } catch (\Exception $e) {
-                    Log::error("Akıllı cümle üretme hatası: " . $e->getMessage());
-                }
-            }
-            
-            // Hiçbir ekleme yapılamadıysa orijinal yanıtı döndür
             return $response;
-            
         } catch (\Exception $e) {
-            Log::error("Yanıt zenginleştirme hatası: " . $e->getMessage());
-            return $response; // Hata durumunda orijinal yanıtı döndür
+            Log::error('Kelime ilişkileri zenginleştirme hatası: ' . $e->getMessage());
+            return $response; // Hata olursa orijinal yanıtı döndür
         }
     }
 
@@ -2772,26 +2709,25 @@ class ChatController extends Controller
     private function saveMessages($userMessage, $aiResponse, $chatId)
     {
         try {
-            // Kullanıcı mesajını kaydet
-            ChatMessage::create([
-                'chat_id' => $chatId,
-                'content' => $userMessage,
-                'sender' => 'user',
-                'metadata' => null
-            ]);
+            // Kullanıcı mesajı kaydet
+            $userChatMessage = new ChatMessage();
+            $userChatMessage->chat_id = $chatId;
+            $userChatMessage->content = $userMessage;
+            $userChatMessage->sender = 'user';
+            $userChatMessage->save();
             
             // AI yanıtını kaydet
-            ChatMessage::create([
-                'chat_id' => $chatId,
-                'content' => $aiResponse,
-                'sender' => 'ai',
-                'metadata' => [
-                    'emotional_state' => $this->getEmotionalState()
-                ]
-            ]);
+            $aiChatMessage = new ChatMessage();
+            $aiChatMessage->chat_id = $chatId;
+            $aiChatMessage->content = $aiResponse;
+            $aiChatMessage->sender = 'ai';
+            $aiChatMessage->save();
             
+            Log::info("Mesajlar kaydedildi: $chatId");
+            return true;
         } catch (\Exception $e) {
-            \Log::error('Mesaj kaydetme hatası: ' . $e->getMessage());
+            Log::error("Mesaj kaydetme hatası: " . $e->getMessage());
+            return false;
         }
     }
 

@@ -542,17 +542,55 @@ class ManageController extends Controller
             // İlerleme bilgisini al
             $progress = $learningSystem->getProgress();
             
+            // WordRelations sınıfından istatistikleri al
+            $wordRelations = app(\App\AI\Core\WordRelations::class);
+            $stats = $wordRelations->getStats();
+            
+            // Eğer değerler boş geliyorsa varsayılan değerler ata
+            if (!isset($progress['total_words'])) {
+                $progress['total_words'] = \App\Models\AIData::count() ?? 0;
+            }
+            
+            if (!isset($progress['synonym_count'])) {
+                $progress['synonym_count'] = $stats['synonym_pairs'] ?? 0;
+            }
+            
+            if (!isset($progress['antonym_count'])) {
+                $progress['antonym_count'] = $stats['antonym_pairs'] ?? 0;
+            }
+            
+            // Son işlenen kelimeler
+            if (!isset($progress['recent_words'])) {
+                $progress['recent_words'] = $this->getLastProcessedWords(10);
+            }
+            
+            // Progress yapısını debug için logla
+            Log::info("Öğrenme ilerleme bilgisi:", ['progress' => $progress]);
+            
             return response()->json([
                 'success' => true,
                 'data' => $progress
             ]);
         } catch (\Exception $e) {
-            Log::error('Öğrenme ilerleme bilgisi alma hatası: ' . $e->getMessage());
+            Log::error('Öğrenme ilerleme bilgisi alma hatası: ' . $e->getMessage(), [
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ]);
+            
+            // Hata durumunda varsayılan değerlerle yanıt ver
+            $defaultProgress = [
+                'is_learning' => false,
+                'total_words' => \App\Models\AIData::count() ?? 0,
+                'synonym_count' => 0,
+                'antonym_count' => 0,
+                'recent_words' => []
+            ];
             
             return response()->json([
-                'success' => false,
-                'message' => 'Öğrenme ilerleme bilgisi alma hatası: ' . $e->getMessage()
-            ], 500);
+                'success' => true,
+                'data' => $defaultProgress,
+                'error_message' => $e->getMessage()
+            ]);
         }
     }
     

@@ -769,6 +769,31 @@ class WordRelations
             }
         }
         
+        // Kategori tabanlı ilişkileri ekle
+        try {
+            $categoryManager = app(\App\AI\Core\CategoryManager::class);
+            $categories = $categoryManager->getWordCategories($word);
+            
+            if (!empty($categories)) {
+                foreach ($categories as $category) {
+                    // Bu kategorideki diğer kelimeleri al
+                    $categoryWords = $categoryManager->getWordsByCategory($category['id'], 10, $threshold);
+                    
+                    foreach ($categoryWords as $catWord) {
+                        if ($catWord['word'] !== $word) {
+                            $relatedWords[$catWord['word']] = [
+                                'type' => 'category',
+                                'strength' => $catWord['strength'],
+                                'context' => $category['name']
+                            ];
+                        }
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error('Kategori ilişkileri getirme hatası: ' . $e->getMessage());
+        }
+        
         return $relatedWords;
     }
     
@@ -837,6 +862,30 @@ class WordRelations
             }
         }
         
+        // Kategori bilgisini al
+        $categoryManager = app(\App\AI\Core\CategoryManager::class);
+        $categories = $categoryManager->getWordCategories($concept);
+        $categoryNames = [];
+        $categoryWords = [];
+        
+        if (!empty($categories)) {
+            foreach ($categories as $category) {
+                $categoryName = $category['name'] ?? '';
+                if (!empty($categoryName)) {
+                    $categoryNames[] = $categoryName;
+                    
+                    // Bu kategorideki diğer kelimeleri al
+                    $catWords = $categoryManager->getWordsByCategory($category['id'], 5, 0.5);
+                    foreach ($catWords as $catWord) {
+                        if ($catWord['word'] !== $concept && !in_array($catWord['word'], $subConcepts)) {
+                            $categoryWords[] = $catWord['word'];
+                            $subConcepts[] = $catWord['word'];
+                        }
+                    }
+                }
+            }
+        }
+        
         // Veritabanından ilişkili kelimeler çek
         try {
             $dbRelations = WordRelation::where('word', $concept)
@@ -857,8 +906,28 @@ class WordRelations
         // Türkçe dil kurallarına uygun olarak cümle oluştur
         $sentence = [];
         
-        // Kavramın kendisi ile başla
-        $sentence[] = $concept;
+        // Cümleyi kategori bilgisi ile başlatma
+        $useCategory = !empty($categoryNames) && mt_rand(0, 2) > 0; // 2/3 olasılıkla kategori kullan
+        
+        if ($useCategory) {
+            $randomCategoryName = $categoryNames[array_rand($categoryNames)];
+            
+            // Cümleyi farklı şekillerde başlat
+            $startPatterns = [
+                [$randomCategoryName, 'alanında', $concept],
+                [$randomCategoryName, 'konusunda', $concept],
+                [$randomCategoryName, 'kategorisindeki', $concept],
+                [$concept, $randomCategoryName, 'alanında']
+            ];
+            
+            $selectedPattern = $startPatterns[array_rand($startPatterns)];
+            foreach ($selectedPattern as $word) {
+                $sentence[] = $word;
+            }
+        } else {
+            // Kavramın kendisi ile başla
+            $sentence[] = $concept;
+        }
         
         // Cümleyi oluşturmak için gereken bağlaçlar ve yapılar
         $connectors = ['ve', 'ile', 'için', 'gibi', 'olarak', 'sayesinde', 'nedeniyle', 'dolayısıyla'];
@@ -872,6 +941,15 @@ class WordRelations
             foreach ($words as $word) {
                 $word = trim($word, '.,;:?!');
                 if (strlen($word) > 3 && !in_array($word, $sentence)) {
+                    $subConcepts[] = $word;
+                }
+            }
+        }
+        
+        // Kategori kelimeleriyle zenginleştir 
+        if (!empty($categoryWords) && (empty($subConcepts) || count($subConcepts) < 3)) {
+            foreach ($categoryWords as $word) {
+                if (!in_array($word, $subConcepts)) {
                     $subConcepts[] = $word;
                 }
             }
@@ -934,6 +1012,30 @@ class WordRelations
                 if (!in_array($word, $sentence) && strlen($word) > 2) {
                     $sentence[] = $word;
                 }
+            }
+        }
+        
+        // Cümleyi daha anlamlı hale getirmek için son düzenlemeler
+        if (count($sentence) >= 3 && mt_rand(0, 1) == 1) {
+            // Rastgele kategori veya tanım tabanlı cümle yapıları
+            $categoryOrDefinition = !empty($categoryNames) ? $categoryNames[array_rand($categoryNames)] : '';
+            $defSummary = !empty($definition) ? mb_substr($definition, 0, 50) . (strlen($definition) > 50 ? '...' : '') : '';
+            
+            $specialTemplates = [];
+            
+            if (!empty($categoryOrDefinition)) {
+                $specialTemplates[] = "$concept, $categoryOrDefinition alanında önemli bir kavramdır.";
+                $specialTemplates[] = "$categoryOrDefinition konusunda $concept önemli bir yere sahiptir.";
+            }
+            
+            if (!empty($defSummary)) {
+                $specialTemplates[] = "$concept, $defSummary olarak tanımlanır.";
+                $specialTemplates[] = "$defSummary ifadesi $concept kavramını açıklar.";
+            }
+            
+            if (!empty($specialTemplates)) {
+                // Üretilen özel cümleleri kullan
+                return $specialTemplates[array_rand($specialTemplates)];
             }
         }
         
@@ -1241,14 +1343,24 @@ class WordRelations
                 $accuracy += 0.2; // Ana kelime cümlede geçiyorsa bonus
             }
             
-            // Cümle içindeki diğer kelimeleri kontrol et
+            // Cümle içindeki kelimeleri kontrol et
             $words = preg_split('/\s+/', preg_replace('/[^\p{L}\p{N}\s]/u', ' ', $sentence));
             $mainWordData = null;
             $validRelations = 0;
             $totalRelations = 0;
+            $categoryRelationBonus = 0;
             
             // Ana kelime verilerini al
             $mainWordData = \App\Models\AIData::where('word', $mainWord)->first();
+            
+            // Kategori bilgisini al
+            $categoryManager = app(\App\AI\Core\CategoryManager::class);
+            $categories = $categoryManager->getWordCategories($mainWord);
+            $categoryNames = [];
+            
+            foreach ($categories as $category) {
+                $categoryNames[] = strtolower($category['name'] ?? '');
+            }
             
             if ($mainWordData) {
                 // Ana kelimenin sıklık ve güven puanlarını kullan
@@ -1259,7 +1371,7 @@ class WordRelations
                 $relatedWords = json_decode($mainWordData->related_words, true) ?: [];
                 
                 foreach ($words as $word) {
-                    if (strlen($word) >= 3 && $word != $mainWord) {
+                    if (strlen($word) >= 3 && strtolower($word) != strtolower($mainWord)) {
                         $totalRelations++;
                         
                         // İlişkili kelimeler listesinde mi?
@@ -1277,12 +1389,38 @@ class WordRelations
                         $synonyms = $this->getSynonyms($mainWord);
                         if (array_key_exists(strtolower($word), $synonyms)) {
                             $validRelations++;
+                            $accuracy += 0.1; // Eş anlamlı kullanımı için ekstra bonus
                         }
                         
                         // Zıt anlamlılar listesinde mi?
                         $antonyms = $this->getAntonyms($mainWord);
                         if (array_key_exists(strtolower($word), $antonyms)) {
                             $validRelations++;
+                            $accuracy += 0.1; // Zıt anlamlı kullanımı için ekstra bonus
+                        }
+                        
+                        // Kategori ilişkisi var mı?
+                        if (!empty($categoryNames)) {
+                            // Kelime bir kategori adı mı?
+                            if (in_array(strtolower($word), $categoryNames)) {
+                                $validRelations++;
+                                $categoryRelationBonus += 0.1; // Kategori adı kullanımı için bonus
+                            }
+                            
+                            // Kelime aynı kategorideki başka bir kelime mi?
+                            foreach ($categories as $category) {
+                                $catId = $category['id'] ?? 0;
+                                if ($catId > 0) {
+                                    $catWords = $categoryManager->getWordsByCategory($catId, 20);
+                                    foreach ($catWords as $catWord) {
+                                        if (strtolower($catWord['word']) == strtolower($word)) {
+                                            $validRelations++;
+                                            $categoryRelationBonus += 0.05; // Aynı kategorideki kelime kullanımı için bonus
+                                            break 2; // İç ve dış döngüden çık
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -1294,12 +1432,17 @@ class WordRelations
                 $accuracy += $relationRatio * 0.2; // İlişki oranına göre bonus (max 0.2)
             }
             
+            // Kategori bonusunu ekle (maksimum 0.2)
+            $accuracy += min(0.2, $categoryRelationBonus);
+            
             // Cümle uzunluğuna göre bonus/ceza
             $wordCount = count($words);
             if ($wordCount < 3) {
                 $accuracy -= 0.1; // Çok kısa cümleler için ceza
             } else if ($wordCount > 15) {
                 $accuracy -= 0.1; // Çok uzun cümleler için ceza
+            } else if ($wordCount >= 5 && $wordCount <= 12) {
+                $accuracy += 0.05; // İdeal uzunluk için bonus
             }
             
             // Cümle yapısal kontroller
@@ -1309,6 +1452,13 @@ class WordRelations
             
             if (mb_strtoupper(mb_substr($sentence, 0, 1)) === mb_substr($sentence, 0, 1)) {
                 $accuracy += 0.05; // İlk harf büyükse bonus
+            }
+            
+            // Cümle akıcılığını kontrol et
+            if (strpos($sentence, ' ve ') !== false || 
+                strpos($sentence, ' ile ') !== false || 
+                strpos($sentence, ' için ') !== false) {
+                $accuracy += 0.05; // Bağlaç kullanımı için bonus
             }
             
             return min(1.0, max(0.0, $accuracy)); // 0-1 arasında sınırla
@@ -1350,6 +1500,11 @@ class WordRelations
         $attempts = 0;
         $maxAttempts = $count * 5; // Her başarılı cümle için en fazla 5 deneme
         
+        // Kategori bilgisini al
+        $categoryManager = app(\App\AI\Core\CategoryManager::class);
+        $categories = $categoryManager->getWordCategories($mainWord);
+        $wordHasCategories = !empty($categories);
+        
         // Mutlaka bir şekilde cümle oluşturmaya çalış
         if (empty($sentences) && $attempts < $maxAttempts) {
             // Eş anlamlı ile bir cümle dene
@@ -1381,11 +1536,25 @@ class WordRelations
             }
         }
         
+        // Kategori tabanlı bir cümle dene (yeni eklenen)
+        if ($wordHasCategories && count($sentences) < $count && $attempts < $maxAttempts) {
+            $sentence = $this->createSentenceWithCategories($mainWord, $categories);
+            if (!empty($sentence) && !in_array($sentence, $sentences)) {
+                $accuracy = $this->calculateSentenceAccuracy($sentence, $mainWord);
+                if ($accuracy >= $minAccuracy) {
+                    $sentences[] = $sentence;
+                    if ($saveToDatabase) {
+                        $this->saveSentence($mainWord, $sentence, 'generated_category', $accuracy);
+                    }
+                }
+            }
+        }
+        
         while (count($sentences) < $count && $attempts < $maxAttempts) {
             $attempts++;
             
-            // Rastgele bir cümle stratejisi seç
-            $strategy = mt_rand(1, 5);
+            // Rastgele bir cümle stratejisi seç - kategori de ekle
+            $strategy = mt_rand(1, 6);
             $sentence = '';
             
             switch ($strategy) {
@@ -1399,7 +1568,15 @@ class WordRelations
                     $sentence = $this->createSentenceWithAntonyms($mainWord);
                     break;
                 case 4:
+                    // Kategori bilgisi kullanarak cümle oluştur
+                    if ($wordHasCategories) {
+                        $sentence = $this->createSentenceWithCategories($mainWord, $categories);
+                    } else {
+                        $sentence = $this->createSentenceWithRelatedWords($mainWord);
+                    }
+                    break;
                 case 5:
+                case 6:
                     // İlişkili kelimelerle cümle oluştur (daha sık olsun)
                     $sentence = $this->createSentenceWithRelatedWords($mainWord);
                     break;
@@ -1430,6 +1607,16 @@ class WordRelations
                 "$mainWord hakkında bilgi toplamaya devam ediyorum.",
                 "$mainWord kelimesi Türkçe'de yaygın olarak kullanılır."
             ];
+            
+            // Kategori bilgisi varsa, kategori tabanlı fallback cümle oluştur
+            if ($wordHasCategories) {
+                $mainCategory = $categories[0]['name'] ?? '';
+                if (!empty($mainCategory)) {
+                    $fallbackSentences[] = "$mainWord, $mainCategory kategorisinde bir kelimedir.";
+                    $fallbackSentences[] = "$mainCategory ile ilgili konularda $mainWord kelimesi sık kullanılır.";
+                }
+            }
+            
             $sentences[] = $fallbackSentences[array_rand($fallbackSentences)];
             
             if ($saveToDatabase) {
@@ -1619,6 +1806,85 @@ class WordRelations
         } catch (\Exception $e) {
             \Log::error('Cümle kaydetme hatası: ' . $e->getMessage());
             return false;
+        }
+    }
+    
+    /**
+     * Kategori bilgilerini kullanarak cümle oluştur
+     * 
+     * @param string $mainWord Ana kelime
+     * @param array $categories Kelime kategorileri
+     * @return string Oluşturulan cümle
+     */
+    private function createSentenceWithCategories($mainWord, $categories)
+    {
+        if (empty($categories)) {
+            return '';
+        }
+        
+        // Rastgele bir kategori seç
+        $category = $categories[array_rand($categories)];
+        $categoryName = $category['name'] ?? '';
+        
+        if (empty($categoryName)) {
+            return '';
+        }
+        
+        // Aynı kategorideki diğer kelimeleri bul
+        try {
+            $categoryManager = app(\App\AI\Core\CategoryManager::class);
+            $categoryWords = $categoryManager->getWordsByCategory($category['id'], 5, 0.5);
+            
+            // Kategori boşsa veya çok az kelime varsa
+            if (count($categoryWords) < 2) {
+                // Basit kategori cümlesi oluştur
+                $templates = [
+                    "$mainWord, $categoryName kategorisinde yer alan bir kelimedir.",
+                    "$categoryName konusunda $mainWord önemli bir terimdir.",
+                    "$mainWord kelimesi $categoryName alanında sık kullanılır.",
+                    "Bir $categoryName terimi olan $mainWord, önemli bir kavramdır."
+                ];
+                
+                return $templates[array_rand($templates)];
+            }
+            
+            // Aynı kategorideki diğer kelimelerden rastgele 1 veya 2 tanesini seç
+            shuffle($categoryWords);
+            $selectedWords = [];
+            foreach ($categoryWords as $catWord) {
+                if ($catWord['word'] !== $mainWord && count($selectedWords) < 2) {
+                    $selectedWords[] = $catWord['word'];
+                }
+            }
+            
+            // Kategori ve ilişkili kelimelerle cümle oluştur
+            if (count($selectedWords) === 1) {
+                $relatedWord = $selectedWords[0];
+                $templates = [
+                    "$mainWord ve $relatedWord, $categoryName kategorisindeki önemli kelimelerdir.",
+                    "$categoryName ile ilgili $mainWord, $relatedWord ile yakından ilişkilidir.",
+                    "$mainWord, $categoryName alanında $relatedWord gibi önemli bir terimdir.",
+                    "$categoryName konusunda $mainWord ve $relatedWord sık kullanılan terimlerdir."
+                ];
+            } else if (count($selectedWords) >= 2) {
+                $relatedWord1 = $selectedWords[0];
+                $relatedWord2 = $selectedWords[1];
+                $templates = [
+                    "$mainWord, $relatedWord1 ve $relatedWord2, $categoryName kategorisindeki önemli terimlerdir.",
+                    "$categoryName alanında $mainWord, $relatedWord1 ve $relatedWord2 birbiriyle ilişkilidir.",
+                    "$mainWord, $categoryName kapsamında $relatedWord1 ve $relatedWord2 ile birlikte değerlendirilir.",
+                    "$categoryName konusunda $mainWord, $relatedWord1 ve $relatedWord2 gibi terimleri bilmek önemlidir."
+                ];
+            } else {
+                // Yeterli ilişkili kelime yoksa
+                return $this->createSentenceWithRelatedWords($mainWord);
+            }
+            
+            return $templates[array_rand($templates)];
+            
+        } catch (\Exception $e) {
+            Log::error('Kategori tabanlı cümle oluşturma hatası: ' . $e->getMessage());
+            return '';
         }
     }
 }

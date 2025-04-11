@@ -592,7 +592,183 @@ class Brain
             'emotional_context' => $emotionalContext
         ], 'short_term');
         
+        // Yanıtın tutarlılığını ve anlamlılığını kontrol et
+        $response = $this->ensureResponseCoherence($response, $input);
+        
         return $response;
+    }
+    
+    /**
+     * Üretilen yanıtın tutarlı ve anlamlı olmasını sağlayan fonksiyon
+     * 
+     * @param string $response Oluşturulan yanıt
+     * @param mixed $input Kullanıcı girdisi
+     * @return string İyileştirilmiş yanıt
+     */
+    private function ensureResponseCoherence($response, $input)
+    {
+        try {
+            // Yanıt boşsa anlamlı bir yanıt döndür
+            if (empty($response)) {
+                $defaultResponses = [
+                    "Bu konuda bilgi toplamaya devam ediyorum. Daha net bir soru sorabilir misiniz?",
+                    "Üzgünüm, bu konuda henüz yeterli bilgim yok. Bana daha fazla bilgi verebilir misiniz?",
+                    "Bu soruyu anlamakta zorlandım. Farklı bir şekilde sorabilir misiniz?",
+                    "Bu konu hakkında daha fazla bilgi edinmem gerekiyor."
+                ];
+                return $defaultResponses[array_rand($defaultResponses)];
+            }
+            
+            // Yanıtı cümlelere ayır
+            $sentences = preg_split('/(?<=[.!?])\s+/', $response, -1, PREG_SPLIT_NO_EMPTY);
+            
+            // Cümleleri incelemeye başla
+            $improvedSentences = [];
+            $meaninglessSentenceCount = 0;
+            
+            foreach ($sentences as $index => $sentence) {
+                // Çok kısa cümleleri veya anlamsız cümleleri tespit et
+                $wordCount = str_word_count($sentence);
+                
+                if ($wordCount < 3 || $this->isMeaninglessSentence($sentence)) {
+                    $meaninglessSentenceCount++;
+                    
+                    // Bu anlamsız cümleyi ekleme, ancak her zaman en az bir cümle olması gerekir
+                    if (count($sentences) > 1) {
+                        continue;
+                    }
+                }
+                
+                $improvedSentences[] = $sentence;
+            }
+            
+            // Eğer yanıtın büyük bir kısmı anlamsızsa yeni bir yanıt oluştur
+            if (count($sentences) > 2 && $meaninglessSentenceCount > count($sentences) / 2) {
+                $inputText = (is_array($input) && isset($input['processed_input'])) ? $input['processed_input'] : $input;
+                
+                // WordRelations sınıfını kullanarak daha anlamlı yanıt oluştur
+                $wordRelations = $this->wordRelations;
+                
+                // Anahtar kelimeler tespit et
+                $keywords = $this->extractKeywords($inputText);
+                
+                if (!empty($keywords)) {
+                    // Ana anahtar kelimeyi seç
+                    $mainKeyword = $keywords[0];
+                    
+                    // Anahtar kelime hakkında akıllı bir cümle oluştur
+                    $smartSentences = $wordRelations->generateSmartSentences($mainKeyword, false, 1, 0.6);
+                    
+                    if (!empty($smartSentences)) {
+                        // Uygun bir giriş cümlesi ile başla
+                        $prefixes = [
+                            "Anladığım kadarıyla, ",
+                            "Şunu söyleyebilirim ki, ",
+                            "Bildiğim kadarıyla, ",
+                            "Bu konu hakkında bilgim şöyle: ",
+                            "Şöyle diyebilirim: "
+                        ];
+                        
+                        $prefix = $prefixes[array_rand($prefixes)];
+                        return $prefix . $smartSentences[0];
+                    }
+                }
+            }
+            
+            // Cümleleri birleştir ve döndür
+            return implode(" ", $improvedSentences);
+        } catch (\Exception $e) {
+            \Log::error('Yanıt tutarlılık kontrolü hatası: ' . $e->getMessage());
+            return $response; // Hata durumunda orijinal yanıtı döndür
+        }
+    }
+    
+    /**
+     * Bir cümlenin anlamsız olup olmadığını kontrol et
+     * 
+     * @param string $sentence Kontrol edilecek cümle
+     * @return bool Cümle anlamsız mı
+     */
+    private function isMeaninglessSentence($sentence)
+    {
+        // Çok kısa cümleler genellikle anlamsızdır
+        if (mb_strlen($sentence) < 10) {
+            return true;
+        }
+        
+        // Anlamsız kalıplar
+        $meaninglessPatterns = [
+            '/^(evet|hayır|tamam|bilmiyorum|anlamadım|ne)\.?$/i',
+            '/^(ı+|e+|a+|o+|u+)\.?$/i',
+            '/^[a-zçğıöşü]{1,2}\s[a-zçğıöşü]{1,2}\.?$/i',
+            '/^\s*$/i',
+            '/^[\p{P}]+$/u',  // Sadece noktalama işaretleri
+            '/(.)\1{3,}/u'    // Tekrarlanan karakterler (örn: aaaaa)
+        ];
+        
+        foreach ($meaninglessPatterns as $pattern) {
+            if (preg_match($pattern, $sentence)) {
+                return true;
+            }
+        }
+        
+        // Kelime çeşitliliği çok düşük olan cümleler (aynı kelimenin tekrarı gibi)
+        $words = explode(' ', strtolower($sentence));
+        $uniqueWords = array_unique($words);
+        
+        if (count($words) > 3 && count($uniqueWords) === 1) {
+            return true;
+        }
+        
+        // Sadece noktalama işaretleri ve stop kelimelerden oluşan cümleler
+        $stopWords = ['ve', 'veya', 'ile', 'için', 'gibi', 'kadar', 'göre', 'ama', 'fakat', 'ancak'];
+        $contentWords = array_diff($words, $stopWords);
+        
+        if (empty($contentWords)) {
+            return true;
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Metinden anahtar kelimeleri çıkar
+     * 
+     * @param string $text İşlenecek metin
+     * @return array Anahtar kelimeler
+     */
+    private function extractKeywords($text)
+    {
+        try {
+            // Metni temizle
+            $text = mb_strtolower(trim($text));
+            $text = preg_replace('/[^\p{L}\p{N}\s]/u', ' ', $text);
+            
+            // Kelimelere ayır
+            $words = preg_split('/\s+/', $text);
+            
+            // Stop kelimeleri ve kısa kelimeleri filtrele
+            $stopWords = ['ve', 'veya', 'ile', 'için', 'gibi', 'kadar', 'göre', 'ama', 'fakat', 'ancak', 'de', 'da', 'ki', 'bir', 'bu', 'şu', 'o', 'ne', 'nasıl', 'neden', 'kim', 'hangi', 'nedir', 'midir', 'misin', 'musun'];
+            
+            $keywords = [];
+            foreach ($words as $word) {
+                // En az 3 karakter uzunluğunda olmalı ve stop kelime olmamalı
+                if (mb_strlen($word) >= 3 && !in_array($word, $stopWords)) {
+                    $keywords[] = $word;
+                }
+            }
+            
+            // Büyükten küçüğe kelimeleri sırala (daha uzun kelimeler genellikle daha önemlidir)
+            usort($keywords, function($a, $b) {
+                return mb_strlen($b) - mb_strlen($a);
+            });
+            
+            // En fazla 5 anahtar kelime döndür
+            return array_slice($keywords, 0, 5);
+        } catch (\Exception $e) {
+            \Log::error('Anahtar kelime çıkarma hatası: ' . $e->getMessage());
+            return [];
+        }
     }
     
     private function selectResponseByEmotion($responses, $emotionalContext)
@@ -633,395 +809,75 @@ class Brain
     
     private function createNewResponse($input, $emotionalContext, $memories)
     {
-        try {
-            // "kendimi anlat" ve "kendini anlat" için özel durum kontrolü
-            if (stripos($input, 'kendimi anlat') !== false || stripos($input, 'kendini anlat') !== false) {
-                $responses = [
-                    "Ben SoneAI, Türkçe dilinde hizmet veren bir yapay zeka asistanıyım. Sorularınızı yanıtlamak, bilgi vermek ve size yardımcı olmak için tasarlandım.",
-                    "SoneAI olarak, bilgi toplamak, öğrenmek ve kullanıcılara yardımcı olmak için tasarlanmış bir yapay zeka sistemiyim.",
-                    "Ben SoneAI, sürekli kendini geliştiren ve Türkçe anlayabilen bir yapay zeka asistanıyım. Size nasıl yardımcı olabilirim?"
-                ];
-                return $responses[array_rand($responses)];
-            }
-            
-            // Özel sorgulamalar için yanıt kontrolü
-            $specialResponse = $this->handleSpecialQueries($input, $emotionalContext);
-            if (!empty($specialResponse)) {
-                return $specialResponse;
-            }
-            
-            // Popüler kalıp kontrolleri
-            // Temel konuşma kalıpları
-            $greetings = ['selam', 'merhaba', 'günaydın', 'iyi günler', 'iyi akşamlar', 'hey'];
-            $questions = ['nasılsın', 'naber', 'ne haber', 'iyimisin', 'nasıl gidiyor', 'nasil gidiyor'];
-            $personalQuestions = ['ismin ne', 'kimsin', 'adın ne', 'nesin sen', 'kendini anlat', 'kendimi anlat', 'bana kendini anlat', 'bana kendimi anlat'];
-            $knowledgeQuestions = ['bilgin var mı', 'biliyor musun', 'ne biliyorsun', 'hakkında bilgi'];
-            
-            // Girdi içinde selamlama var mı kontrol et
-            $isGreeting = $this->containsAny($input, $greetings);
-            
-            // Nasılsın tarzı sorular var mı kontrol et
-            $isHowAreYou = $this->containsAny($input, $questions);
-            
-            // Kişisel sorular var mı kontrol et
-            $isPersonalQuestion = $this->containsAny($input, $personalQuestions);
-            
-            // Bilgi soruları var mı kontrol et 
-            $isKnowledgeQuestion = $this->containsAny($input, $knowledgeQuestions);
-            
-            // Tek kelime cevaplar için özel işleme
-            $singleWordResponses = [
-                'nasılsın' => true,
-                'iyimisin' => true,
-                'selam' => true,
-                'merhaba' => true,
-                'iyiyim' => true
-            ];
-            
-            // Tek kelimelik yanıt kontrolü
-            if (isset($singleWordResponses[$input]) || in_array($input, $greetings) || in_array($input, $questions)) {
-                if (in_array($input, $questions) || $input == 'nasılsın' || $input == 'iyimisin') {
-                    return $this->handleHowAreYouResponse($emotionalContext);
-                } elseif (in_array($input, $greetings) || $input == 'selam' || $input == 'merhaba') {
-                    return $this->handleGreetingResponse($emotionalContext);
-                } elseif ($input == 'iyiyim') {
-                    $responses = [
-                        "Sevindim! Size nasıl yardımcı olabilirim?",
-                        "Harika! Bugün size nasıl yardımcı olabilirim?",
-                        "Bunu duymak güzel. Size yardımcı olabileceğim bir konu var mı?"
-                    ];
-                    return $responses[array_rand($responses)];
-                }
-            }
-            
-            // Kişisel soru yanıtı
-            if ($isPersonalQuestion) {
-                return "Ben SoneAI, yapay zeka asistanınızım. Size nasıl yardımcı olabilirim?";
-            }
-            
-            // Selamlama yanıtı
-            if ($isGreeting && !$isHowAreYou) {
-                return $this->handleGreetingResponse($emotionalContext);
-            }
-            
-            // Nasılsın tarzı soru yanıtı
-            if ($isHowAreYou) {
-                return $this->handleHowAreYouResponse($emotionalContext);
-            }
-            
-            // Bilgi sorusu veya genel girdi
+        // İlgili bir soru-cevap çifti bulmayı dene
+        $qaPair = $this->findSimilarQaPair($input);
+        
+        if (!empty($qaPair)) {
+            return $qaPair;
+        }
+        
+        // Özel sorgular için işleme (selamlaşma, nasılsın, vb)
+        $specialResponse = $this->handleSpecialQueries($input, $emotionalContext);
+        if (!empty($specialResponse)) {
+            return $specialResponse;
+        }
+        
+        // Konu başlığını tespit et
+        $mainTopic = $this->extractMainTopic($input);
+        
+        // Ana konuyla ilgili bilgimiz var mı?
+        if ($mainTopic) {
+            // WordRelations sınıfını kullanarak daha anlamlı cümleler oluştur
+            $sentences = [];
             try {
-                $wordRelations = app(\App\AI\Core\WordRelations::class);
-                
-                // Önce daha önce öğrenilmiş soru-cevap çiftlerini kontrol et
-                $matchingQaPair = $this->findSimilarQaPair($input);
-                if ($matchingQaPair) {
-                    $this->memory->store([
-                        'type' => 'qa_match',
-                        'original_question' => $matchingQaPair['question'],
-                        'new_question' => $input,
-                        'answer' => $matchingQaPair['answer'],
-                        'timestamp' => now()
-                    ], 'short_term');
-                    
-                    return $matchingQaPair['answer'];
+                // Ana konu hakkında bir cümle oluştur
+                $conceptualSentence = $this->wordRelations->generateConceptualSentence($mainTopic);
+                if (!empty($conceptualSentence)) {
+                    $sentences[] = $conceptualSentence;
                 }
                 
-                // Girdiyi kelimelere ayır
-                $words = explode(' ', $input);
-                $queryWords = [];
-                $knownWords = 0;
-                $totalWords = 0;
-                
-                // Önemli kelimeleri bul (3 harften uzun)
-                foreach ($words as $word) {
-                    if (strlen($word) > 3 && !in_array($word, ['için', 'gibi', 'daha', 'bile', 'kadar', 'nasıl', 'neden'])) {
-                        $queryWords[] = $word;
-                        $totalWords++;
-                        
-                        // WordRelations'da kontrol et - güvenli bir şekilde
-                        try {
-                            $relations = $wordRelations->getRelatedWords($word, 0.1);
-                            if (!empty($relations)) {
-                                $knownWords++;
-                            }
-                        } catch (\Exception $e) {
-                            \Log::error('Kelime ilişkileri alınırken hata: ' . $e->getMessage());
-                            // Hata durumunda devam et
-                        }
-                    }
+                // İlişkili kelimeleri kullanarak bir cümle daha oluştur
+                $relationalSentence = $this->wordRelations->generateSentenceWithRelations($mainTopic);
+                if (!empty($relationalSentence) && $relationalSentence !== $conceptualSentence) {
+                    $sentences[] = $relationalSentence;
                 }
                 
-                // Kelime ilişkileri ve cümleler bulundu mu?
-                $foundRelations = false;
-                $collectedInfo = [];
-                
-                // Önemli her kelime için ilişkileri al
-                foreach ($queryWords as $word) {
-                    // Kelime ilişkilerini al - güvenli bir şekilde
-                    $wordInfo = $this->safeGetWordRelations($word);
+                // Birkaç cümle oluşturabildik mi?
+                if (!empty($sentences)) {
+                    // 2-3 cümle yeterli
+                    $sentences = array_slice($sentences, 0, rand(1, 2));
                     
-                    if ($wordInfo['has_data']) {
-                        $foundRelations = true;
-                        
-                        // Kelime hakkında bilgileri topla
-                        if (!empty($wordInfo['definition'])) {
-                            $collectedInfo[] = $wordInfo['definition'];
-                        }
-                        
-                        // Eş anlamlıları topla
-                        if (!empty($wordInfo['synonyms'])) {
-                            $collectedInfo[] = $word . " kelimesinin eş anlamlıları: " . implode(', ', array_keys($wordInfo['synonyms']));
-                        }
-                        
-                        // İlgili diğer kelimeler
-                        if (!empty($wordInfo['related_words']) && count($wordInfo['related_words']) > 0) {
-                            $relatedWordsList = [];
-                            foreach ($wordInfo['related_words'] as $relWord) {
-                                if (isset($relWord['word'])) {
-                                    $relatedWordsList[] = $relWord['word'];
-                                    if (count($relatedWordsList) >= 3) break; // En fazla 3 ilişkili kelime
-                                }
-                            }
-                            
-                            if (!empty($relatedWordsList)) {
-                                $collectedInfo[] = $word . " ile ilişkili kelimeler: " . implode(', ', $relatedWordsList);
-                            }
-                        }
-                        
-                        // Kavramsal cümle üret
-                        try {
-                            $conceptSentence = $wordRelations->generateConceptualSentence($word);
-                            if (!empty($conceptSentence) && $conceptSentence != "Bu kavram hakkında henüz yeterli bilgim yok.") {
-                                $collectedInfo[] = $conceptSentence;
-                            }
-                        } catch (\Exception $e) {
-                            \Log::error('Kavramsal cümle üretme hatası: ' . $e->getMessage());
-                        }
-                    }
-                }
-                
-                // Bilgi sorusu ise ve topladığımız bilgiler varsa
-                if ($isKnowledgeQuestion && $foundRelations && !empty($collectedInfo)) {
-                    // Rastgele 1-2 bilgi seç
-                    shuffle($collectedInfo);
-                    $selectedInfo = array_slice($collectedInfo, 0, min(2, count($collectedInfo)));
+                    // Cümleleri rastgele sırala
+                    shuffle($sentences);
                     
-                    return "Evet, bu konu hakkında bilgim var. " . implode(" ", $selectedInfo);
-                }
-                // Genel yanıt - bilgi bulunan kelimeler varsa
-                else if ($foundRelations && !empty($collectedInfo)) {
-                    // En fazla 1 bilgi seç
-                    shuffle($collectedInfo);
-                    $info = $collectedInfo[0];
+                    // Uygun bir başlangıç ifadesi ekle
+                    $introductions = [
+                        "Şunu söyleyebilirim ki: ",
+                        "Bildiğim kadarıyla, ",
+                        "Bu konu hakkında şunları söyleyebilirim: ",
+                        "Anladığım kadarıyla, ",
+                        "Şöyle diyebilirim: "
+                    ];
                     
-                    // Duygusal duruma göre yanıt oluştur
-                    if ($emotionalContext['emotion'] == 'happy') {
-                        $response = "Size bu konuda yardımcı olabilirim! " . $info;
-                    } else if ($emotionalContext['emotion'] == 'sad') {
-                        $response = "Bu konuda size bilgi verebilirim. " . $info;
-                    } else {
-                        $response = "Size bu konuda şu bilgiyi verebilirim: " . $info;
-                    }
-                    
-                    return $response;
-                }
-                // Tanımadığımız bir girdi için ya da veritabanında yoksa
-                else {
-                    try {
-                        // Bilinmeyen kelimeleri bulalım
-                        $unknownWords = [];
-                        foreach ($queryWords as $word) {
-                            $wordInfo = $this->safeGetWordRelations($word);
-                            if (!$wordInfo['has_data'] && strlen($word) > 3) {
-                                $unknownWords[] = $word;
-                            }
-                        }
-                        
-                        if (count($unknownWords) > 0) {
-                            // En önemli bilinmeyen kelimeyi seçelim (ilk veya en uzun kelime)
-                            $mainUnknownWord = $unknownWords[0];
-                            foreach ($unknownWords as $word) {
-                                if (strlen($word) > strlen($mainUnknownWord)) {
-                                    $mainUnknownWord = $word;
-                                }
-                            }
-                            
-                            // Öğrenme sorusu oluştur
-                            $learningResponses = [
-                                "\"$mainUnknownWord\" hakkında bilgim yok. Bana bu konuda bilgi verir misiniz?",
-                                "\"$mainUnknownWord\" kelimesini bilmiyorum. Bana bu kelimeyi açıklayabilir misiniz?",
-                                "\"$mainUnknownWord\" konusunda veritabanımda bir bilgi bulamadım. Bana öğretir misiniz?",
-                                "\"$mainUnknownWord\" konusunda bilgim sınırlı. Lütfen bu kelime hakkında bana bilgi verin.",
-                                "Bu konuşmamızda geçen \"$mainUnknownWord\" kelimesini öğrenmem gerekiyor. Bana anlatır mısınız?",
-                                "\"$mainUnknownWord\" kelimesi ne anlama geliyor? Bilgim yok, bana öğretebilir misiniz?"
-                            ];
-                            
-                            $response = $learningResponses[array_rand($learningResponses)];
-                            
-                            // Soruyu hafızaya kaydediyoruz ki kullanıcının vereceği cevabı bilgi olarak saklayabilelim
-                            $this->memory->store([
-                                'type' => 'learning_question',
-                                'question' => $mainUnknownWord,
-                                'response' => $response,
-                                'unknown_words' => $unknownWords,
-                                'original_input' => $input,
-                                'timestamp' => now()
-                            ], 'short_term');
-                            
-                            return $response;
-                        } else {
-                            // Soru formatında bir girdi ise, soru kelimelerini analiz et
-                            $questionMarkers = ['nedir', 'kimdir', 'nerededir', 'nasıldır', 'ne zaman', 'hangi', 'kaç', 'ne kadar'];
-                            $isQuestion = false;
-                            
-                            foreach ($questionMarkers as $marker) {
-                                if (strpos($input, $marker) !== false || substr($input, -1) == '?') {
-                                    $isQuestion = true;
-                                    break;
-                                }
-                            }
-                            
-                            // Eğer bu bir soru ise, daha özel bir öğrenme sorusu sor
-                            if ($isQuestion) {
-                                // Soruyu parçalara ayır ve ana konuyu bul
-                                $mainTopic = $this->extractMainTopic($input);
-                                
-                                if (!empty($mainTopic)) {
-                                    $learningResponses = [
-                                        "\"$mainTopic\" hakkında bilgim yok. Bana bu konuda bilgi verir misiniz?",
-                                        "\"$mainTopic\" hakkında soru soruyorsunuz ancak bu konuda bilgim yok. Bana anlatabilir misiniz?",
-                                        "\"$mainTopic\" konusunda bir şey bilmiyorum. Bilgi paylaşırsanız öğrenebilirim.",
-                                        "Maalesef \"$mainTopic\" hakkında bilgim yok. Bana bu konuyu öğretir misiniz?"
-                                    ];
-                                } else {
-                                    $learningResponses = [
-                                        "Bu sorunun cevabını bilmiyorum. Bana bu konuda bilgi verebilir misiniz?",
-                                        "Bu konuda bilgim yok. Bana öğretebilir misiniz?",
-                                        "Bu soruyu cevaplayamıyorum çünkü veritabanımda bu konuda bilgi yok. Bana öğretir misiniz?",
-                                        "Bu sorunun cevabını bilmiyorum ama sizden öğrenmek isterim. Anlatır mısınız?"
-                                    ];
-                                }
-                                
-                                $response = $learningResponses[array_rand($learningResponses)];
-                                
-                                // Soruyu hafızaya kaydet
-                                $this->memory->store([
-                                    'type' => 'learning_question',
-                                    'question' => !empty($mainTopic) ? $mainTopic : $input,
-                                    'response' => $response,
-                                    'original_input' => $input,
-                                    'is_question' => true,
-                                    'timestamp' => now()
-                                ], 'short_term');
-                                
-                                return $response;
-                            } else {
-                                // Genel bir bilgi eksikliği
-                                $learningResponses = [
-                                    "Bu konu hakkında bilgim yok. Bana öğretir misiniz?",
-                                    "Bu konuyla ilgili daha fazla bilgiye ihtiyacım var. Bana anlatır mısınız?",
-                                    "Bu konuda veritabanımda bir bilgi bulamadım. Bana daha fazla bilgi verebilir misiniz?",
-                                    "Üzgünüm, bu konuda bilgim yok. Bana anlatarak öğrenmeme yardımcı olur musunuz?",
-                                    "Bu konu yeni gibi görünüyor. Bana daha fazla bilgi verebilir misiniz?",
-                                    "Henüz bu konuda veri tabanımda bilgi yok. Öğrenmek için sizin anlatmanıza ihtiyacım var."
-                                ];
-                                
-                                $response = $learningResponses[array_rand($learningResponses)];
-                                
-                                // Soruyu hafızaya kaydediyoruz
-                                $this->memory->store([
-                                    'type' => 'learning_question',
-                                    'question' => $input,
-                                    'response' => $response,
-                                    'timestamp' => now()
-                                ], 'short_term');
-                                
-                                return $response;
-                            }
-                        }
-                    } catch (\Exception $e) {
-                        \Log::error('Öğrenme sorusu oluşturma hatası: ' . $e->getMessage());
-                        
-                        $errorResponses = [
-                            "Üzgünüm, bu konu hakkında bilgim yok. Bana öğretir misiniz?",
-                            "Bu konuda bilgi eksikliğim var. Bana daha fazla bilgi verebilir misiniz?",
-                            "Bu konuyu anlayamadım. Lütfen daha detaylı açıklar mısınız?"
-                        ];
-                        
-                        $response = $errorResponses[array_rand($errorResponses)];
-                        
-                        $this->memory->store([
-                            'type' => 'learning_question',
-                            'question' => $input,
-                            'response' => $response,
-                            'timestamp' => now()
-                        ], 'short_term');
-                        
-                        return $response;
-                    }
+                    return $introductions[array_rand($introductions)] . implode(" ", $sentences);
                 }
             } catch (\Exception $e) {
-                \Log::error('Kelime işleme hatası: ' . $e->getMessage());
-                
-                // Kritik hatada bile cevap verebilmek için son şans yanıtları
-                $fallbackResponses = [
-                    "Üzgünüm, cevap oluşturulurken bir sorun yaşandı. Lütfen sorunuzu farklı bir şekilde sorabilir misiniz?",
-                    "Şu anda bu soruyu yanıtlamada zorluk yaşıyorum. Başka bir konuda yardımcı olabilir miyim?",
-                    "Bu konuyu anlamakta zorlandım. Lütfen başka kelimelerle ifade edebilir misiniz?"
-                ];
-                
-                return $fallbackResponses[array_rand($fallbackResponses)];
+                \Log::error('Konu bazlı cümle oluşturma hatası: ' . $e->getMessage());
+                // Hata oluşursa sonraki adımlarla devam et
             }
-            
-            // Diğer durumlar için normal yanıt oluştur
-            // Duygusal duruma göre yanıtı şekillendir
-            if ($emotionalContext['emotion'] == 'happy') {
-                $responses = [
-                    "Anlıyorum, bu konuda size yardımcı olabilirim.",
-                    "Bu konu ilgimi çekti. Size nasıl yardımcı olabilirim?",
-                    "Bu konuyu konuşmaktan memnuniyet duyarım."
-                ];
-            } elseif ($emotionalContext['emotion'] == 'sad') {
-                $responses = [
-                    "Üzüldüğünüzü hissediyorum. Size nasıl yardımcı olabilirim?",
-                    "Bu durumda size destek olabilir miyim?",
-                    "Sizi daha iyi hissettirmek için ne yapabilirim?"
-                ];
-            } else {
-                $responses = [
-                    "Anlıyorum. Size nasıl yardımcı olabilirim?",
-                    "Bu konuda daha fazla bilgi verebilir misiniz?",
-                    "Size bu konuda nasıl yardımcı olabilirim?"
-                ];
-            }
-            
-            $response = $responses[array_rand($responses)];
-            
-            // Hafızadaki bilgileri kullan
-            if (!empty($memories)) {
-                $response .= " Daha önce benzer bir konuda konuştuğumuzu hatırlıyorum.";
-            }
-            
-            // 5. Kategorilerden cümle üretimi
-            if ($this->categoryManager && isset($metadata['detected_category'])) {
-                $categoryId = $metadata['detected_category']['id'];
-                $categorySentence = $this->categoryManager->generateSentenceByCategory($categoryId);
-                
-                if (!empty($categorySentence)) {
-                    $possibleResponses[] = [
-                        'text' => $categorySentence,
-                        'score' => 0.75 * $metadata['detected_category']['score'],
-                        'type' => 'category'
-                    ];
-                }
-            }
-            
-            return $response;
-        } catch (\Exception $e) {
-            \Log::error('createNewResponse ana hata: ' . $e->getMessage() . ' - ' . $e->getTraceAsString());
-            return "Merhaba! Size nasıl yardımcı olabilirim?";
         }
+        
+        // Eğer buraya kadar geldiyse, yanıt oluşturamadık demektir
+        // Yedek yanıtlar kullan
+        $fallbackResponses = [
+            "Bu konu hakkında daha fazla bilgi edinmek istiyorum. Bana biraz daha anlatır mısınız?",
+            "Henüz bu konuda yeterli bilgiye sahip değilim, ancak sizden öğrenmek isterim.",
+            "Bu konuyu daha iyi anlamamı sağlayacak şekilde detaylandırabilir misiniz?",
+            "Bu konu hakkında bilgimi geliştirmek isterim. Bana bu konuda ne öğretebilirsiniz?",
+            "Bu konuda bilgi birikimimi artırmam gerekiyor. Bana yardımcı olmak ister misiniz?"
+        ];
+        
+        return $fallbackResponses[array_rand($fallbackResponses)];
     }
     
     /**

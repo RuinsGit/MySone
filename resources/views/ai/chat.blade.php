@@ -602,6 +602,38 @@
                             
                             // Kod renklendirme uygula
                             applyCodeSyntaxHighlighting();
+                            
+                            // Görsel daktilo efekti için kaplama ekle
+                            const codeContainer = codeContent.parentElement;
+                            
+                            // Daktilo efekti kaplaması ekle
+                            const typingOverlay = document.createElement('div');
+                            typingOverlay.style.position = 'absolute';
+                            typingOverlay.style.top = '0';
+                            typingOverlay.style.left = '0';
+                            typingOverlay.style.width = '100%';
+                            typingOverlay.style.height = '100%';
+                            typingOverlay.style.background = '#282c34';
+                            typingOverlay.style.zIndex = '10';
+                            codeContainer.style.position = 'relative';
+                            
+                            codeContainer.appendChild(typingOverlay);
+                            
+                            // Daktilo efekti animasyonu
+                            const typingSpeed = 10; // Yazma hızı (ms)
+                            let position = 0;
+                            
+                            const typingAnimation = setInterval(() => {
+                                const width = 100 - (position / plainCode.length * 100);
+                                if (width > 0) {
+                                    typingOverlay.style.width = width + '%';
+                                    position += 5; // Her seferinde 5 karakter ilerle
+                                } else {
+                                    // Animasyon tamamlandığında kaplamanın kaldırılması
+                                    codeContainer.removeChild(typingOverlay);
+                                    clearInterval(typingAnimation);
+                                }
+                            }, typingSpeed);
                         }
                         // Kod dilini güncelle
                         if (codeLanguage && data.language) {
@@ -825,7 +857,7 @@
                         </div>
                     </div>
                     <div class="${sender === 'user' ? 'mr-3' : 'ml-3'} ${bgColor} rounded-lg p-3 max-w-[70%]">
-                        <p class="text-gray-800">${safeText}</p>
+                        <p class="text-gray-800">${sender === 'user' ? safeText : ''}</p>
                     </div>
                 </div>
             `;
@@ -836,6 +868,52 @@
             setTimeout(() => {
                 messagesContainer.scrollTop = messagesContainer.scrollHeight;
             }, 10);
+
+            // AI için daktilo efekti ekle
+            if (sender === 'ai') {
+                const messageContent = messageDiv.querySelector('p');
+                let i = 0;
+                const typingSpeed = 30; // Yazma hızı (ms)
+                
+                // HTML etiketlerini işleme
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = safeText;
+                const textToType = tempDiv.textContent || tempDiv.innerText;
+                
+                // <br> etiketlerinin pozisyonlarını kaydet
+                const brPositions = [];
+                let tempText = safeText;
+                let lastIndex = -1;
+                while ((lastIndex = tempText.indexOf('<br>', lastIndex + 1)) !== -1) {
+                    brPositions.push(lastIndex);
+                }
+                
+                let finalText = '';
+                const typeNextChar = () => {
+                    if (i < textToType.length) {
+                        finalText += textToType.charAt(i);
+                        
+                        // <br> etiketleri için kontrol
+                        let htmlText = finalText;
+                        for (let pos of brPositions) {
+                            if (finalText.length >= pos) {
+                                const insertPos = Math.min(pos, htmlText.length);
+                                htmlText = htmlText.substring(0, insertPos) + '<br>' + htmlText.substring(insertPos);
+                            }
+                        }
+                        
+                        messageContent.innerHTML = htmlText;
+                        i++;
+                        setTimeout(typeNextChar, typingSpeed);
+                        
+                        // Otomatik scroll yap
+                        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                    }
+                };
+                
+                // Daktilo efektini başlat
+                typeNextChar();
+            }
         }
 
         // "Sone düşünüyor" animasyonu için özel fonksiyon

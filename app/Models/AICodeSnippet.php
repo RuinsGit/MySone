@@ -34,6 +34,33 @@ class AICodeSnippet extends Model
     ];
 
     /**
+     * Model oluşturulmadan önce yapılacak işlemler
+     */
+    protected static function boot()
+    {
+        parent::boot();
+        
+        // Kaydetmeden önce eksik değerleri doldur
+        static::creating(function ($model) {
+            if (empty($model->category)) {
+                $model->category = 'snippet';
+            }
+            
+            if (empty($model->usage_count)) {
+                $model->usage_count = 0;
+            }
+            
+            if (empty($model->confidence_score)) {
+                $model->confidence_score = 0.5;
+            }
+            
+            if (empty($model->tags)) {
+                $model->tags = [];
+            }
+        });
+    }
+
+    /**
      * Belirli bir dile ait kod parçalarını getir
      */
     public function scopeByLanguage($query, $language)

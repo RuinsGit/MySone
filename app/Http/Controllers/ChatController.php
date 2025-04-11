@@ -49,17 +49,46 @@ class ChatController extends Controller
             
             $chatId = $request->input('chat_id');
             $creativeMode = $request->input('creative_mode', false);
+            $codingMode = $request->input('coding_mode', false);
             
             // Mesaj işleme
             try {
-                $response = $this->processMessage($message);
+                $processedResponse = $this->processMessage($message);
+                
+                // Eğer dönen değer bir array ise (kod yanıtı) onu doğrudan kullan
+                if (is_array($processedResponse)) {
+                    // Orijinal tam kod yanıtı
+                    $fullCodeResponse = $processedResponse['response'];
+                    
+                    // Kullanıcı arayüzü için daha kısa ve öz bir mesaj oluştur
+                    $language = $processedResponse['language'] ?? 'kod';
+                    $language = ucfirst($language);
+                    
+                    // Dile göre özelleştirilmiş kısa mesaj
+                    $shortResponse = "Sizin isteğinize uygun bir $language kodu hazırladım. Kod editöründe görebilirsiniz.";
+                    
+                    // Yanıt verilerini ayarla
+                    $response = $shortResponse;
+                    $isCodeResponse = $processedResponse['is_code_response'] ?? false;
+                    $code = $processedResponse['code'] ?? null;
+                    $language = $processedResponse['language'] ?? null;
+                } else {
+                    // Normal metin yanıtı
+                    $response = $processedResponse;
+                    $isCodeResponse = false;
+                    $code = null;
+                    $language = null;
+                }
             } catch (\Exception $e) {
                 \Log::error('Mesaj işleme hatası: ' . $e->getMessage());
                 $response = "Üzgünüm, yanıtınızı işlerken bir sorun oluştu. Lütfen başka bir şekilde sorunuzu sorar mısınız?";
+                $isCodeResponse = false;
+                $code = null;
+                $language = null;
             }
             
             // Creative mod aktifse, akıllı cümle oluşturma olasılığını artır
-            if ($creativeMode) {
+            if ($creativeMode && !$isCodeResponse) {
                 try {
                     // %80 olasılıkla akıllı cümle ekle
                     if (mt_rand(1, 100) <= 80) {
@@ -135,13 +164,16 @@ class ChatController extends Controller
                 }
             }
             
-            // Yanıtı döndür
+            // Yanıtı döndür - Kod yanıtı ise ilgili bilgileri ekle
             return response()->json([
                 'success' => true,
                 'response' => $response,
                 'chat_id' => $chatId,
                 'emotional_state' => $emotionalState,
-                'creative_mode' => $creativeMode
+                'creative_mode' => $creativeMode,
+                'is_code_response' => $isCodeResponse,
+                'code' => $code,
+                'language' => $language
             ]);
             
         } catch (\Exception $e) {
@@ -2146,7 +2178,7 @@ class ChatController extends Controller
      * Kullanıcı mesajını işleyen metod
      * 
      * @param string $userMessage Kullanıcı mesajı
-     * @return string İşlenmiş AI yanıtı
+     * @return string|array İşlenmiş AI yanıtı veya kod yanıtı için array
      */
     private function processMessage($userMessage)
     {
@@ -2156,6 +2188,63 @@ class ChatController extends Controller
         // Mesaj boşsa, basit bir karşılama yanıtı döndür
         if (empty($message)) {
             return "Merhaba! Size nasıl yardımcı olabilirim?";
+        }
+        
+        // KOD İSTEĞİ KONTROLÜ
+        // Eğer kullanıcı kod istiyorsa AIController'a yönlendir
+        $lowerMessage = mb_strtolower($message);
+        if (strpos($lowerMessage, 'kod') !== false || 
+            strpos($lowerMessage, 'js') !== false || 
+            strpos($lowerMessage, 'javascript') !== false || 
+            strpos($lowerMessage, 'php') !== false || 
+            strpos($lowerMessage, 'html') !== false || 
+            strpos($lowerMessage, 'css') !== false) {
+            
+            Log::info('ChatController: Kod isteği algılandı, AIController\'a yönlendiriliyor', [
+                'message' => $message
+            ]);
+            
+            // AIController'ı çağır
+            try {
+                $aiController = app(\App\Http\Controllers\AIController::class);
+                $request = new Request([
+                    'message' => $message,
+                    'chat_id' => null,
+                    'creative_mode' => false,
+                    'coding_mode' => true,
+                    'preferred_language' => $this->detectProgrammingLanguage($message)
+                ]);
+                
+                $response = $aiController->processInput($request);
+                
+                // JSON cevabı parse et
+                if ($response->getStatusCode() === 200) {
+                    $responseData = json_decode($response->getContent(), true);
+                    
+                    Log::info('AIController\'dan kod yanıtı alındı', [
+                        'data' => $responseData
+                    ]);
+                    
+                    if (isset($responseData['is_code_response']) && $responseData['is_code_response'] === true) {
+                        // Kod yanıtını array olarak döndür (tüm gerekli alanlarla)
+                        return [
+                            'response' => $responseData['response'],
+                            'is_code_response' => true,
+                            'code' => $responseData['code'],
+                            'language' => $responseData['language'],
+                        ];
+                    } else if (isset($responseData['response'])) {
+                        // Normal yanıt
+                        return $responseData['response'];
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::error('AIController yönlendirme hatası: ' . $e->getMessage(), [
+                    'exception' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+                // Hata durumunda standart yanıt akışına devam et
+            }
         }
         
         // Mesajı ilk olarak bilinç modülünden geçir - AI kendisine hitap ediliyor mu diye kontrol et
@@ -3903,5 +3992,35 @@ class ChatController extends Controller
         }
         
         return $cleanResponse;
+    }
+    
+    /**
+     * Mesajdan programlama dilini tespit et
+     * 
+     * @param string $message Kullanıcı mesajı
+     * @return string Tespit edilen dil (varsayılan: javascript)
+     */
+    private function detectProgrammingLanguage($message)
+    {
+        $lowerMessage = mb_strtolower($message);
+        
+        if (strpos($lowerMessage, 'js') !== false || strpos($lowerMessage, 'javascript') !== false) {
+            return 'javascript';
+        }
+        
+        if (strpos($lowerMessage, 'php') !== false) {
+            return 'php';
+        }
+        
+        if (strpos($lowerMessage, 'html') !== false) {
+            return 'html';
+        }
+        
+        if (strpos($lowerMessage, 'css') !== false) {
+            return 'css';
+        }
+        
+        // Varsayılan olarak JavaScript döndür
+        return 'javascript';
     }
 } 

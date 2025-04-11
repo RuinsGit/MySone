@@ -15,6 +15,176 @@ use Illuminate\Support\Facades\DB;
 class AIController extends Controller
 {
     /**
+     * AI sistemine kullanıcı girdisini işlet
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function processInput(Request $request)
+    {
+        try {
+            // Gelen isteği işle
+            $message = $request->input('message');
+            $chatId = $request->input('chat_id');
+            $creativeMode = $request->input('creative_mode', false);
+            $codingMode = $request->input('coding_mode', false);
+            
+            // Dil tercihini al
+            $preferredLanguage = $request->input('preferred_language', 'javascript');
+            
+            Log::info('AI sorgusu:', [
+                'message' => $message,
+                'creative_mode' => $creativeMode,
+                'coding_mode' => $codingMode,
+                'preferred_language' => $preferredLanguage
+            ]);
+            
+            // Mesaj boş ise hata döndür
+            if (empty($message)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Mesaj boş olamaz',
+                ]);
+            }
+            
+            // Sohbet ID yoksa yeni bir sohbet oluştur
+            if (empty($chatId)) {
+                $chat = Chat::create([
+                    'user_id' => auth()->id(),
+                    'title' => $this->generateChatTitle($message),
+                    'is_active' => true,
+                ]);
+                $chatId = $chat->id;
+            } else {
+                // Varolan sohbeti güncelle
+                $this->getOrCreateChat($chatId, $message);
+            }
+            
+            // Kod isteği kontrolü - çok basit ve kesin bir yaklaşım
+            // "kod yaz", "kod oluştur" veya "bana js" gibi ifadeleri kontrol et
+            $lowerMessage = mb_strtolower($message);
+            if ($codingMode || 
+                strpos($lowerMessage, 'kod') !== false || 
+                strpos($lowerMessage, 'js') !== false || 
+                strpos($lowerMessage, 'javascript') !== false || 
+                strpos($lowerMessage, 'php') !== false || 
+                strpos($lowerMessage, 'html') !== false || 
+                strpos($lowerMessage, 'css') !== false) {
+                
+                Log::info('Kod isteği algılandı, processCodeRequest çağrılıyor', [
+                    'message' => $message
+                ]);
+                
+                // Kod isteğini işle
+                $codeResponse = $this->processCodeRequest($message);
+                
+                if ($codeResponse !== null) {
+                    Log::info('Kod yanıtı oluşturuldu');
+                    
+                    // Kod yanıtını işle
+                    $this->saveMessages($message, $codeResponse, $chatId);
+                    
+                    // Kod bloğunu çıkart (backtickler arasındaki kısım)
+                    $codeBlock = null;
+                    $language = null;
+                    
+                    if (preg_match('/```(.*?)\n([\s\S]*?)```/m', $codeResponse, $matches)) {
+                        $language = trim($matches[1]);
+                        $codeBlock = $matches[2];
+                        
+                        // JavaScript için js kısaltması
+                        if ($language === 'js') {
+                            $language = 'javascript';
+                        }
+                    }
+                    
+                    return response()->json([
+                        'success' => true,
+                        'response' => $codeResponse,
+                        'is_code_response' => true,
+                        'code' => $codeBlock,
+                        'language' => $language,
+                        'chat_id' => $chatId,
+                    ]);
+                } else {
+                    Log::warning('processCodeRequest null döndürdü', [
+                        'message' => $message
+                    ]);
+                }
+            }
+            
+            // Diğer işlemler aynı kalsın
+            // Eğer "nedir" sorusu ise
+            $nedirResponse = $this->processNedirQuestion($message);
+            if ($nedirResponse !== null) {
+                // Mesajları kaydet
+                $this->saveMessages($message, $nedirResponse, $chatId);
+                
+                return response()->json([
+                    'success' => true,
+                    'response' => $nedirResponse,
+                    'is_code_response' => false,
+                    'chat_id' => $chatId,
+                ]);
+            }
+            
+            // Eğer web araması gerekiyorsa
+            if (preg_match('/\bara\b|aramak|bul|aratmak|aramamız|araştır/ui', $message)) {
+                if (preg_match('/\bweb(?:\'?de|den)?\b|\binternet(?:\'?ten)?\b|\bonline\b|\bgoogle(?:\'?da|\'?dan)?\b/ui', $message)) {
+                    $searchResponse = $this->searchWeb($message);
+                    
+                    // Mesajları kaydet
+                    $this->saveMessages($message, $searchResponse, $chatId);
+                    
+                    return response()->json([
+                        'success' => true,
+                        'response' => $searchResponse,
+                        'is_code_response' => false,
+                        'chat_id' => $chatId,
+                    ]);
+                }
+            }
+            
+            // Normal yanıt için Brain'i kullan
+            $brain = app(Brain::class);
+            $learningSystem = $brain->getLearningSystem();
+            
+            // Kreatif mod aktifse, yaratıcılık parametresini ayarla
+            if ($creativeMode) {
+                $brain->setCreativityLevel(0.8);
+            } else {
+                $brain->setCreativityLevel(0.5);
+            }
+            
+            // AI yanıtını al
+            $aiResponse = $brain->process($message);
+            
+            // Kelime ilişkileriyle zenginleştir
+            $enhancedResponse = $this->enhanceResponseWithWordRelations($aiResponse);
+            
+            // Mesajları kaydet
+            $this->saveMessages($message, $enhancedResponse, $chatId);
+            
+            return response()->json([
+                'success' => true,
+                'response' => $enhancedResponse,
+                'is_code_response' => false,
+                'chat_id' => $chatId,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('AI yanıt hatası: ' . $e->getMessage(), [
+                'exception' => $e,
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'error' => 'Bir hata oluştu: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+    
+    /**
      * Yapay zeka ile konuşma
      * 
      * @param Request $request
@@ -23,11 +193,72 @@ class AIController extends Controller
     public function chat(Request $request)
     {
         try {
-            // Parametreleri doğrula
-            $request->validate([
-                'message' => 'required|string|max:1000',
-                'chat_id' => 'nullable|integer'
-            ]);
+            // Gelen isteği işle
+            $message = $request->input('message');
+            $chatId = $request->input('chat_id');
+            
+            // Mesaj boş ise hata döndür
+            if (empty($message)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Mesaj boş olamaz',
+                ]);
+            }
+            
+            // Sohbet ID yoksa yeni bir sohbet oluştur
+            if (empty($chatId)) {
+                $chat = Chat::create([
+                    'user_id' => auth()->id(),
+                    'title' => $this->generateChatTitle($message),
+                    'is_active' => true,
+                ]);
+                $chatId = $chat->id;
+            } else {
+                // Varolan sohbeti güncelle
+                $this->getOrCreateChat($chatId, $message);
+            }
+            
+            // Önce kod ile ilgili bir istek mi kontrol et
+            $codeResponse = $this->processCodeRequest($message);
+            if ($codeResponse !== null) {
+                // Kod yanıtını kaydet ve döndür
+                $this->saveMessages($message, $codeResponse, $chatId);
+                
+                return response()->json([
+                    'success' => true,
+                    'answer' => $codeResponse,
+                    'chat_id' => $chatId,
+                ]);
+            }
+            
+            // Eğer "nedir" sorusu ise
+            $nedirResponse = $this->processNedirQuestion($message);
+            if ($nedirResponse !== null) {
+                // Mesajları kaydet
+                $this->saveMessages($message, $nedirResponse, $chatId);
+                
+                return response()->json([
+                    'success' => true,
+                    'answer' => $nedirResponse,
+                    'chat_id' => $chatId,
+                ]);
+            }
+            
+            // Eğer web araması gerekiyorsa
+            if (preg_match('/\bara\b|aramak|bul|aratmak|aramamız|araştır/ui', $message)) {
+                if (preg_match('/\bweb(?:\'?de|den)?\b|\binternet(?:\'?ten)?\b|\bonline\b|\bgoogle(?:\'?da|\'?dan)?\b/ui', $message)) {
+                    $searchResponse = $this->searchWeb($message);
+                    
+                    // Mesajları kaydet
+                    $this->saveMessages($message, $searchResponse, $chatId);
+                    
+                    return response()->json([
+                        'success' => true,
+                        'answer' => $searchResponse,
+                        'chat_id' => $chatId,
+                    ]);
+                }
+            }
             
             // Brain nesnesini oluştur
             $brain = app(Brain::class);
@@ -37,52 +268,6 @@ class AIController extends Controller
             
             // WordRelations sınıfını yükle
             $wordRelations = app(\App\AI\Core\WordRelations::class);
-            
-            // Kullanıcı mesajı
-            $message = $request->input('message');
-            
-            // "Nedir" sorusu mu kontrol et
-            $nedirResponse = $this->processNedirQuestion($message);
-            if ($nedirResponse !== null) {
-                // Sohbeti oluştur/bul
-                $chatId = $request->input('chat_id');
-                $chat = $this->getOrCreateChat($chatId, $message);
-                
-                // Kullanıcı mesajını kaydet
-                ChatMessage::create([
-                    'chat_id' => $chat->id,
-                    'content' => $message,
-                    'sender' => 'user'
-                ]);
-                
-                // Yanıtı kelime ilişkileriyle zenginleştir
-                $enhancedResponse = $this->enhanceResponseWithWordRelations($nedirResponse);
-                
-                // AI mesajını kaydet
-                ChatMessage::create([
-                    'chat_id' => $chat->id,
-                    'content' => $enhancedResponse,
-                    'sender' => 'ai'
-                ]);
-                
-                return response()->json([
-                    'success' => true,
-                    'data' => [
-                        'chat_id' => $chat->id,
-                        'response' => $enhancedResponse
-                    ]
-                ]);
-            }
-            
-            // Sohbet kaydı
-            $chat = $this->getOrCreateChat($request->input('chat_id'), $message);
-            
-            // Kullanıcı mesajını kaydet
-            ChatMessage::create([
-                'chat_id' => $chat->id,
-                'content' => $message,
-                'sender' => 'user'
-            ]);
             
             // Mesajdaki yeni kelimeleri öğren
             if (strlen($message) > 10) {
@@ -114,18 +299,12 @@ class AIController extends Controller
             $enhancedResponse = $this->enhanceResponseWithWordRelations($response);
             
             // AI mesajını kaydet
-            ChatMessage::create([
-                'chat_id' => $chat->id,
-                'content' => $enhancedResponse,
-                'sender' => 'ai'
-            ]);
+            $this->saveMessages($message, $enhancedResponse, $chatId);
             
             return response()->json([
                 'success' => true,
-                'data' => [
-                    'chat_id' => $chat->id,
-                    'response' => $enhancedResponse
-                ]
+                'answer' => $enhancedResponse,
+                'chat_id' => $chatId,
             ]);
         } catch (\Exception $e) {
             Log::error('AI yanıt hatası: ' . $e->getMessage());
@@ -1000,5 +1179,812 @@ class AIController extends Controller
     public function getStatus()
     {
         return $this->getAIStatus();
+    }
+    
+    /**
+     * Kod ile ilgili sorguları işleyen metod
+     * 
+     * @param string $message Kullanıcı mesajı
+     * @return string İşlenmiş kod yanıtı
+     */
+    private function processCodeRequest($message)
+    {
+        try {
+            // Log kaydı
+            Log::info('processCodeRequest çağrıldı: ' . $message);
+            
+            // 1. Kullanıcının ne tür bir kod istediğini ve hangi dilde istediğini tespit et
+            $language = $this->detectLanguageFromMessage($message);
+            $category = $this->detectCategoryFromMessage($message);
+            
+            Log::info('Tespit edilen kod parametreleri', [
+                'language' => $language,
+                'category' => $category
+            ]);
+            
+            // Dil tespit edilemezse varsayılan olarak JavaScript kullan
+            if (!$language) {
+                $language = 'javascript';
+            }
+            
+            // 2. Önce veritabanımızda benzer kod var mı kontrol et
+            $similarCodes = $this->findSimilarCodesInDatabase($message, $language, $category);
+            
+            if (count($similarCodes) > 0) {
+                // En yüksek uyum skoruna sahip kodu al
+                $bestMatchCode = $similarCodes[0];
+                
+                // Uyum skoru %51'den fazla ise bu kodu kullan
+                if ($bestMatchCode['match_score'] >= 0.51) {
+                    Log::info('Veritabanında uyumlu kod bulundu', [
+                        'match_score' => $bestMatchCode['match_score'],
+                        'code_id' => $bestMatchCode['id']
+                    ]);
+                    
+                    // Kodu kullanım istatistiklerini güncelle
+                    $this->updateCodeUsageStats($bestMatchCode['id']);
+                    
+                    // Kodu yanıta dönüştür
+                    return $this->formatCodeResponse(
+                        $bestMatchCode['code_content'], 
+                        $language,
+                        "Sizin isteğinize uygun bir kod örneği buldum:"
+                    );
+                }
+            }
+            
+            // 3. Veritabanında uygun kod bulunamadıysa web'de ara
+            $webResults = $this->searchCodeFromWebSources($message, $language);
+            
+            if (!empty($webResults)) {
+                Log::info('Web kaynaklarında kod bulundu', [
+                    'source' => $webResults[0]['source'],
+                    'language' => $webResults[0]['language']
+                ]);
+                
+                // Bulunan kodu veritabanına kaydet
+                $savedCode = $this->saveCodeToDatabase(
+                    $webResults[0]['code'],
+                    $webResults[0]['language'],
+                    $category,
+                    $message,
+                    $webResults[0]['source'],
+                    $webResults[0]['source_url'] ?? null
+                );
+                
+                // Kodu yanıta dönüştür
+                return $this->formatCodeResponse(
+                    $webResults[0]['code'],
+                    $webResults[0]['language'],
+                    "Web'de araştırdım ve şu kodu buldum ({$webResults[0]['source']}):"
+                );
+            }
+            
+            // 4. Web'de de bulunamazsa, kendi şablonlarımızla yeni kod oluştur
+            Log::info('Yeni kod oluşturuluyor', [
+                'language' => $language,
+                'category' => $category
+            ]);
+            
+            // Bu noktada generateCode her zaman bir yanıt döndürmelidir
+            return $this->generateCode($message, $language, $category);
+            
+        } catch (\Exception $e) {
+            Log::error('Kod işleme hatası: ' . $e->getMessage(), [
+                'exception' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            // Hata durumunda bile basit bir kod yanıtı döndür
+            $language = $this->detectLanguageFromMessage($message) ?: 'javascript';
+            
+            $fallbackCode = "";
+            if ($language === 'javascript') {
+                $fallbackCode = "// JavaScript basit örnek\nconsole.log('Merhaba Dünya!');\n\n// Kullanım örneği\nfunction selamVer(isim) {\n  return 'Merhaba, ' + isim + '!';\n}\n\nconst mesaj = selamVer('Dünya');\nconsole.log(mesaj);";
+            } elseif ($language === 'php') {
+                $fallbackCode = "<?php\n\n// PHP basit örnek\necho 'Merhaba Dünya!';\n\n// Kullanım örneği\nfunction selamVer($isim) {\n  return 'Merhaba, ' . $isim . '!';\n}\n\n$mesaj = selamVer('Dünya');\necho $mesaj;";
+            } else {
+                $fallbackCode = "// Basit " . $language . " örneği\nconsole.log('Merhaba Dünya!');";
+            }
+            
+            return $this->formatCodeResponse(
+                $fallbackCode,
+                $language,
+                "İşte " . $language . " için basit bir kod örneği (ayrıntılı sorgu ile daha spesifik kod örnekleri isteyebilirsiniz):"
+            );
+        }
+    }
+    
+    /**
+     * Mesajdan programlama dilini tespit et
+     * 
+     * @param string $message Kullanıcı mesajı
+     * @return string|null Tespit edilen dil veya null
+     */
+    private function detectLanguageFromMessage($message)
+    {
+        $languages = [
+            'js' => 'javascript',
+            'javascript' => 'javascript',
+            'php' => 'php',
+            'html' => 'html',
+            'css' => 'css',
+            'python' => 'python',
+            'java' => 'java',
+            'c#' => 'csharp',
+            'c++' => 'cpp',
+            'sql' => 'sql'
+        ];
+        
+        $lowerMessage = strtolower($message);
+        
+        foreach ($languages as $key => $value) {
+            if (strpos($lowerMessage, $key) !== false) {
+                return $value;
+            }
+        }
+        
+        // Dil belirlenemezse null döndür
+        return null;
+    }
+    
+    /**
+     * Mesajdan kod kategorisini tespit et
+     * 
+     * @param string $message Kullanıcı mesajı
+     * @return string|null Tespit edilen kategori veya null
+     */
+    private function detectCategoryFromMessage($message)
+    {
+        $categories = [
+            'function' => ['fonksiyon', 'metod', 'method', 'function'],
+            'class' => ['sınıf', 'class', 'object', 'oop'],
+            'form' => ['form', 'input', 'button', 'buton'],
+            'layout' => ['düzen', 'layout', 'sayfa yapısı', 'template'],
+            'animation' => ['animasyon', 'animation', 'geçiş', 'transition'],
+            'database' => ['veritabanı', 'database', 'sql', 'query', 'sorgu'],
+            'dom' => ['dom', 'document', 'element', 'html manipülasyon'],
+            'event' => ['olay', 'event', 'click', 'tıklama'],
+            'api' => ['api', 'rest', 'http', 'request', 'istek'],
+            'hover' => ['hover', 'mouse', 'fare'],
+            'color' => ['renk', 'color', 'stil', 'color scheme']
+        ];
+        
+        $lowerMessage = strtolower($message);
+        
+        foreach ($categories as $category => $keywords) {
+            foreach ($keywords as $keyword) {
+                if (strpos($lowerMessage, $keyword) !== false) {
+                    return $category;
+                }
+            }
+        }
+        
+        // Kategori belirlenemezse null döndür
+        return null;
+    }
+    
+    /**
+     * Veritabanında benzer kod örneklerini ara
+     * 
+     * @param string $message Kullanıcı mesajı
+     * @param string $language Programlama dili
+     * @param string|null $category Kod kategorisi
+     * @return array Bulunan benzer kodlar
+     */
+    private function findSimilarCodesInDatabase($message, $language, $category = null)
+    {
+        // Mesajdan anahtar kelimeleri çıkar
+        $keywords = explode(' ', preg_replace('/\W+/', ' ', strtolower($message)));
+        $keywords = array_filter($keywords, function($word) {
+            return strlen($word) >= 3 && !in_array($word, ['bana', 'bir', 'kod', 'yaz', 'yazı', 'yazı?', 'yazar', 'yazarmısın', 'yapar', 'yaparmısın', 'verir', 'verirmisin', 'göster', 'gösterir', 'şöyle', 'böyle', 'nasıl', 'misin', 'mısın']);
+        });
+        
+        // Boş anahtar kelime listesini kontrol et
+        if (empty($keywords)) {
+            return [];
+        }
+        
+        try {
+            $query = \App\Models\AICodeSnippet::where('language', $language);
+            
+            // Eğer kategori belirtilmişse filtrele
+            if ($category) {
+                $query->where('category', $category);
+            }
+            
+            // Kullanım sayısına göre sırala
+            $query->orderBy('usage_count', 'desc');
+            
+            // En fazla 10 kod getir
+            $codes = $query->limit(10)->get();
+            
+            // Sonuçlar için uyum skoru hesapla
+            $scoredCodes = [];
+            foreach ($codes as $code) {
+                $score = $this->calculateMatchScore($code, $keywords, $message);
+                
+                if ($score > 0) {
+                    $scoredCodes[] = [
+                        'id' => $code->id,
+                        'code_content' => $code->code_content,
+                        'language' => $code->language,
+                        'category' => $code->category,
+                        'description' => $code->description,
+                        'usage_count' => $code->usage_count,
+                        'confidence_score' => $code->confidence_score,
+                        'match_score' => $score
+                    ];
+                }
+            }
+            
+            // Uyum skoruna göre sırala (en yüksekten en düşüğe)
+            usort($scoredCodes, function($a, $b) {
+                return $b['match_score'] <=> $a['match_score'];
+            });
+            
+            return $scoredCodes;
+        } catch (\Exception $e) {
+            Log::error('Veritabanında kod arama hatası: ' . $e->getMessage());
+            return [];
+        }
+    }
+    
+    /**
+     * Kod ve kullanıcı mesajı arasındaki uyum skorunu hesapla
+     * 
+     * @param \App\Models\AICodeSnippet $code Kod örneği
+     * @param array $keywords Anahtar kelimeler
+     * @param string $message Tam kullanıcı mesajı
+     * @return float Uyum skoru (0-1 arası)
+     */
+    private function calculateMatchScore($code, $keywords, $message)
+    {
+        $score = 0;
+        $maxScore = 0;
+        
+        // Kod açıklaması ve etiketlerini kontrol et
+        $codeText = strtolower($code->description . ' ' . implode(' ', (array)$code->tags));
+        
+        // Her bir anahtar kelime için kontrol et
+        foreach ($keywords as $keyword) {
+            $maxScore += 1;
+            
+            // Tam kelime eşleşmesi daha fazla puan alır
+            if (preg_match('/\b' . preg_quote($keyword, '/') . '\b/i', $codeText)) {
+                $score += 1;
+            } 
+            // Kısmi eşleşme de bir miktar puan alır
+            elseif (strpos($codeText, $keyword) !== false) {
+                $score += 0.5;
+            }
+        }
+        
+        // Kategori eşleşmesi bonus puan
+        if ($code->category === $this->detectCategoryFromMessage($message)) {
+            $score += 2;
+            $maxScore += 2;
+        }
+        
+        // Güven skoru da hesaplamaya ekle
+        $score += $code->confidence_score * 0.5;
+        $maxScore += 0.5;
+        
+        // Kullanım sıklığına göre bonus
+        $usageBonus = min(0.5, $code->usage_count / 20); // En fazla 0.5 bonus
+        $score += $usageBonus;
+        $maxScore += 0.5;
+        
+        // Toplam skoru normalize et (0-1 arası)
+        return $maxScore > 0 ? $score / $maxScore : 0;
+    }
+    
+    /**
+     * Kod kullanım istatistiklerini güncelle
+     * 
+     * @param int $codeId Kod ID
+     * @return void
+     */
+    private function updateCodeUsageStats($codeId)
+    {
+        try {
+            $code = \App\Models\AICodeSnippet::find($codeId);
+            if ($code) {
+                $code->increment('usage_count');
+                $code->update(['last_used_at' => now()]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Kod kullanım istatistiği güncelleme hatası: ' . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Web kaynaklarından kod ara
+     * 
+     * @param string $message Kullanıcı mesajı
+     * @param string $language Programlama dili
+     * @return array Bulunan kodlar
+     */
+    private function searchCodeFromWebSources($message, $language)
+    {
+        $results = [];
+        
+        // Arama sorgusunu hazırla
+        $searchQuery = $message;
+        
+        // "bana", "kod", "yaz" vs. gibi kelimeleri kaldır
+        $searchQuery = preg_replace('/\b(bana|bir|kod|yaz|yazı|yazarmısın|göster|hazırla|oluştur|örnek|nasıl)\b/ui', '', $searchQuery);
+        $searchQuery = trim($searchQuery);
+        
+        // GitHub'da ara
+        $githubResults = $this->searchGitHubCode($searchQuery, $language);
+        $results = array_merge($results, $githubResults);
+        
+        // Ek olarak StackOverflow'da da arayabilirsiniz
+        $stackoverflowResults = $this->searchStackOverflowCode($searchQuery, $language);
+        $results = array_merge($results, $stackoverflowResults);
+        
+        return $results;
+    }
+    
+    /**
+     * Bulunan kodu veritabanına kaydet
+     * 
+     * @param string $code Kod içeriği
+     * @param string $language Programlama dili
+     * @param string|null $category Kod kategorisi
+     * @param string $description Kod açıklaması
+     * @param string $source Kod kaynağı
+     * @param string|null $sourceUrl Kaynak URL
+     * @return \App\Models\AICodeSnippet Kaydedilen kod
+     */
+    private function saveCodeToDatabase($code, $language, $category, $description, $source, $sourceUrl = null)
+    {
+        try {
+            // Kategori yoksa, koddan tespit etmeye çalış
+            if (!$category) {
+                // CodeCategoryDetector sınıfı kullanılabilir
+                $category = 'snippet'; // Varsayılan kategori
+            }
+            
+            // Kod hash'i oluştur
+            $codeHash = md5($code);
+            
+            // Bu hash ile kayıt var mı kontrol et
+            $existingCode = \App\Models\AICodeSnippet::where('code_hash', $codeHash)->first();
+            
+            if ($existingCode) {
+                // Varsa kullanım sayısını artır
+                $existingCode->increment('usage_count');
+                $existingCode->update(['last_used_at' => now()]);
+                return $existingCode;
+            }
+            
+            // Yeni kod kaydı oluştur
+            $codeSnippet = new \App\Models\AICodeSnippet([
+                'language' => $language,
+                'category' => $category,
+                'code_content' => $code,
+                'code_hash' => $codeHash,
+                'description' => $description,
+                'metadata' => [
+                    'source' => $source,
+                    'source_url' => $sourceUrl,
+                    'created_at' => now()->toDateTimeString()
+                ],
+                'confidence_score' => 0.7,
+                'usage_count' => 1,
+                'tags' => [$language, $category],
+                'last_used_at' => now(),
+                'is_featured' => false
+            ]);
+            
+            $codeSnippet->save();
+            
+            return $codeSnippet;
+        } catch (\Exception $e) {
+            Log::error('Kod kaydetme hatası: ' . $e->getMessage());
+            return null;
+        }
+    }
+    
+    /**
+     * Kodu formatlı yanıta dönüştür
+     * 
+     * @param string $code Kod içeriği
+     * @param string $language Programlama dili
+     * @param string $introduction Giriş metni
+     * @return string Formatlı yanıt
+     */
+    private function formatCodeResponse($code, $language, $introduction)
+    {
+        $response = $introduction . "\n\n";
+        $response .= "```{$language}\n{$code}\n```\n\n";
+        $response .= "Bu kodu kendi ihtiyaçlarınıza göre düzenleyebilirsiniz. Başka bir dilde veya farklı bir tür kod örneği isterseniz lütfen belirtin.";
+        
+        return $response;
+    }
+    
+    /**
+     * GitHub API ile kod ara
+     * 
+     * @param string $query Arama sorgusu
+     * @param string|null $language Programlama dili
+     * @return array Bulunan kod sonuçları
+     */
+    private function searchGitHubCode($query, $language = null)
+    {
+        $results = [];
+        
+        // GitHub API URL
+        $searchQuery = urlencode($query);
+        if ($language) {
+            $searchQuery .= "+language:" . urlencode($language);
+        }
+        
+        $url = "https://api.github.com/search/code?q={$searchQuery}&per_page=5";
+        
+        // API isteği gönder
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_USERAGENT, 'SoneAI');
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Accept: application/vnd.github.v3+json'
+        ]);
+        
+        $response = curl_exec($ch);
+        $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        
+        // Yanıt başarılı mı kontrol et
+        if ($httpcode == 200 && !empty($response)) {
+            $data = json_decode($response, true);
+            
+            // Sonuçları işle
+            if (isset($data['items']) && !empty($data['items'])) {
+                foreach ($data['items'] as $item) {
+                    // Dosya içeriğini al
+                    $rawUrl = str_replace('github.com', 'raw.githubusercontent.com', 
+                                 str_replace('/blob/', '/', $item['html_url']));
+                    
+                    $ch = curl_init();
+                    curl_setopt($ch, CURLOPT_URL, $rawUrl);
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+                    curl_setopt($ch, CURLOPT_USERAGENT, 'SoneAI');
+                    
+                    $codeContent = curl_exec($ch);
+                    curl_close($ch);
+                    
+                    // Dosya çok büyükse kırp
+                    if (strlen($codeContent) > 10000) {
+                        $codeContent = substr($codeContent, 0, 10000) . "\n// ... (kod kırpıldı)";
+                    }
+                    
+                    // Sonuç dizisine ekle
+                    $results[] = [
+                        'code' => $codeContent,
+                        'language' => $language ?? $this->detectLanguageFromFile($item['name']),
+                        'description' => "GitHub: {$item['repository']['full_name']}",
+                        'source' => 'GitHub',
+                        'source_url' => $item['html_url']
+                    ];
+                    
+                    // Maksimum 3 sonuç
+                    if (count($results) >= 3) {
+                        break;
+                    }
+                }
+            }
+        }
+        
+        return $results;
+    }
+    
+    /**
+     * StackOverflow API ile kod ara
+     * 
+     * @param string $query Arama sorgusu
+     * @param string|null $language Programlama dili
+     * @return array Bulunan kod sonuçları
+     */
+    private function searchStackOverflowCode($query, $language = null)
+    {
+        $results = [];
+        
+        // StackOverflow API URL
+        $searchQuery = urlencode($query);
+        $tags = $language ? urlencode($language) : '';
+        
+        $url = "https://api.stackexchange.com/2.3/search/advanced?order=desc&sort=votes&q={$searchQuery}&tagged={$tags}&site=stackoverflow&filter=withbody";
+        
+        // API isteği gönder
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_USERAGENT, 'SoneAI');
+        curl_setopt($ch, CURLOPT_ENCODING, 'gzip, deflate');
+        
+        $response = curl_exec($ch);
+        $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        
+        // Yanıt başarılı mı kontrol et
+        if ($httpcode == 200 && !empty($response)) {
+            $data = json_decode($response, true);
+            
+            // Sonuçları işle
+            if (isset($data['items']) && !empty($data['items'])) {
+                foreach ($data['items'] as $item) {
+                    // Soruya ait kabul edilen cevabı al
+                    $answerId = $item['accepted_answer_id'] ?? null;
+                    
+                    if ($answerId) {
+                        $answerUrl = "https://api.stackexchange.com/2.3/answers/{$answerId}?order=desc&sort=activity&site=stackoverflow&filter=withbody";
+                        
+                        $ch = curl_init();
+                        curl_setopt($ch, CURLOPT_URL, $answerUrl);
+                        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+                        curl_setopt($ch, CURLOPT_USERAGENT, 'SoneAI');
+                        curl_setopt($ch, CURLOPT_ENCODING, 'gzip, deflate');
+                        
+                        $answerResponse = curl_exec($ch);
+                        curl_close($ch);
+                        
+                        if (!empty($answerResponse)) {
+                            $answerData = json_decode($answerResponse, true);
+                            
+                            if (isset($answerData['items'][0]['body'])) {
+                                $body = $answerData['items'][0]['body'];
+                                
+                                // HTML içeriğinden kod bloklarını çıkar
+                                preg_match_all('/<pre><code>(.*?)<\/code><\/pre>/s', $body, $matches);
+                                
+                                if (!empty($matches[1])) {
+                                    foreach ($matches[1] as $codeBlock) {
+                                        // HTML entity decode
+                                        $codeContent = html_entity_decode($codeBlock);
+                                        
+                                        // Sonuç dizisine ekle
+                                        $results[] = [
+                                            'code' => $codeContent,
+                                            'language' => $language ?? 'unknown',
+                                            'description' => "StackOverflow: {$item['title']}",
+                                            'source' => 'StackOverflow',
+                                            'source_url' => $item['link']
+                                        ];
+                                        
+                                        // Maksimum 3 sonuç
+                                        if (count($results) >= 3) {
+                                            break 2;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        return $results;
+    }
+    
+    /**
+     * Dosya adından dil tespiti yap
+     * 
+     * @param string $filename Dosya adı
+     * @return string Tespit edilen dil
+     */
+    private function detectLanguageFromFile($filename)
+    {
+        $extension = pathinfo($filename, PATHINFO_EXTENSION);
+        
+        $extensionMap = [
+            'php' => 'php',
+            'js' => 'javascript',
+            'html' => 'html',
+            'css' => 'css',
+            'py' => 'python',
+            'java' => 'java',
+            'cs' => 'c#',
+            'cpp' => 'c++',
+            'c' => 'c',
+            'sql' => 'sql',
+            'jsx' => 'react',
+            'vue' => 'vue',
+            'ts' => 'typescript',
+            'json' => 'json',
+            'rb' => 'ruby',
+            'go' => 'go'
+        ];
+        
+        return $extensionMap[$extension] ?? 'unknown';
+    }
+    
+    /**
+     * AI ile kod oluştur
+     * 
+     * @param string $message Kullanıcı mesajı
+     * @param string|null $language Programlama dili
+     * @param string|null $category Kod kategorisi
+     * @return string Oluşturulan kod yanıtı
+     */
+    private function generateCode($message, $language = null, $category = null)
+    {
+        try {
+            // Log kaydı ekle
+            Log::info('Kod oluşturuluyor:', [
+                'message' => $message,
+                'language' => $language,
+                'category' => $category
+            ]);
+            
+            // Dil belirlemediyse, kullanıcıdan dil bilgisi iste
+            if (!$language) {
+                return "Hangi programlama dilinde kod örneği istediğinizi belirtebilir misiniz? Örneğin: 'PHP', 'JavaScript', 'HTML', 'CSS' vb.";
+            }
+            
+            // Mesajdan kod ile ilgili istekleri çıkar
+            $codeRequirements = $message;
+            
+            // Dile göre örnek kod şablonları
+            $templates = [
+                'php' => [
+                    'function' => "<?php\n\nfunction exampleFunction(\$param1, \$param2) {\n    // Fonksiyon içeriği\n    \$result = \$param1 + \$param2;\n    return \$result;\n}\n",
+                    'class' => "<?php\n\nclass ExampleClass {\n    private \$property;\n    \n    public function __construct(\$property) {\n        \$this->property = \$property;\n    }\n    \n    public function getProperty() {\n        return \$this->property;\n    }\n}\n"
+                ],
+                'javascript' => [
+                    'function' => "function exampleFunction(param1, param2) {\n    // Fonksiyon içeriği\n    const result = param1 + param2;\n    return result;\n}\n",
+                    'class' => "class ExampleClass {\n    constructor(property) {\n        this.property = property;\n    }\n    \n    getProperty() {\n        return this.property;\n    }\n}\n",
+                    'hover' => "// Mouse hover efekti için JavaScript kodu\ndocument.addEventListener('DOMContentLoaded', function() {\n    const element = document.getElementById('hover-element');\n    \n    element.addEventListener('mouseover', function() {\n        this.style.backgroundColor = '#3498db';\n        this.style.color = 'white';\n    });\n    \n    element.addEventListener('mouseout', function() {\n        this.style.backgroundColor = '';\n        this.style.color = '';\n    });\n});\n",
+                    'dom' => "// DOM manipülasyonu örneği\ndocument.addEventListener('DOMContentLoaded', function() {\n    // Elementi seç\n    const button = document.getElementById('myButton');\n    const resultDiv = document.getElementById('result');\n    \n    // Click olayı ekle\n    button.addEventListener('click', function() {\n        resultDiv.textContent = 'Butona tıklandı!';\n        resultDiv.style.color = 'green';\n    });\n});\n",
+                    'color' => "// Renk değiştirme ve işleme örneği\nfunction getRandomColor() {\n    const letters = '0123456789ABCDEF';\n    let color = '#';\n    for (let i = 0; i < 6; i++) {\n        color += letters[Math.floor(Math.random() * 16)];\n    }\n    return color;\n}\n\nfunction changeBackgroundColor() {\n    document.body.style.backgroundColor = getRandomColor();\n}\n\n// Her 3 saniyede bir arka plan rengini değiştir\n// setInterval(changeBackgroundColor, 3000);\n\n// Veya buton tıklamasıyla çağırabilirsiniz\n// document.getElementById('colorButton').addEventListener('click', changeBackgroundColor);\n"
+                ],
+                'html' => [
+                    'layout' => "<!DOCTYPE html>\n<html lang=\"tr\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>Örnek Sayfa</title>\n    <link rel=\"stylesheet\" href=\"styles.css\">\n</head>\n<body>\n    <header>\n        <h1>Başlık</h1>\n        <nav>\n            <ul>\n                <li><a href=\"#\">Ana Sayfa</a></li>\n                <li><a href=\"#\">Hakkımızda</a></li>\n                <li><a href=\"#\">İletişim</a></li>\n            </ul>\n        </nav>\n    </header>\n    <main>\n        <section>\n            <h2>Alt Başlık</h2>\n            <p>İçerik buraya gelecek.</p>\n        </section>\n    </main>\n    <footer>\n        <p>&copy; 2024 Örnek Site</p>\n    </footer>\n</body>\n</html>\n",
+                    'form' => "<form action=\"/submit\" method=\"post\">\n    <div class=\"form-group\">\n        <label for=\"name\">Ad Soyad:</label>\n        <input type=\"text\" id=\"name\" name=\"name\" required>\n    </div>\n    <div class=\"form-group\">\n        <label for=\"email\">E-posta:</label>\n        <input type=\"email\" id=\"email\" name=\"email\" required>\n    </div>\n    <div class=\"form-group\">\n        <label for=\"message\">Mesaj:</label>\n        <textarea id=\"message\" name=\"message\" rows=\"5\" required></textarea>\n    </div>\n    <button type=\"submit\">Gönder</button>\n</form>\n"
+                ],
+                'css' => [
+                    'layout' => "/* Ana düzen stilleri */\n* {\n    margin: 0;\n    padding: 0;\n    box-sizing: border-box;\n}\n\nbody {\n    font-family: Arial, sans-serif;\n    line-height: 1.6;\n    color: #333;\n}\n\n.container {\n    max-width: 1200px;\n    margin: 0 auto;\n    padding: 0 15px;\n}\n\nheader {\n    background-color: #f8f9fa;\n    padding: 20px 0;\n}\n\nnav ul {\n    display: flex;\n    list-style: none;\n}\n\nnav ul li {\n    margin-right: 20px;\n}\n\nnav ul li a {\n    text-decoration: none;\n    color: #333;\n}\n\nmain {\n    padding: 40px 0;\n}\n\nfooter {\n    background-color: #f8f9fa;\n    padding: 20px 0;\n    text-align: center;\n}\n"
+                ]
+            ];
+            
+            // Kullanıcının istediği şablonu tahmin et
+            $templateKey = null;
+            $lowerMessage = strtolower($message);
+            
+            // Anahtar kelimeler ve ilgili şablonlar
+            $keywordTemplateMap = [
+                'javascript' => [
+                    'hover' => ['hover', 'mouse', 'üzerine gel', 'hover efekt', 'fare'],
+                    'dom' => ['dom', 'document', 'element', 'buton', 'tıkla', 'click', 'olay', 'event'],
+                    'color' => ['renk', 'color', 'rgb', 'hex', 'renkli']
+                ]
+            ];
+            
+            // Dil için anahtar kelime haritası varsa
+            if (isset($keywordTemplateMap[$language])) {
+                foreach ($keywordTemplateMap[$language] as $key => $keywords) {
+                    foreach ($keywords as $keyword) {
+                        if (strpos($lowerMessage, $keyword) !== false) {
+                            $templateKey = $key;
+                            break 2; 
+                        }
+                    }
+                }
+            }
+            
+            // Dil ve kategori için şablon var mı kontrol et
+            $templateCode = '';
+            
+            // Anahtar kelimeye göre şablon bulunduysa
+            if ($templateKey && isset($templates[$language][$templateKey])) {
+                $templateCode = $templates[$language][$templateKey];
+            }
+            // Kategori belirtilmişse ve varsa
+            elseif ($category && isset($templates[$language][$category])) {
+                $templateCode = $templates[$language][$category];
+            }
+            // Rastgele şablon seç
+            elseif (isset($templates[$language])) {
+                $randomCategory = array_rand($templates[$language]);
+                $templateCode = $templates[$language][$randomCategory];
+            }
+            // Hiç şablon bulunamadıysa basit örnek
+            else {
+                if ($language === 'javascript' || $language === 'js') {
+                    $templateCode = "// JavaScript basit kod örneği\nfunction greetUser(name) {\n    return 'Merhaba, ' + name + '!';\n}\n\nconst message = greetUser('Dünya');\nconsole.log(message); // Çıktı: Merhaba, Dünya!\n";
+                } elseif ($language === 'php') {
+                    $templateCode = "<?php\n\n// PHP basit kod örneği\nfunction greetUser($name) {\n    return 'Merhaba, ' . $name . '!';\n}\n\n$message = greetUser('Dünya');\necho $message; // Çıktı: Merhaba, Dünya!\n";
+                } elseif ($language === 'html') {
+                    $templateCode = "<!DOCTYPE html>\n<html>\n<head>\n    <title>Basit HTML Örneği</title>\n</head>\n<body>\n    <h1>Merhaba Dünya!</h1>\n    <p>Bu basit bir HTML örneğidir.</p>\n</body>\n</html>";
+                } elseif ($language === 'css') {
+                    $templateCode = "/* Basit CSS Örneği */\nbody {\n    font-family: Arial, sans-serif;\n    background-color: #f0f0f0;\n    color: #333;\n}\n\nh1 {\n    color: #0066cc;\n    text-align: center;\n}";
+                } else {
+                    $templateCode = "// $language için basit kod örneği\n// Merhaba Dünya programı";
+                }
+            }
+            
+            // Kod veritabanına kaydet
+            try {
+                $codeSnippet = new \App\Models\AICodeSnippet([
+                    'language' => $language,
+                    'category' => $category ?? ($templateKey ?? 'snippet'),
+                    'code_content' => $templateCode,
+                    'code_hash' => md5($templateCode),
+                    'description' => $message . ' ' . ($templateKey ?? 'basic'),
+                    'metadata' => [
+                        'source' => 'generated',
+                        'source_detail' => 'ai_generation',
+                        'created_at' => now()->toDateTimeString()
+                    ],
+                    'confidence_score' => 0.7,
+                    'usage_count' => 1,
+                    'tags' => [$language, $category ?? ($templateKey ?? 'snippet')],
+                    'last_used_at' => now(),
+                    'is_featured' => false
+                ]);
+                
+                $codeSnippet->save();
+                Log::info('Oluşturulan kod başarıyla kaydedildi');
+            } catch (\Exception $e) {
+                Log::error('Kod kaydetme hatası: ' . $e->getMessage());
+            }
+            
+            // Kullanıcıya AI tarafından oluşturulan kod yanıtını döndür
+            $response = "İşte sizin için oluşturduğum kod örneği:\n\n";
+            $response .= "```{$language}\n{$templateCode}\n```\n\n";
+            $response .= "Bu kod örneğini kendi ihtiyaçlarınıza göre düzenleyebilirsiniz. Başka bir dilde veya farklı bir tür kod örneği isterseniz lütfen belirtin.";
+            
+            return $response;
+        } catch (\Exception $e) {
+            Log::error('Kod oluşturma hatası: ' . $e->getMessage());
+            return "Kod oluşturulurken bir hata oluştu: " . $e->getMessage();
+        }
+    }
+
+    /**
+     * Kullanıcı ve AI mesajlarını kaydeder
+     * 
+     * @param string $userMessage Kullanıcı mesajı
+     * @param string $aiResponse AI yanıtı
+     * @param int $chatId Sohbet ID
+     * @return void
+     */
+    private function saveMessages($userMessage, $aiResponse, $chatId)
+    {
+        // Kullanıcı mesajını kaydet
+        ChatMessage::create([
+            'chat_id' => $chatId,
+            'content' => $userMessage,
+            'sender' => 'user'
+        ]);
+        
+        // AI mesajını kaydet
+        ChatMessage::create([
+            'chat_id' => $chatId,
+            'content' => $aiResponse,
+            'sender' => 'ai'
+        ]);
+    }
+    
+    /**
+     * Sohbet için başlık oluşturur
+     * 
+     * @param string $message Kullanıcı mesajı
+     * @return string Sohbet başlığı
+     */
+    private function generateChatTitle($message)
+    {
+        // Başlık için mesajı kısalt
+        $title = mb_substr(trim($message), 0, 50);
+        
+        // Eğer mesaj uzunsa sonuna ... ekle
+        if (mb_strlen($message) > 50) {
+            $title .= '...';
+        }
+        
+        return $title;
     }
 }

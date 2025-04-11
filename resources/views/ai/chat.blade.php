@@ -5,6 +5,8 @@
 @section('styles')
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+<!-- Daha canlı renkli tema - One Dark Pro -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css">
 <style>
     /* AI yazıyor animasyonu */
     .ai-thinking {
@@ -127,8 +129,8 @@
         overflow: hidden;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         height: 100%;
-        background: #1e1e1e;
-        border: 1px solid #252525;
+        background: #282c34;
+        border: 1px solid #353a44;
     }
     
     .coding-mode .code-section {
@@ -140,13 +142,13 @@
         justify-content: space-between;
         align-items: center;
         padding: 12px 16px;
-        background: #1e1e1e;
+        background: #21252b;
         color: #e0e0e0;
         border-bottom: 1px solid #3b3b3b;
     }
     
     .code-header .language-selector {
-        background: #333;
+        background: #333842;
         border: none;
         color: #fff;
         padding: 4px 8px;
@@ -156,31 +158,32 @@
     .code-content {
         flex: 1;
         padding: 16px;
-        background: #1e1e1e;
-        color: #d4d4d4;
-        font-family: 'Consolas', 'Monaco', monospace;
+        background: #282c34; /* One Dark arka plan rengi */
+        color: #abb2bf;
+        font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
         overflow-y: auto;
         font-size: 14px;
         line-height: 1.5;
+        white-space: pre-wrap;
     }
     
     .code-content pre {
         margin: 0;
         white-space: pre-wrap;
-        color: #dcddde;
-        font-family: Consolas, "Courier New", monospace;
+        color: #abb2bf;
+        font-family: 'Fira Code', Consolas, "Courier New", monospace;
     }
     
     .code-footer {
         display: flex;
         justify-content: flex-end;
         padding: 12px 16px;
-        background: #1e1e1e;
+        background: #21252b;
         border-top: 1px solid #3b3b3b;
     }
     
     .code-footer button {
-        background: #0e639c;
+        background: #4d78cc;
         border: none;
         color: white;
         padding: 6px 12px;
@@ -189,15 +192,52 @@
         cursor: pointer;
         font-size: 13px;
         font-weight: 500;
+        transition: background 0.2s;
     }
     
     .code-footer button:hover {
-        background: #1177bb;
+        background: #5a8be8;
     }
+    
+    /* Sözdizimi renklendirme özelleştirmeleri */
+    .hljs-keyword { color: #c678dd; font-weight: bold; } /* function, return, if gibi anahtar kelimeler */
+    .hljs-function { color: #61afef; } /* fonksiyon isimleri */
+    .hljs-title.function_ { color: #61afef; } /* fonksiyon isimleri */
+    .hljs-params { color: #d19a66; } /* fonksiyon parametreleri */
+    .hljs-string { color: #98c379; } /* string değerler */
+    .hljs-number { color: #d19a66; } /* sayılar */
+    .hljs-comment { color: #7f848e; font-style: italic; } /* yorumlar */
+    .hljs-tag { color: #e06c75; } /* HTML etiketleri */
+    .hljs-name { color: #e06c75; } /* HTML etiket isimleri */
+    .hljs-attribute { color: #d19a66; } /* HTML özellikleri */
+    .hljs-built_in { color: #e6c07b; } /* JavaScript gömülü fonksiyonlar */
+    .hljs-variable { color: #e06c75; } /* değişkenler */
+    .hljs-operator { color: #56b6c2; } /* operatörler */
+    .hljs-property { color: #d19a66; } /* objeler için özellikler */
+    .hljs-literal { color: #56b6c2; } /* true, false, null */
+    
+    /* Sadece kod renklendirme için stil eklemeleri */
+    .code-keyword { color: #569CD6; }
+    .code-string { color: #CE9178; }
+    .code-number { color: #B5CEA8; }
+    .code-function { color: #DCDCAA; }
+    .code-variable { color: #9CDCFE; }
+    .code-comment { color: #6A9955; }
+    .code-property { color: #9CDCFE; }
+    .code-math { color: #4EC9B0; }
+    .code-document { color: #4EC9B0; }
+    .code-bracket { color: #D4D4D4; }
+    .code-operator { color: #D4D4D4; }
+    .code-punctuation { color: #D4D4D4; }
+    .code-html-attribute { color: #9CDCFE; }
+    .code-html-tag { color: #569CD6; }
+    .code-css-selector { color: #DCDCAA; }
+    .code-css-property { color: #9CDCFE; }
 </style>
 @endsection
 
 @section('content')
+<meta name="csrf-token" content="{{ csrf_token() }}">
 <div class="container mx-auto px-4 py-8">
     <div class="max-w-6xl mx-auto">
         <!-- Header -->
@@ -224,9 +264,9 @@
                         </div>
                     </div>
                     
-                    <!-- Sone düşünüyor animasyonu (kaldırılacak) -->
+                    <!-- Sone düşünüyor animasyonu -->
                     <div id="sone-thinking" class="sone-thinking" style="display: none;">
-                        <span>Yaziyor</span>
+                        <span>Kod hazırlanıyor</span>
                         <div class="dots">
                             <span></span>
                             <span></span>
@@ -311,6 +351,14 @@
 @endsection
 
 @section('scripts')
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+<!-- Diller için ek paketler -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/languages/javascript.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/languages/php.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/languages/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/languages/css.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/languages/html.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/languages/sql.min.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const chatForm = document.getElementById('chat-form');
@@ -396,38 +444,62 @@
         }
         
         // Kodlama modunu aç/kapat
-        function toggleCodingMode(isActive) {
-            if (isActive) {
+        function toggleCodingMode(enabled) {
+            if (enabled) {
                 chatContainer.classList.add('coding-mode');
             } else {
                 chatContainer.classList.remove('coding-mode');
             }
         }
         
-        // Kod paneli işlemleri
-        if (clearCodeBtn) {
-            clearCodeBtn.addEventListener('click', function() {
-                codeContent.textContent = '';
+        // Temizle butonu
+        clearCodeBtn.addEventListener('click', function() {
+            codeContent.textContent = '';
+            applyCodeSyntaxHighlighting();
+        });
+        
+        // Kopyala butonu
+        copyCodeBtn.addEventListener('click', function() {
+            const codeToCopy = codeContent.dataset.original || codeContent.textContent;
+            navigator.clipboard.writeText(codeToCopy).then(function() {
+                // Kopyalama başarılı
+                copyCodeBtn.textContent = 'Kopyalandı!';
+                setTimeout(function() {
+                    copyCodeBtn.textContent = 'Kopyala';
+                }, 2000);
+            }, function() {
+                // Kopyalama başarısız
+                alert('Kod kopyalanamadı. Lütfen manuel olarak seçip kopyalayın.');
             });
+        });
+        
+        // Dil değiştiğinde
+        codeLanguage.addEventListener('change', function() {
+            applyCodeSyntaxHighlighting();
+        });
+        
+        // Kod renklendirme fonksiyonu
+        function applyCodeSyntaxHighlighting() {
+            if (!codeContent) return;
+            
+            // Orijinal kodu data attribute'unda saklayalım
+            const originalCode = codeContent.textContent;
+            codeContent.dataset.original = originalCode;
+            
+            // Sadece görüntüleme için kopya oluşturalım
+            const displayContent = originalCode.slice();
+            
+            // Highlight.js ile güvenli renklendirme
+            codeContent.innerHTML = displayContent
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;");
+
+            // Highlight.js'i tetikle
+            hljs.highlightElement(codeContent);
         }
         
-        if (copyCodeBtn) {
-            copyCodeBtn.addEventListener('click', function() {
-                navigator.clipboard.writeText(codeContent.textContent)
-                    .then(() => {
-                        // Kopyalama başarılı olduğunda geçici bildirim göster
-                        const originalText = this.textContent;
-                        this.textContent = 'Kopyalandı!';
-                        setTimeout(() => {
-                            this.textContent = originalText;
-                        }, 2000);
-                    })
-                    .catch(err => {
-                        console.error('Kopyalama hatası:', err);
-                    });
-            });
-        }
-        
+        // Formdan mesaj gönderme işlemi
         async function handleSubmit(e) {
             e.preventDefault();
             
@@ -447,130 +519,159 @@
             showThinkingAnimation();
 
             // Timeout ekle - yanıt alınamazsa 15 saniye sonra hata göster
-            const timeout = setTimeout(() => {
+            let responseTimeout = setTimeout(() => {
                 hideThinkingAnimation();
-                if (typingIndicator) {
-                    typingIndicator.classList.add('hidden');
-                }
-                addMessage('Yanıt alınamadı. Lütfen tekrar deneyin.', 'ai');
+                addMessage("Üzgünüm, yanıt alınamadı. Lütfen tekrar deneyin.", 'ai');
             }, 15000);
 
             try {
-                // CSRF token kontrolü
-                const csrfToken = document.querySelector('meta[name="csrf-token"]');
-                if (!csrfToken) {
-                    throw new Error('CSRF token bulunamadı!');
-                }
+                // CSRF tokeni al
+                const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
                 
+                // Chat ID (oturum varsa)
+                const chatId = localStorage.getItem('current_chat_id') || null;
+                
+                // API'ye gönderilecek veri
+                const requestData = {
+                    message: message.trim(),
+                    chat_id: chatId,
+                    creative_mode: isCreativeMode,
+                    coding_mode: isCodingMode,
+                    preferred_language: codeLanguage ? codeLanguage.value : 'javascript'
+                };
+                
+                console.log('İstek gönderiliyor:', requestData);
+                
+                // Fetch API ile istek gönder
                 const response = await fetch('/api/ai/process', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': csrfToken.content
+                        'X-CSRF-TOKEN': token
                     },
-                    body: JSON.stringify({ 
-                        message, 
-                        creative_mode: isCreativeMode,
-                        coding_mode: isCodingMode,
-                        preferred_language: codeLanguage.value
-                    })
+                    body: JSON.stringify(requestData)
                 });
-                
-                // Timeout'u temizle
-                clearTimeout(timeout);
 
-                // Sone düşünüyor animasyonunu gizle
-                hideThinkingAnimation();
-
-                // HTTP yanıt durumunu kontrol et
-                if (!response.ok) {
-                    throw new Error(`Sunucu hatası: ${response.status} - ${response.statusText}`);
-                }
-
-                // HTTP yanıtı göstermek yerine JSON olarak ayrıştır
-                const data = await response.json();
-                
-                // Typing göstergesini gizle
-                if (typingIndicator) {
-                    typingIndicator.classList.add('hidden');
-                }
-
-                if (data.success) {
-                    // JSON yanıtını doğrudan kullan
-                    const aiResponse = data.response || "Yanıt alınamadı.";
+                // Yanıtı işle
+                if (response.ok) {
+                    const data = await response.json();
                     
-                    // Temizlenmiş yanıtı al
-                    let cleanedResponse = cleanResponseText(aiResponse);
+                    // Timeout'u temizle
+                    clearTimeout(responseTimeout);
                     
-                    // AI yanıtını ekle - temizlenmiş metin olarak
-                    addMessage(cleanedResponse, 'ai');
+                    // Thinking animasyonunu kaldır
+                    hideThinkingAnimation();
                     
-                    // Kodlama modu açıksa ve kod yanıtı varsa
-                    if (isCodingMode && data.code) {
-                        // Kod dilini tespit et
-                        const detectedLanguage = detectLanguage(data.code);
-                        
-                        // Tespit edilen dile göre select değerini güncelle
-                        codeLanguage.value = detectedLanguage;
-                        
-                        // Syntax highlighting uygula
-                        const highlightedCode = highlightCode(data.code, detectedLanguage);
-                        
-                        // Kod paneline ekle
-                        codeContent.textContent = highlightedCode;
-                    } else if (isCodingMode) {
-                        // Eğer kod yanıtı yoksa ama kodlama modu açıksa, bir kod çıkarma işlemi yap
-                        try {
-                            // Yanıtta bir kod bloğu var mı kontrol et (markdown code block)
-                            const codeBlockMatch = cleanedResponse.match(/```([a-zA-Z]*)\n([\s\S]*?)```/);
-                            if (codeBlockMatch) {
-                                const language = codeBlockMatch[1].toLowerCase() || 'javascript';
-                                const code = codeBlockMatch[2];
-                                
-                                // Dil uygunsa select değerini güncelle
-                                const options = Array.from(codeLanguage.options);
-                                const option = options.find(opt => opt.value === language);
-                                if (option) {
-                                    codeLanguage.value = language;
-                                }
-                                
-                                // Kod paneline ekle
-                                codeContent.textContent = code;
-                                
-                                // Yanıttan kod bloğunu kaldır
-                                cleanedResponse = cleanedResponse.replace(/```[a-zA-Z]*\n[\s\S]*?```/, '**Kod panelde gösteriliyor**');
-                                
-                                // Güncellenmiş yanıtı ekle
-                                updateLastMessage(cleanedResponse);
-                            }
-                        } catch (e) {
-                            console.error('Kod çıkarma hatası:', e);
-                        }
+                    // Chat ID'yi kaydet (varsa)
+                    if (data.chat_id) {
+                        localStorage.setItem('current_chat_id', data.chat_id);
                     }
-                } else if (data.error) {
-                    // Sunucudan dönen özel hata mesajı
-                    addMessage(data.error, 'ai');
+                    
+                    // Kod yanıtı mı kontrol et
+                    if (data.is_code_response) {
+                        // Kod yanıtını göster ve panele yükle
+                        addMessage(data.response, 'ai');
+                        
+                        // Backtick bloklarının içindeki kodu çıkar
+                        if (codeContent) {
+                            // Gelen kodu logla
+                            console.log("API'den gelen kod:", data.code);
+                            
+                            let plainCode = data.code;
+                            
+                            // Gelen kod içinde HTML/span etiketleri var mı kontrol et
+                            if (plainCode.includes('<span') || plainCode.includes('code-')) {
+                                console.log("Kod içinde HTML etiketleri tespit edildi, temizleniyor");
+                                
+                                // HTML öğelerini temizle (özellikle span etiketlerini)
+                                const tempDiv = document.createElement('div');
+                                tempDiv.innerHTML = plainCode;
+                                plainCode = tempDiv.textContent || tempDiv.innerText || '';
+                            }
+                            
+                            // HTML entity'leri gerçek karakterlere dönüştür
+                            plainCode = plainCode.replace(/&lt;/g, '<')
+                                              .replace(/&gt;/g, '>')
+                                              .replace(/&amp;/g, '&')
+                                              .replace(/&quot;/g, '"');
+                            
+                            console.log("Temizlenmiş kod:", plainCode);
+                            
+                            // Temizlenmiş kodu editöre yerleştir
+                            codeContent.textContent = plainCode;
+                            
+                            // Kod renklendirme uygula
+                            applyCodeSyntaxHighlighting();
+                        }
+                        // Kod dilini güncelle
+                        if (codeLanguage && data.language) {
+                            // Seçenekler arasında var mı kontrol et
+                            const options = codeLanguage.options;
+                            let found = false;
+                            
+                            for (let i = 0; i < options.length; i++) {
+                                if (options[i].value === data.language) {
+                                    codeLanguage.selectedIndex = i;
+                                    found = true;
+                                    break;
+                                }
+                            }
+                            
+                            // Seçenekler arasında yoksa ve tanımlanan bir dilse
+                            if (!found && data.language) {
+                                const newOption = document.createElement('option');
+                                newOption.value = data.language;
+                                newOption.textContent = data.language.charAt(0).toUpperCase() + data.language.slice(1);
+                                codeLanguage.appendChild(newOption);
+                                codeLanguage.value = data.language;
+                            }
+                        }
+                        
+                        // Kodlama modu kapalıysa, otomatik olarak aç
+                        if (!isCodingMode) {
+                            isCodingMode = true;
+                            localStorage.setItem('coding_mode', true);
+                            toggleCodingMode(true);
+                            
+                            // Toggle butonunu güncelle
+                            if (codingToggle) {
+                                codingButtonText.textContent = 'Açık';
+                                codingToggle.classList.remove('bg-gray-200', 'hover:bg-gray-300');
+                                codingToggle.classList.add('bg-green-500', 'hover:bg-green-600', 'text-white');
+                            }
+                        }
+                    } else {
+                        // Normal yanıt
+                        let processedResponse = data.response;
+                        
+                        // Yanıtı göster
+                        addMessage(processedResponse, 'ai');
+                    }
+                    
+                    // Mesaj gönderdikten sonra Scroll to bottom
+                    setTimeout(() => {
+                        if (messagesContainer) {
+                            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                        }
+                    }, 100);
+                    
                 } else {
-                    // Genel hata durumu
-                    addMessage(data.response || 'Üzgünüm, bir hata oluştu.', 'ai');
+                    // Hata durumu
+                    clearTimeout(responseTimeout);
+                    hideThinkingAnimation();
+                    
+                    const errorData = await response.json();
+                    const errorMessage = errorData.error || "Yanıt alınamadı. Lütfen tekrar deneyin.";
+                    addMessage(errorMessage, 'ai');
                 }
-            } catch (error) {
-                // Timeout'u temizle
-                clearTimeout(timeout);
                 
-                // Sone düşünüyor animasyonunu gizle
+            } catch (error) {
+                // Network/CORS/Parse hatası
+                clearTimeout(responseTimeout);
                 hideThinkingAnimation();
                 
-                // Hata detaylarını logla
-                console.error('Hata:', error);
-                
-                // Typing göstergesini gizle
-                if (typingIndicator) {
-                    typingIndicator.classList.add('hidden');
-                }
-                
-                // Kullanıcıya hata mesajı göster
-                addMessage('Bağlantı hatası oluştu. Lütfen internet bağlantınızı kontrol edin ve tekrar deneyin.', 'ai');
+                console.error('Hata oluştu:', error);
+                addMessage("Üzgünüm, bir hata oluştu. Lütfen tekrar deneyin.", 'ai');
             }
         }
 
@@ -591,8 +692,48 @@
             let messageText = '';
             
             try {
-                // HTTP başlıkları içeriyor mu kontrol et (daha katı kontrol)
+                // JSON formatında gelen yanıtları işle
                 if (typeof message === 'string' && 
+                   (message.trim().startsWith('{') || message.trim().startsWith('['))) {
+                    try {
+                        // JSON olarak parse et
+                        const jsonData = JSON.parse(message);
+                        
+                        // JSON yapısını kontrol et
+                        if (jsonData.response) {
+                            messageText = jsonData.response;
+                            
+                            // Unicode karakterleri düzelt
+                            if (typeof messageText === 'string') {
+                                messageText = messageText
+                                    .replace(/\\u00e7/g, 'ç')
+                                    .replace(/\\u00c7/g, 'Ç')
+                                    .replace(/\\u00f6/g, 'ö')
+                                    .replace(/\\u00d6/g, 'Ö')
+                                    .replace(/\\u011f/g, 'ğ')
+                                    .replace(/\\u011e/g, 'Ğ')
+                                    .replace(/\\u0131/g, 'ı')
+                                    .replace(/\\u0130/g, 'İ')
+                                    .replace(/\\u015f/g, 'ş')
+                                    .replace(/\\u015e/g, 'Ş')
+                                    .replace(/\\u00fc/g, 'ü')
+                                    .replace(/\\u00dc/g, 'Ü');
+                            }
+                        } else if (jsonData.original && jsonData.original.response) {
+                            messageText = jsonData.original.response;
+                        } else if (jsonData.message) {
+                            messageText = jsonData.message;
+                        } else {
+                            // Diğer olası alanları kontrol et ve varsayılan mesaja dön
+                            messageText = "Yanıt içeriği alınamadı.";
+                        }
+                    } catch (jsonError) {
+                        console.error("JSON parse hatası:", jsonError);
+                        messageText = message;
+                    }
+                }
+                // HTTP başlıkları içeriyor mu kontrol et (daha katı kontrol)
+                else if (typeof message === 'string' && 
                     (message.includes('HTTP/1.') || 
                      message.includes('Cache-Control:') || 
                      message.includes('Content-Type:') || 
@@ -636,29 +777,6 @@
                         }
                     }
                 }
-                // String olarak JSON mu kontrol et
-                else if (typeof message === 'string' && 
-                         (message.trim().startsWith('{') || message.trim().startsWith('['))) {
-                    try {
-                        // JSON olarak parse et
-                        const jsonData = JSON.parse(message);
-                        
-                        // JSON yapısını kontrol et
-                        if (jsonData.response) {
-                            messageText = jsonData.response;
-                        } else if (jsonData.original && jsonData.original.response) {
-                            messageText = jsonData.original.response;
-                        } else if (jsonData.message) {
-                            messageText = jsonData.message;
-                        } else {
-                            // Diğer olası alanları kontrol et ve varsayılan mesaja dön
-                            messageText = "Yanıt içeriği alınamadı.";
-                        }
-                    } catch (jsonError) {
-                        console.error("JSON parse hatası:", jsonError);
-                        messageText = message;
-                    }
-                }
                 // Obje olarak mı geldi?
                 else if (typeof message === 'object') {
                     // Doğrudan obje olarak gelmişse
@@ -666,6 +784,8 @@
                         messageText = message.response;
                     } else if (message.message) {
                         messageText = message.message;
+                    } else if (message.explanation) {
+                        messageText = message.explanation;  // Kod açıklaması varsa göster
                     } else {
                         try {
                             messageText = JSON.stringify(message);
@@ -690,10 +810,17 @@
                         const finalJson = JSON.parse(messageText);
                         if (finalJson.response) {
                             messageText = finalJson.response;
+                        } else if (finalJson.explanation) {
+                            messageText = finalJson.explanation; // Kod açıklaması
                         }
                     } catch (e) {
                         // Hata olursa mevcut metni koru
                     }
+                }
+                
+                // Hata mesajı içeriyor mu kontrol et ve çıkar
+                if (typeof messageText === 'string' && messageText.includes("Üzgünüm, kodunuzu ararken bir hata oluştu")) {
+                    messageText = messageText.replace("Üzgünüm, kodunuzu ararken bir hata oluştu. ", "");
                 }
             } catch (e) {
                 console.error('Mesaj işleme hatası:', e);
@@ -772,7 +899,7 @@
                         </div>
                     </div>
                     <div class="ml-3 sone-thinking" style="display: block; margin: 0;">
-                        <span>Sone düşünüyor</span>
+                        <span>Kod hazırlanıyor</span>
                         <div class="dots">
                             <span></span>
                             <span></span>

@@ -293,6 +293,9 @@ $(document).ready(function() {
             timeout: 10000, // 10 saniye timeout
             success: function(response) {
                 if (response.success) {
+                    // Log yaparak response'u kontrol et
+                    console.log('API response:', response.data);
+                    
                     let content = '<div class="row">';
                     
                     // Ana bilgiler
@@ -350,12 +353,16 @@ $(document).ready(function() {
                     content += '<div class="col-md-12 mt-3"><h5>İlişkili Kelimeler</h5>';
                     content += '<div class="row">';
                     
-                    // Eş anlamlılar
+                    // Eş anlamlılar - Dizi olup olmadığını kontrol et
                     content += '<div class="col-md-4"><strong>Eş Anlamlılar:</strong>';
-                    if (response.data.synonyms && response.data.synonyms.length > 0) {
-                        content += '<ul class="list-group">';
+                    if (response.data.synonyms && Array.isArray(response.data.synonyms) && response.data.synonyms.length > 0) {
+                        content += '<span class="badge bg-success ms-1">' + response.data.synonyms.length + '</span>';
+                        content += '<ul class="list-group mt-2">';
                         response.data.synonyms.forEach(function(synonym) {
-                            content += '<li class="list-group-item">' + synonym + '</li>';
+                            content += '<li class="list-group-item d-flex justify-content-between align-items-center">';
+                            content += synonym;
+                            content += '<span class="badge bg-success rounded-pill">Eş Anlamlı</span>';
+                            content += '</li>';
                         });
                         content += '</ul>';
                     } else {
@@ -363,12 +370,16 @@ $(document).ready(function() {
                     }
                     content += '</div>';
                     
-                    // Zıt anlamlılar
+                    // Zıt anlamlılar - Dizi olup olmadığını kontrol et
                     content += '<div class="col-md-4"><strong>Zıt Anlamlılar:</strong>';
-                    if (response.data.antonyms && response.data.antonyms.length > 0) {
-                        content += '<ul class="list-group">';
+                    if (response.data.antonyms && Array.isArray(response.data.antonyms) && response.data.antonyms.length > 0) {
+                        content += '<span class="badge bg-danger ms-1">' + response.data.antonyms.length + '</span>';
+                        content += '<ul class="list-group mt-2">';
                         response.data.antonyms.forEach(function(antonym) {
-                            content += '<li class="list-group-item">' + antonym + '</li>';
+                            content += '<li class="list-group-item d-flex justify-content-between align-items-center">';
+                            content += antonym;
+                            content += '<span class="badge bg-danger rounded-pill">Zıt Anlamlı</span>';
+                            content += '</li>';
                         });
                         content += '</ul>';
                     } else {
@@ -378,10 +389,14 @@ $(document).ready(function() {
                     
                     // İlişkili kelimeler
                     content += '<div class="col-md-4"><strong>İlişkili Kelimeler:</strong>';
-                    if (response.data.related && response.data.related.length > 0) {
-                        content += '<ul class="list-group">';
+                    if (response.data.related && Array.isArray(response.data.related) && response.data.related.length > 0) {
+                        content += '<span class="badge bg-info ms-1">' + response.data.related.length + '</span>';
+                        content += '<ul class="list-group mt-2">';
                         response.data.related.forEach(function(related) {
-                            content += '<li class="list-group-item">' + related + '</li>';
+                            content += '<li class="list-group-item d-flex justify-content-between align-items-center">';
+                            content += related;
+                            content += '<span class="badge bg-info rounded-pill">İlişkili</span>';
+                            content += '</li>';
                         });
                         content += '</ul>';
                     } else {

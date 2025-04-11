@@ -10,6 +10,7 @@ use App\Models\AIData;
 use App\Models\Chat;
 use App\Models\ChatMessage;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\DB;
 
 class AIController extends Controller
 {
@@ -666,8 +667,42 @@ class AIController extends Controller
             // WordRelations sınıfını da doğrudan kullan
             $wordRelations = app(\App\AI\Core\WordRelations::class);
             
-            // Brain üzerinden temel kelime ilişkilerini al
-            $wordInfo = $brain->getWordRelations($word);
+            // Word relations tablosundan eş ve zıt anlamlıları doğrudan çek
+            $synonyms = DB::table('word_relations')
+                ->where('word', $word)
+                ->where('relation_type', 'synonym')
+                ->where('language', 'tr')
+                ->orderBy('strength', 'desc')
+                ->pluck('related_word')
+                ->toArray();
+                
+            $antonyms = DB::table('word_relations')
+                ->where('word', $word)
+                ->where('relation_type', 'antonym')
+                ->where('language', 'tr')
+                ->orderBy('strength', 'desc')
+                ->pluck('related_word')
+                ->toArray();
+                
+            // İlişkili kelimeleri al 
+            $related = DB::table('word_relations')
+                ->where('word', $word)
+                ->where('relation_type', 'association')
+                ->where('language', 'tr')
+                ->orderBy('strength', 'desc')
+                ->select('related_word', 'strength', 'context')
+                ->get()
+                ->toArray();
+            
+            // Kelime bilgisini oluştur
+            $wordInfo = [
+                'word' => $word,
+                'synonyms' => $synonyms,
+                'antonyms' => $antonyms,
+                'related' => array_map(function($item) {
+                    return $item->related_word;
+                }, $related)
+            ];
             
             // Kelimenin AI verilerini getir
             $aiData = \App\Models\AIData::where('word', $word)->first();
@@ -677,7 +712,6 @@ class AIController extends Controller
                 $wordInfo['frequency'] = $aiData->frequency;
                 $wordInfo['confidence'] = $aiData->confidence;
                 $wordInfo['category'] = $aiData->category;
-                $wordInfo['related_words'] = json_decode($aiData->related_words) ?: [];
                 $wordInfo['examples'] = json_decode($aiData->usage_examples) ?: [];
                 $wordInfo['metadata'] = json_decode($aiData->metadata) ?: [];
                 $wordInfo['emotional_context'] = json_decode($aiData->emotional_context) ?: [];
@@ -705,18 +739,12 @@ class AIController extends Controller
             }
             $wordInfo['examples'] = $examples ?: [];
             
-            // İlişkili kelimelerin düz listesini oluştur
-            $relatedWordsFlat = [];
-            if (!empty($wordInfo['related_words']) && is_array($wordInfo['related_words'])) {
-                foreach ($wordInfo['related_words'] as $item) {
-                    if (is_array($item) && isset($item['word'])) {
-                        $relatedWordsFlat[] = $item['word'];
-                    } elseif (is_string($item)) {
-                        $relatedWordsFlat[] = $item;
-                    }
-                }
-            }
-            $wordInfo['related'] = $relatedWordsFlat;
+            // İlişkili kelimelerin tam bilgilerini de ekle
+            $wordInfo['related_details'] = $related;
+            
+            // Log ekle
+            Log::info("[$word] kelimesi için eş anlamlılar (words.blade): " . json_encode($synonyms));
+            Log::info("[$word] kelimesi için zıt anlamlılar (words.blade): " . json_encode($antonyms));
             
             return response()->json([
                 'success' => true,

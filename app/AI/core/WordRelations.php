@@ -426,6 +426,12 @@ class WordRelations
                 ->where('language', $this->language)
                 ->get();
             
+            // AI Data tablosundan kelimeleri al (önemli olan bu kısım)
+            $aiWords = DB::table('ai_data')
+                ->select('word')
+                ->where('language', $this->language)
+                ->get();
+            
             $processed = 0;
             $learned = 0;
             
@@ -456,6 +462,77 @@ class WordRelations
                 $learned++;
             }
             
+            // AI Data kelimelerini işle ve TDK'dan ilişkileri araştır
+            foreach ($aiWords as $aiWord) {
+                $word = $aiWord->word;
+                $processed++;
+                
+                Log::info("Kelime işleniyor ({$processed}): {$word}");
+                
+                // Her kelime için eş anlamlı ve zıt anlamlı kelime sayısını kontrol et
+                $synonymCount = DB::table('word_relations')
+                    ->where('word', $word)
+                    ->where('relation_type', 'synonym')
+                    ->count();
+                    
+                $antonymCount = DB::table('word_relations')
+                    ->where('word', $word)
+                    ->where('relation_type', 'antonym')
+                    ->count();
+                
+                // Eğer eş anlamlı veya zıt anlamlı kelime yoksa TDK'dan araştır
+                if ($synonymCount == 0 || $antonymCount == 0) {
+                    $tdkData = $this->searchTDK($word);
+                    
+                    if (!empty($tdkData)) {
+                        // Eş anlamlıları işle
+                        if (!empty($tdkData['synonyms'])) {
+                            foreach ($tdkData['synonyms'] as $synonym) {
+                                if (is_string($synonym) && !empty($synonym)) {
+                                    $this->learnSynonym($word, $synonym, 0.9);
+                                    $learned++;
+                                }
+                            }
+                        }
+                        
+                        // Zıt anlamlıları işle
+                        if (!empty($tdkData['antonyms'])) {
+                            foreach ($tdkData['antonyms'] as $antonym) {
+                                if (is_string($antonym) && !empty($antonym)) {
+                                    $this->learnAntonym($word, $antonym, 0.9);
+                                    $learned++;
+                                }
+                            }
+                        }
+                        
+                        // Tanımları işle
+                        if (!empty($tdkData['definitions'])) {
+                            foreach ($tdkData['definitions'] as $definition) {
+                                if (is_string($definition) && !empty($definition)) {
+                                    $this->learnDefinition($word, $definition);
+                                    $learned++;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Yeni işlenen kelime ilişkilerini loglara yaz
+                $newSynonyms = DB::table('word_relations')
+                    ->where('word', $word)
+                    ->where('relation_type', 'synonym')
+                    ->count();
+                
+                $newAntonyms = DB::table('word_relations')
+                    ->where('word', $word)
+                    ->where('relation_type', 'antonym')
+                    ->count();
+                
+                Log::info("Kelime ilişkileri toplama sonucu - {$word}: " . 
+                    ($newSynonyms - $synonymCount) . " eş anlamlı, " . 
+                    ($newAntonyms - $antonymCount) . " zıt anlamlı kelime bulundu.");
+            }
+            
             $this->saveCachedData();
             
             return [
@@ -471,6 +548,85 @@ class WordRelations
                 'success' => false,
                 'message' => 'İlişki toplama hatası: ' . $e->getMessage()
             ];
+        }
+    }
+    
+    /**
+     * TDK Sözlüğünden kelime bilgilerini ara
+     * 
+     * @param string $word Kelime
+     * @return array Eş ve zıt anlamlıları, tanımları içeren dizi
+     */
+    private function searchTDK($word)
+    {
+        try {
+            $result = [
+                'synonyms' => [],
+                'antonyms' => [],
+                'definitions' => []
+            ];
+            
+            // TDK API URL
+            $url = "https://sozluk.gov.tr/gts?ara=" . urlencode($word);
+            
+            // HTTP isteği yap
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+            $response = curl_exec($ch);
+            curl_close($ch);
+            
+            if ($response) {
+                $data = json_decode($response, true);
+                
+                if (isset($data[0])) {
+                    // Tanımları topla
+                    if (isset($data[0]['anlamlarListe'])) {
+                        foreach ($data[0]['anlamlarListe'] as $meaning) {
+                            if (isset($meaning['anlam'])) {
+                                $result['definitions'][] = $meaning['anlam'];
+                                
+                                // Eş anlamlıları tanımdan çıkar
+                                if (strpos($meaning['anlam'], 'Eş anl.') !== false) {
+                                    preg_match('/Eş anl\.\s*([^\.]+)/', $meaning['anlam'], $matches);
+                                    
+                                    if (isset($matches[1])) {
+                                        $syns = explode(',', $matches[1]);
+                                        foreach ($syns as $syn) {
+                                            $synonym = trim($syn);
+                                            if (!empty($synonym) && !in_array($synonym, $result['synonyms'])) {
+                                                $result['synonyms'][] = $synonym;
+                                            }
+                                        }
+                                    }
+                                }
+                                
+                                // Zıt anlamlıları tanımdan çıkar
+                                if (strpos($meaning['anlam'], 'Karş.') !== false) {
+                                    preg_match('/Karş\.\s*([^\.]+)/', $meaning['anlam'], $matches);
+                                    
+                                    if (isset($matches[1])) {
+                                        $ants = explode(',', $matches[1]);
+                                        foreach ($ants as $ant) {
+                                            $antonym = trim($ant);
+                                            if (!empty($antonym) && !in_array($antonym, $result['antonyms'])) {
+                                                $result['antonyms'][] = $antonym;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            return $result;
+            
+        } catch (\Exception $e) {
+            Log::error("TDK araması hatası: " . $e->getMessage());
+            return [];
         }
     }
     

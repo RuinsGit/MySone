@@ -114,6 +114,7 @@ Route::prefix('manage')->name('manage.')->group(function () {
     Route::post('/maintenance/delete-old', [ManageController::class, 'deleteOldData']);
     Route::post('/maintenance/cleanup', [ManageController::class, 'cleanupData']);
     Route::post('/maintenance/optimize', [ManageController::class, 'optimizeDatabase']);
+    Route::post('/maintenance/enhance-relations', [ManageController::class, 'enhanceWordRelations']);
 });
 
 // Kelime listesi sayfası için yeni rota

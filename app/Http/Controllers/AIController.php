@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use App\AI\Core\Brain;
+use App\AI\Core\WordRelations;
 use App\Models\AIData;
 use App\Models\Chat;
 use App\Models\ChatMessage;
@@ -540,7 +541,8 @@ class AIController extends Controller
                 $synonyms = $wordRelations->getSynonyms($selectedWord);
                 
                 if (!empty($synonyms)) {
-                    $synonym = array_rand($synonyms);
+                    $randomKey = array_rand($synonyms);
+                    $synonym = $synonyms[$randomKey];
                     $additions = [
                         "Bu arada, '$selectedWord' kelimesinin eş anlamlısı '$synonym' kelimesidir.",
                         "'$selectedWord' ve '$synonym' benzer anlamlara sahiptir.",
@@ -564,7 +566,8 @@ class AIController extends Controller
                 $antonyms = $wordRelations->getAntonyms($selectedWord);
                 
                 if (!empty($antonyms)) {
-                    $antonym = array_rand($antonyms);
+                    $randomKey = array_rand($antonyms);
+                    $antonym = $antonyms[$randomKey];
                     $additions = [
                         "Bu arada, '$selectedWord' kelimesinin zıt anlamlısı '$antonym' kelimesidir.",
                         "'$selectedWord' ve '$antonym' zıt anlamlara sahiptir.",
@@ -683,11 +686,23 @@ class AIController extends Controller
             }
             
             // Tanımları getir
-            $definitions = $wordRelations->getDefinitions($word);
+            $definitions = [];
+            if (method_exists($wordRelations, 'getDefinitions')) {
+                $definitions = $wordRelations->getDefinitions($word);
+            } else {
+                // Alternatif olarak, getDefinition metodunu deneyelim ve tek değer olarak alalım
+                $singleDef = $wordRelations->getDefinition($word);
+                if (!empty($singleDef)) {
+                    $definitions = [$singleDef];
+                }
+            }
             $wordInfo['definitions'] = $definitions ?: [];
             
-            // Örnekleri ayrı bir getDefinitions metodu üzerinden al
-            $examples = $wordRelations->getExamples($word);
+            // Örnekleri getir
+            $examples = [];
+            if (method_exists($wordRelations, 'getExamples')) {
+                $examples = $wordRelations->getExamples($word);
+            }
             $wordInfo['examples'] = $examples ?: [];
             
             // İlişkili kelimelerin düz listesini oluştur
@@ -733,10 +748,18 @@ class AIController extends Controller
             $brain = app(Brain::class);
             
             // Öğrenme sistemi var mı kontrol et
-            $learningSystem = $brain->getLearningSystem();
+            try {
+                $learningSystem = $brain->getLearningSystem();
+            } catch (\Exception $e) {
+                Log::warning('Öğrenme sistemi bulunamadı veya erişilemedi: ' . $e->getMessage());
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Öğrenme sistemi başlatılmadı veya erişilemedi'
+                ]);
+            }
             
             if (!$learningSystem) {
-                Log::warning('Öğrenme sistemi bulunamadı');
+                Log::warning('Öğrenme sistemi bulunamadı (null değer döndü)');
                 return response()->json([
                     'success' => false,
                     'message' => 'Öğrenme sistemi başlatılmadı'
@@ -781,12 +804,37 @@ class AIController extends Controller
             
             // Durum bilgilerini al
             $status = [
-                'memory' => $brain->getMemoryStatus(),
-                'emotion' => $brain->getEmotionalState(),
-                'learning' => $brain->getLearningStatus(),
-                'consciousness' => $brain->getConsciousnessState(),
                 'words_learned' => AIData::count()
             ];
+            
+            // Her bir metot çağrısını ayrı bir try-catch bloğunda gerçekleştir
+            try {
+                $status['memory'] = $brain->getMemoryStatus();
+            } catch (\Exception $e) {
+                Log::warning('Bellek durumu alınamadı: ' . $e->getMessage());
+                $status['memory'] = ['error' => 'Bellek durumu alınamadı'];
+            }
+            
+            try {
+                $status['emotion'] = $brain->getEmotionalState();
+            } catch (\Exception $e) {
+                Log::warning('Duygusal durum alınamadı: ' . $e->getMessage());
+                $status['emotion'] = ['error' => 'Duygusal durum alınamadı'];
+            }
+            
+            try {
+                $status['learning'] = $brain->getLearningStatus();
+            } catch (\Exception $e) {
+                Log::warning('Öğrenme durumu alınamadı: ' . $e->getMessage());
+                $status['learning'] = ['error' => 'Öğrenme durumu alınamadı'];
+            }
+            
+            try {
+                $status['consciousness'] = $brain->getConsciousnessState();
+            } catch (\Exception $e) {
+                Log::warning('Bilinç durumu alınamadı: ' . $e->getMessage());
+                $status['consciousness'] = ['error' => 'Bilinç durumu alınamadı'];
+            }
             
             return response()->json([
                 'success' => true,

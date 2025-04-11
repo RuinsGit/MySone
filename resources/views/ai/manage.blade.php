@@ -82,6 +82,23 @@
                         </div>
                                                 <p class="text-center mt-2">Durum bilgisi yükleniyor...</p>
                     </div>
+                    
+                                            <div id="processedWords" class="mt-4" style="display:none;">
+                                                <h5><i class="bi bi-list-check me-1"></i> Son İşlenen Kelimeler</h5>
+                                                <div class="table-responsive">
+                                                    <table class="table table-sm table-striped">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Kelime</th>
+                                                                <th>Eş Anlamlılar</th>
+                                                                <th>Zıt Anlamlılar</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody id="processedWordsBody">
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
                 </div>
             </div>
                     </div>
@@ -292,6 +309,37 @@
                                                 </div>
                                             </div>
                                             
+                                            <div class="row mt-3">
+                                                <div class="col-md-12 mb-4">
+                                                    <div class="card">
+                                                        <div class="card-header bg-success text-white">
+                                                            <i class="bi bi-diagram-3 me-1"></i> Kelime İlişkilerini Geliştirme
+                                                        </div>
+                                                        <div class="card-body">
+                                                            <div class="alert alert-info" role="alert">
+                                                                <i class="bi bi-info-circle me-1"></i> Bu işlem, mevcut kelimelerin eş anlamlı, zıt anlamlı ve ilişkili kelimelerini TDK sözlüğü ve diğer kaynaklardan alarak geliştirir.
+                                                            </div>
+                                                            
+                                                            <div class="alert alert-warning" role="alert">
+                                                                <i class="bi bi-exclamation-triangle me-1"></i> <strong>Uyarı:</strong> Bu işlem, çok sayıda kelime seçildiğinde zaman aşımına uğrayabilir. Tek seferde en fazla 10-20 kelime işlemeniz önerilir.
+                                                            </div>
+                                                            
+                                                            <div class="form-group mb-3">
+                                                                <label for="relation-limit" class="form-label">İşlenecek maksimum kelime sayısı:</label>
+                                                                <input type="number" id="relation-limit" class="form-control" value="10" min="1" max="100">
+                                                                <div class="form-text">Çok sayıda kelime seçmek işlemin daha uzun sürmesine neden olabilir.</div>
+                                                            </div>
+                                                            
+                                                            <button type="button" id="enhanceRelationsBtn" class="btn btn-success w-100">
+                                                                <i class="bi bi-diagram-3 me-1"></i> Kelime İlişkilerini Geliştir
+                                                            </button>
+                                                            
+                                                            <div id="enhanceRelationsResult" class="mt-3"></div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
                                             <div id="maintenanceResult" class="mt-3">
                                                 <!-- İşlem sonuçları buraya yüklenecek -->
                                             </div>
@@ -343,66 +391,165 @@ $(document).ready(function() {
                     let percent = status.progress_percent || 0;
                     html += '<div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: ' + percent + '%" aria-valuenow="' + percent + '" aria-valuemin="0" aria-valuemax="100">' + percent + '%</div>';
                     html += '</div>';
-                } else {
-                    html += '<div class="alert alert-secondary"><i class="bi bi-pause-circle-fill me-2"></i>Öğrenme işlemi beklemede</div>';
-                }
-
-                html += '<div class="table-responsive">';
-                html += '<table class="table table-bordered">';
-                html += '<tr><th>Toplam Kelime Limiti</th><td>' + (status.word_limit || status.total || 0) + '</td></tr>';
-                html += '<tr><th>Öğrenilen Kelimeler</th><td>' + (status.learned_count || status.learned || 0) + '</td></tr>';
-                html += '<tr><th>Hata Sayısı</th><td>' + (status.error_count || status.errors || 0) + '</td></tr>';
-                html += '<tr><th>Son Öğrenilen Kelime</th><td>' + (status.last_word ? status.last_word : '-') + '</td></tr>';
-                
-                if (status.start_time) {
-                    html += '<tr><th>Başlangıç Zamanı</th><td>' + status.start_time + '</td></tr>';
-                }
-                
-                if (status.elapsed_time) {
-                    let elapsed = status.elapsed_time;
-                    let hours = Math.floor(elapsed / 3600);
-                    let minutes = Math.floor((elapsed % 3600) / 60);
-                    let seconds = elapsed % 60;
-                    let timeStr = '';
                     
-                    if (hours > 0) timeStr += hours + ' saat ';
-                    if (minutes > 0) timeStr += minutes + ' dakika ';
-                    timeStr += seconds + ' saniye';
+                    html += '<div class="mt-2 mb-3">';
+                    html += '<strong>İşlenen Kelime:</strong> ' + status.processed_words + '/' + status.total_words;
+                    html += ' <strong>Tamamlanma:</strong> ' + percent + '%';
+                    html += ' <strong>Geçen Süre:</strong> ' + status.elapsed_time;
+                    html += '</div>';
                     
-                    html += '<tr><th>İşlem Süresi</th><td>' + timeStr + '</td></tr>';
-                } else if (status.elapsed_time_formatted) {
-                    html += '<tr><th>Güncelleme</th><td>' + status.elapsed_time_formatted + '</td></tr>';
-                }
-                
-                if (status.estimated_end) {
-                    html += '<tr><th>Tahmini Bitiş</th><td>' + status.estimated_end + '</td></tr>';
-                }
-                
-                if (status.word_count) {
-                    html += '<tr><th>Veritabanındaki Toplam Kelime</th><td>' + status.word_count + '</td></tr>';
-                }
-                
-                html += '</table>';
-                html += '</div>';
+                    // Son işlenen kelime bilgilerini göster
+                    if (status.last_processed_word) {
+                        html += '<div class="card mb-3">';
+                        html += '<div class="card-header bg-info text-white">Son İşlenen Kelime</div>';
+                        html += '<div class="card-body">';
+                        html += '<h5 class="card-title">' + status.last_processed_word + '</h5>';
+                        
+                        // Eş anlamlılar listesi
+                        html += '<div class="mt-3">';
+                        html += '<h6 class="text-success"><i class="bi bi-arrow-right-circle me-1"></i>Eş Anlamlılar</h6>';
+                        if (status.last_synonyms && status.last_synonyms.length > 0) {
+                            html += '<ul class="list-group">';
+                            status.last_synonyms.forEach(function(synonym) {
+                                html += '<li class="list-group-item d-flex justify-content-between align-items-center">';
+                                html += synonym;
+                                html += '<span class="badge bg-success rounded-pill">Eş Anlamlı</span>';
+                                html += '</li>';
+                            });
+                            html += '</ul>';
+                        } else {
+                            html += '<p class="text-muted">Eş anlamlı bulunamadı.</p>';
+                        }
+                        html += '</div>';
+                        
+                        // Zıt anlamlılar listesi
+                        html += '<div class="mt-3">';
+                        html += '<h6 class="text-danger"><i class="bi bi-arrow-left-right me-1"></i>Zıt Anlamlılar</h6>';
+                        if (status.last_antonyms && status.last_antonyms.length > 0) {
+                            html += '<ul class="list-group">';
+                            status.last_antonyms.forEach(function(antonym) {
+                                html += '<li class="list-group-item d-flex justify-content-between align-items-center">';
+                                html += antonym;
+                                html += '<span class="badge bg-danger rounded-pill">Zıt Anlamlı</span>';
+                                html += '</li>';
+                            });
+                            html += '</ul>';
+                        } else {
+                            html += '<p class="text-muted">Zıt anlamlı bulunamadı.</p>';
+                        }
+                        html += '</div>';
+                        
+                        // Tanım veya açıklama
+                        if (status.last_definition) {
+                            html += '<div class="mt-3">';
+                            html += '<h6 class="text-primary"><i class="bi bi-info-circle me-1"></i>Tanım</h6>';
+                            html += '<p class="card-text">' + status.last_definition + '</p>';
+                            html += '</div>';
+                        }
+                        
+                        html += '</div>'; // card-body
+                        html += '</div>'; // card
+                    }
 
-                if (status.is_learning) {
-                    html += '<button type="button" id="stopLearningBtn" class="btn btn-danger mt-2"><i class="bi bi-stop-fill me-1"></i>Öğrenmeyi Durdur</button>';
+                    // Öğrenme işlemini durdurma butonu
+                    html += '<div class="d-grid gap-2 mt-3">';
+                    html += '<button id="stopLearningBtn" class="btn btn-danger btn-lg"><i class="bi bi-stop-fill me-1"></i>Öğrenmeyi Durdur</button>';
+                    html += '</div>';
                 } else {
-                    // Başlatma butonu göster
-                    html += '<button type="button" id="quickStartBtn" class="btn btn-primary mt-2"><i class="bi bi-lightning-fill me-1"></i>50 Kelime Öğrenmeyi Başlat</button>';
+                    html += '<div class="alert alert-warning"><i class="bi bi-info-circle-fill me-2"></i>Öğrenme işlemi durdurildi veya tamamlandı.</div>';
+                    
+                    // İşlem durumu
+                    html += '<div class="card mb-3">';
+                    html += '<div class="card-header">Öğrenme Sistemi Durumu</div>';
+                    html += '<div class="card-body">';
+                    html += '<ul class="list-group">';
+                    html += '<li class="list-group-item d-flex justify-content-between align-items-center">';
+                    html += 'Kelime Sayısı';
+                    html += '<span class="badge bg-primary rounded-pill">' + status.total_words + '</span>';
+                    html += '</li>';
+                    html += '<li class="list-group-item d-flex justify-content-between align-items-center">';
+                    html += 'Eş Anlamlı İlişkiler';
+                    html += '<span class="badge bg-success rounded-pill">' + status.synonym_count + '</span>';
+                    html += '</li>';
+                    html += '<li class="list-group-item d-flex justify-content-between align-items-center">';
+                    html += 'Zıt Anlamlı İlişkiler';
+                    html += '<span class="badge bg-danger rounded-pill">' + status.antonym_count + '</span>';
+                    html += '</li>';
+                    html += '</ul>';
+                    html += '</div>';
+                    html += '</div>';
+                    
+                    // Son işlenen kelimeler tablosu
+                    if (status.recent_words && status.recent_words.length > 0) {
+                        html += '<div class="card mb-3">';
+                        html += '<div class="card-header">Son İşlenen Kelimeler</div>';
+                        html += '<div class="card-body">';
+                        html += '<div class="table-responsive">';
+                        html += '<table class="table table-sm table-striped">';
+                        html += '<thead><tr><th>Kelime</th><th>Eş Anlamlılar</th><th>Zıt Anlamlılar</th></tr></thead>';
+                        html += '<tbody>';
+                        
+                        status.recent_words.forEach(function(wordData) {
+                            html += '<tr>';
+                            html += '<td><strong>' + wordData.word + '</strong></td>';
+                            
+                            // Eş anlamlılar
+                            html += '<td>';
+                            if (wordData.synonyms && wordData.synonyms.length > 0) {
+                                html += '<span class="badge bg-success me-1">' + wordData.synonyms.length + '</span> ';
+                                html += wordData.synonyms.join(', ');
+                            } else {
+                                html += '<span class="text-muted">Bulunamadı</span>';
+                            }
+                            html += '</td>';
+                            
+                            // Zıt anlamlılar
+                            html += '<td>';
+                            if (wordData.antonyms && wordData.antonyms.length > 0) {
+                                html += '<span class="badge bg-danger me-1">' + wordData.antonyms.length + '</span> ';
+                                html += wordData.antonyms.join(', ');
+                            } else {
+                                html += '<span class="text-muted">Bulunamadı</span>';
+                            }
+                            html += '</td>';
+                            
+                            html += '</tr>';
+                        });
+                        
+                        html += '</tbody>';
+                        html += '</table>';
+                        html += '</div>';
+                        html += '</div>';
+                        html += '</div>';
+                    }
+                    
+                    // Öğrenmeyi başlatma formunu göster
+                    html += '<div class="card">';
+                    html += '<div class="card-header">Yeni Öğrenme İşlemi</div>';
+                    html += '<div class="card-body">';
+                    html += '<div class="mb-3">';
+                    html += '<label for="wordLimit" class="form-label">Kelime Limiti</label>';
+                    html += '<input type="number" class="form-control" id="wordLimit" value="100" min="1" max="1000">';
+                    html += '</div>';
+                    html += '<div class="mb-3">';
+                    html += '<label for="manualWords" class="form-label">Manuel Kelimeler (Opsiyonel, her satıra bir kelime)</label>';
+                    html += '<textarea class="form-control" id="manualWords" rows="3" placeholder="Öğrenilecek kelimeleri buraya yazabilirsiniz"></textarea>';
+                    html += '</div>';
+                    html += '<div class="d-grid gap-2">';
+                    html += '<button id="startLearningBtn" class="btn btn-primary btn-lg"><i class="bi bi-play-fill me-1"></i>Öğrenmeyi Başlat</button>';
+                    html += '</div>';
+                    html += '</div>';
+                    html += '</div>';
                 }
 
                 $('#learningStatus').html(html);
 
-                // Öğrenmeyi durdurma işlemini bağla
-                $('#stopLearningBtn').on('click', function() {
-                    stopLearning();
-                });
-                
-                // Hızlı başlatma butonu
-                $('#quickStartBtn').on('click', function() {
-                    quickStartLearning(50);
-                });
+                // Durdurma butonu işlevselliği
+                if (status.is_learning) {
+                    $('#stopLearningBtn').click(function() {
+                        stopLearning();
+                    });
+                }
             },
             error: function(xhr, status, error) {
                 $('#learningStatus').html('<div class="alert alert-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>Durum bilgisi alınamadı: ' + error + '</div>');
@@ -1154,6 +1301,116 @@ $(document).ready(function() {
                     errorMessage = xhr.responseJSON.message;
                 }
                 $('#maintenanceResult').html('<div class="alert alert-danger">' + errorMessage + '</div>');
+            }
+        });
+    });
+    
+    // Kelime ilişkilerini geliştirme
+    $('#enhanceRelationsBtn').click(function() {
+        const limit = $('#relation-limit').val();
+        
+        if (limit < 1 || limit > 100) {
+            alert('Kelime limiti 1 ile 100 arasında olmalıdır.');
+            return;
+        }
+        
+        if (!confirm('Kelime ilişkilerini geliştirmeyi başlatmak istediğinize emin misiniz? Bu işlem zaman alabilir.')) {
+            return;
+        }
+        
+        $('#enhanceRelationsBtn').prop('disabled', true);
+        $('#enhanceRelationsResult').html('<div class="spinner-border text-success" role="status"></div><p class="text-center">Kelime ilişkileri geliştiriliyor... (Bu işlem birkaç dakika sürebilir)</p>');
+        
+        // Uzun süren işlemlerde timeout zamanını uzatıyoruz
+        $.ajax({
+            url: '/manage/maintenance/enhance-relations',
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            data: {
+                limit: limit,
+                confirm: 'yes'
+            },
+            timeout: 300000, // 5 dakika timeout
+            success: function(response) {
+                if (response.success) {
+                    let html = '<div class="alert alert-success">' + response.message + '</div>';
+                    
+                    if (response.stats) {
+                        html += '<div class="card mt-2">';
+                        html += '<div class="card-header">İşlem İstatistikleri</div>';
+                        html += '<div class="card-body">';
+                        html += '<ul class="list-group">';
+                        html += '<li class="list-group-item d-flex justify-content-between align-items-center">Toplam işlenen kelime <span class="badge bg-primary">' + response.stats.processed_words + '/' + response.stats.total_words + '</span></li>';
+                        html += '<li class="list-group-item d-flex justify-content-between align-items-center">Yeni eklenen eş anlamlılar <span class="badge bg-success">' + response.stats.new_synonyms + '</span></li>';
+                        html += '<li class="list-group-item d-flex justify-content-between align-items-center">Yeni eklenen zıt anlamlılar <span class="badge bg-danger">' + response.stats.new_antonyms + '</span></li>';
+                        html += '<li class="list-group-item d-flex justify-content-between align-items-center">Yeni eklenen ilişkili kelimeler <span class="badge bg-info">' + response.stats.new_associations + '</span></li>';
+                        html += '</ul>';
+                        
+                        // İşlenen kelimeleri ve ilişkileri göster
+                        if (response.stats.processed_word_list && response.stats.processed_word_list.length > 0) {
+                            html += '<div class="mt-4">';
+                            html += '<h6><i class="bi bi-list-check me-1"></i> İşlenen Kelimeler</h6>';
+                            html += '<div class="table-responsive">';
+                            html += '<table class="table table-sm table-striped">';
+                            html += '<thead><tr><th>Kelime</th><th>Eş Anlamlılar</th><th>Zıt Anlamlılar</th></tr></thead>';
+                            html += '<tbody>';
+                            
+                            response.stats.processed_word_list.forEach(function(word) {
+                                const synonyms = response.stats.processed_synonyms[word] || [];
+                                const antonyms = response.stats.processed_antonyms[word] || [];
+                                
+                                html += '<tr>';
+                                html += '<td><strong>' + word + '</strong></td>';
+                                html += '<td>';
+                                if (synonyms.length > 0) {
+                                    html += '<span class="badge bg-success me-1">' + synonyms.length + '</span> ';
+                                    html += synonyms.join(', ');
+                                } else {
+                                    html += '<span class="text-muted">Bulunamadı</span>';
+                                }
+                                html += '</td>';
+                                html += '<td>';
+                                if (antonyms.length > 0) {
+                                    html += '<span class="badge bg-danger me-1">' + antonyms.length + '</span> ';
+                                    html += antonyms.join(', ');
+                                } else {
+                                    html += '<span class="text-muted">Bulunamadı</span>';
+                                }
+                                html += '</td>';
+                                html += '</tr>';
+                            });
+                            
+                            html += '</tbody></table>';
+                            html += '</div>';
+                            html += '</div>';
+                        }
+                        
+                        // Başarısız kelimeler varsa göster
+                        if (response.stats.failed_words && response.stats.failed_words.length > 0) {
+                            html += '<div class="mt-3">';
+                            html += '<h6>Başarısız Kelimeler:</h6>';
+                            html += '<div class="alert alert-warning">' + response.stats.failed_words.join(', ') + '</div>';
+                            html += '</div>';
+                        }
+                        
+                        html += '</div></div>';
+                    }
+                    
+                    $('#enhanceRelationsResult').html(html);
+                } else {
+                    $('#enhanceRelationsResult').html('<div class="alert alert-danger">' + response.message + '</div>');
+                }
+                $('#enhanceRelationsBtn').prop('disabled', false);
+            },
+            error: function(xhr, status, error) {
+                if (status === 'timeout') {
+                    $('#enhanceRelationsResult').html('<div class="alert alert-danger"><strong>Zaman Aşımı:</strong> İşlem çok uzun sürdüğü için tamamlanamadı. Daha az kelime seçmeyi deneyin.</div>');
+                } else {
+                    $('#enhanceRelationsResult').html('<div class="alert alert-danger">Kelime ilişkileri geliştirme hatası: ' + error + '</div>');
+                }
+                $('#enhanceRelationsBtn').prop('disabled', false);
             }
         });
     });

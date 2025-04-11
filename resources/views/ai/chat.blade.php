@@ -688,97 +688,63 @@
                     'Yanıt alınamadı. Lütfen tekrar deneyin.';
             }
             
+            // İlk kontrol: Doğrudan JSON string geldi mi?
+            if (typeof message === 'string' && 
+               (message.trim().startsWith('{') && message.trim().endsWith('}'))) {
+                try {
+                    console.log("JSON string formatında mesaj algılandı");
+                    
+                    // Parse etmeyi dene
+                    const jsonObj = JSON.parse(message);
+                    
+                    // success, response, emotional_state formatı mı?
+                    if (jsonObj.success && jsonObj.response) {
+                        console.log("Standart API yanıt formatı tespit edildi");
+                        message = jsonObj.response;
+                    }
+                } catch (e) {
+                    console.log("JSON parse hatası, mesajı olduğu gibi kullanıyoruz");
+                }
+            }
+            
+            // HTTP başlıkları içeren yanıtları işle
+            if (typeof message === 'string' && 
+                (message.includes('HTTP/1.') || message.includes('Cache-Control:') || 
+                 message.includes('Content-Type:') || message.includes('Date:'))) {
+                
+                console.log("HTTP başlıkları tespit edildi, içeriği ayıklıyoruz");
+                
+                // JSON bölümünü bul
+                const jsonStart = message.indexOf('{');
+                if (jsonStart !== -1) {
+                    // Son köşeli parantezi bul
+                    const jsonEnd = message.lastIndexOf('}') + 1;
+                    
+                    // JSON metnini çıkar
+                    const jsonText = message.substring(jsonStart, jsonEnd);
+                    console.log("Ayıklanan JSON:", jsonText);
+                    
+                    try {
+                        // JSON olarak parse et
+                        const jsonObj = JSON.parse(jsonText);
+                        
+                        // success, response, emotional_state formatı mı?
+                        if (jsonObj.success && jsonObj.response) {
+                            console.log("HTTP içindeki yanıt formatı tespit edildi");
+                            message = jsonObj.response;
+                        }
+                    } catch (e) {
+                        console.log("HTTP içindeki JSON parse hatası:", e);
+                    }
+                }
+            }
+            
             // Mesaj işleme
             let messageText = '';
             
             try {
-                // JSON formatında gelen yanıtları işle
-                if (typeof message === 'string' && 
-                   (message.trim().startsWith('{') || message.trim().startsWith('['))) {
-                    try {
-                        // JSON olarak parse et
-                        const jsonData = JSON.parse(message);
-                        
-                        // JSON yapısını kontrol et
-                        if (jsonData.response) {
-                            messageText = jsonData.response;
-                            
-                            // Unicode karakterleri düzelt
-                            if (typeof messageText === 'string') {
-                                messageText = messageText
-                                    .replace(/\\u00e7/g, 'ç')
-                                    .replace(/\\u00c7/g, 'Ç')
-                                    .replace(/\\u00f6/g, 'ö')
-                                    .replace(/\\u00d6/g, 'Ö')
-                                    .replace(/\\u011f/g, 'ğ')
-                                    .replace(/\\u011e/g, 'Ğ')
-                                    .replace(/\\u0131/g, 'ı')
-                                    .replace(/\\u0130/g, 'İ')
-                                    .replace(/\\u015f/g, 'ş')
-                                    .replace(/\\u015e/g, 'Ş')
-                                    .replace(/\\u00fc/g, 'ü')
-                                    .replace(/\\u00dc/g, 'Ü');
-                            }
-                        } else if (jsonData.original && jsonData.original.response) {
-                            messageText = jsonData.original.response;
-                        } else if (jsonData.message) {
-                            messageText = jsonData.message;
-                        } else {
-                            // Diğer olası alanları kontrol et ve varsayılan mesaja dön
-                            messageText = "Yanıt içeriği alınamadı.";
-                        }
-                    } catch (jsonError) {
-                        console.error("JSON parse hatası:", jsonError);
-                        messageText = message;
-                    }
-                }
-                // HTTP başlıkları içeriyor mu kontrol et (daha katı kontrol)
-                else if (typeof message === 'string' && 
-                    (message.includes('HTTP/1.') || 
-                     message.includes('Cache-Control:') || 
-                     message.includes('Content-Type:') || 
-                     message.includes('Date:'))) {
-                    
-                    console.log("HTTP başlıkları algılandı, temizleniyor...");
-                    
-                    // JSON başlangıcını bul
-                    const jsonStart = message.indexOf('{');
-                    if (jsonStart > -1) {
-                        try {
-                            // JSON kısmını çıkar ve parse et
-                            const jsonText = message.substring(jsonStart);
-                            const jsonData = JSON.parse(jsonText);
-                            
-                            // JSON yanıtından mesajı çıkart
-                            if (jsonData.response) {
-                                messageText = jsonData.response;
-                            } else {
-                                // Başka alanları da kontrol et
-                                messageText = jsonData.message || jsonData.error || "Yanıt işlenemedi.";
-                            }
-                        } catch (jsonError) {
-                            console.error("JSON parse hatası:", jsonError);
-                            // JSON parse edilemezse, HTTP başlıklarını atlayarak içeriği göster
-                            const messageLines = message.split('\n');
-                            // HTTP başlıklarını atla (genelde ilk 5 satır)
-                            if (messageLines.length > 5) {
-                                messageText = messageLines.slice(5).join('\n').trim();
-                            } else {
-                                messageText = message;
-                            }
-                        }
-                    } else {
-                        // JSON bulunamadı, HTTP başlıklarını atlayarak içeriği göster
-                        const messageLines = message.split('\n');
-                        if (messageLines.length > 5) {
-                            messageText = messageLines.slice(5).join('\n').trim();
-                        } else {
-                            messageText = message;
-                        }
-                    }
-                }
                 // Obje olarak mı geldi?
-                else if (typeof message === 'object') {
+                if (typeof message === 'object') {
                     // Doğrudan obje olarak gelmişse
                     if (message.response) {
                         messageText = message.response;
@@ -801,20 +767,16 @@
                 // Fazla boşlukları temizle
                 if (typeof messageText === 'string') {
                     messageText = messageText.trim();
-                }
-                
-                // Eğer hala JSON string gibi görünüyorsa son bir kontrol daha yap
-                if (typeof messageText === 'string' && 
-                   (messageText.trim().startsWith('{') || messageText.trim().startsWith('['))) {
+                    
+                    // Unicode karakterleri decode et - Bu işlem her zaman yapılsın
                     try {
-                        const finalJson = JSON.parse(messageText);
-                        if (finalJson.response) {
-                            messageText = finalJson.response;
-                        } else if (finalJson.explanation) {
-                            messageText = finalJson.explanation; // Kod açıklaması
+                        // \u ile başlayan karakterleri tespit et
+                        if (messageText.includes('\\u')) {
+                            console.log("Unicode karakterler tespit edildi, düzeltiliyor");
+                            messageText = JSON.parse('"' + messageText.replace(/"/g, '\\"') + '"');
                         }
                     } catch (e) {
-                        // Hata olursa mevcut metni koru
+                        console.log("Unicode decode hatası:", e);
                     }
                 }
                 

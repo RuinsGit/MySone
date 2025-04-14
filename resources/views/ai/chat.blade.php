@@ -319,6 +319,10 @@
                 <div class="flex items-center space-x-2">
                     <div class="w-3 h-3 bg-green-500 rounded-full"></div>
                     <span class="text-gray-600">Sistem Aktif</span>
+                    <span class="ml-4 px-3 py-1 bg-blue-100 text-blue-800 rounded-md text-sm">
+                        <i class="fas fa-robot mr-1"></i>
+                        <span id="model-name">SoneAI Turbo</span>
+                    </span>
                 </div>
                 <div class="flex items-center space-x-4">
                     <div class="flex items-center">
@@ -332,6 +336,13 @@
                         <button type="button" id="coding-toggle" class="inline-flex items-center px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-medium rounded-md">
                             <span id="coding-button-text">Kapalı</span>
                         </button>
+                    </div>
+                    <div class="flex items-center">
+                        <span class="mr-3 text-sm font-medium text-gray-700">Model</span>
+                        <select id="model-selector" class="px-3 py-2 bg-gray-200 border-0 rounded-md text-gray-800 text-sm font-medium">
+                            <option value="soneai">SoneAI</option>
+                            <option value="gemini" selected>SoneAI Turbo</option>
+                        </select>
                     </div>
                     <div class="text-gray-500 text-sm">
                         <span id="typing-indicator" class="hidden">
@@ -376,10 +387,12 @@
         const codeLanguage = document.getElementById('code-language');
         const clearCodeBtn = document.getElementById('clear-code');
         const copyCodeBtn = document.getElementById('copy-code');
+        const modelSelector = document.getElementById('model-selector');
         
-        // Sayfa yüklendiğinde Creative Mode ve Kodlama Modu durumlarını kontrol et
+        // Sayfa yüklendiğinde Creative Mode, Kodlama Modu ve Model durumlarını kontrol et
         let isCreativeMode = localStorage.getItem('creative_mode') === 'true';
         let isCodingMode = localStorage.getItem('coding_mode') === 'true';
+        let selectedModel = localStorage.getItem('selected_model') || 'gemini';
         
         if (isCreativeMode) {
             buttonText.textContent = 'Açık';
@@ -392,6 +405,43 @@
             codingToggle.classList.remove('bg-gray-200');
             codingToggle.classList.add('bg-green-500', 'text-white');
             toggleCodingMode(true);
+        }
+        
+        // Model seçimini ayarla
+        if (modelSelector) {
+            modelSelector.value = selectedModel;
+            
+            // Model değişikliğini dinle
+            modelSelector.addEventListener('change', function() {
+                selectedModel = this.value;
+                localStorage.setItem('selected_model', selectedModel);
+                
+                // Model göstergesini güncelle
+                updateModelIndicator();
+                
+                // Model değişikliğini bildir
+                const modelInfo = document.createElement('div');
+                modelInfo.className = 'text-center py-2 my-2 bg-blue-100 rounded-lg';
+                modelInfo.innerHTML = `<span class="text-blue-600 font-medium">
+                    ${selectedModel === 'soneai' ? 'SoneAI' : 'SoneAI Turbo'} yapay zeka modeli seçildi
+                </span>`;
+                
+                messagesContainer.appendChild(modelInfo);
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                
+                setTimeout(() => {
+                    modelInfo.style.opacity = '0';
+                    modelInfo.style.transition = 'opacity 1s ease';
+                    
+                    setTimeout(() => {
+                        if (modelInfo.parentNode) {
+                            modelInfo.parentNode.removeChild(modelInfo);
+                        }
+                    }, 1000);
+                }, 3000);
+            });
+        } else {
+            console.error('Model seçici bulunamadı!');
         }
         
         // Mesaj göndermeden önce form kontrolü
@@ -537,7 +587,8 @@
                     chat_id: chatId,
                     creative_mode: isCreativeMode,
                     coding_mode: isCodingMode,
-                    preferred_language: codeLanguage ? codeLanguage.value : 'javascript'
+                    preferred_language: codeLanguage ? codeLanguage.value : 'javascript',
+                    model: selectedModel // Seçilen modeli gönderiyoruz
                 };
                 
                 console.log('İstek gönderiliyor:', requestData);
@@ -1103,6 +1154,16 @@
                 }
             }
         }
+
+        function updateModelIndicator() {
+            const modelNameElement = document.getElementById('model-name');
+            if (modelNameElement) {
+                modelNameElement.textContent = selectedModel === 'soneai' ? 'SoneAI' : 'SoneAI Turbo';
+            }
+        }
+
+        // Sayfa yüklendiğinde model göstergesini ayarla
+        updateModelIndicator();
     });
 </script>
 @endsection 

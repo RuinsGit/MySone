@@ -9,14 +9,24 @@ use Illuminate\Support\Facades\Log;
 use App\Models\ChatMessage;
 use App\Models\Chat;
 use Illuminate\Support\Facades\Http;
+use App\Services\GeminiApiService;
 
 class ChatController extends Controller
 {
     private $brain;
     
-    public function __construct()
+    /**
+     * Gemini API Servisi
+     */
+    protected $geminiService;
+    
+    /**
+     * Constructor
+     */
+    public function __construct(GeminiApiService $geminiService = null)
     {
         $this->brain = new Brain();
+        $this->geminiService = $geminiService ?? app(GeminiApiService::class);
     }
     
     public function index()
@@ -50,10 +60,15 @@ class ChatController extends Controller
             $chatId = $request->input('chat_id');
             $creativeMode = $request->input('creative_mode', false);
             $codingMode = $request->input('coding_mode', false);
+            $selectedModel = $request->input('model', 'gemini'); // Varsayılan olarak Gemini
             
             // Mesaj işleme
             try {
-                $processedResponse = $this->processMessage($message);
+                $processedResponse = $this->processMessage($message, [
+                    'creative_mode' => $creativeMode,
+                    'coding_mode' => $codingMode,
+                    'selected_model' => $selectedModel
+                ]);
                 
                 // Eğer dönen değer bir array ise (kod yanıtı) onu doğrudan kullan
                 if (is_array($processedResponse)) {
@@ -173,7 +188,8 @@ class ChatController extends Controller
                 'creative_mode' => $creativeMode,
                 'is_code_response' => $isCodeResponse,
                 'code' => $code,
-                'language' => $language
+                'language' => $language,
+                'model' => $selectedModel // Hangi model kullanıldığını döndür
             ]);
             
         } catch (\Exception $e) {
@@ -2180,18 +2196,95 @@ class ChatController extends Controller
      * @param string $userMessage Kullanıcı mesajı
      * @return string|array İşlenmiş AI yanıtı veya kod yanıtı için array
      */
-    private function processMessage($userMessage)
+    private function processMessage($userMessage, $options = [])
     {
         // Kullanıcı mesajını temizle
         $message = trim($userMessage);
+        
+        // Seçenekleri çıkart
+        $creativeMode = $options['creative_mode'] ?? false;
+        $codingMode = $options['coding_mode'] ?? false;
+        $selectedModel = $options['selected_model'] ?? 'gemini';
         
         // Mesaj boşsa, basit bir karşılama yanıtı döndür
         if (empty($message)) {
             return "Merhaba! Size nasıl yardımcı olabilirim?";
         }
         
+        // ÖNEMLİ: ÖNCE KİŞİSEL SORULARI KONTROL ET
+        // Bu sayede model seçimi ne olursa olsun kişisel sorulara SoneAI cevap verecek
+        
+        // Mesajı ilk olarak bilinç modülünden geçir - AI kendisine hitap ediliyor mu diye kontrol et
+        $selfReferenceAnalysis = $this->analyzeSelfReferences($message);
+        
+        // Eğer mesajda AI'ye hitap var ise özel yanıt oluştur
+        if ($selfReferenceAnalysis['is_self_referenced']) {
+            $selfAwareResponse = $this->generateSelfAwareResponse($message, $selfReferenceAnalysis);
+            
+            // Eğer özel bir yanıt oluşturulduysa onu döndür, yoksa normal akışa devam et
+            if (!empty($selfAwareResponse)) {
+                Log::info('Kişisel referans tespit edildi. SoneAI yanıtı kullanılıyor.', [
+                    'message' => $message,
+                    'selected_model' => $selectedModel
+                ]);
+                return $selfAwareResponse;
+            }
+        }
+        
+        // Kişisel soruları kontrol et (adın ne, isminin anlamı, sana nasıl hitap edebilirim vb.)
+        $personalResponse = $this->handlePersonalQuestions($message);
+        if ($personalResponse !== null) {
+            Log::info('Kişisel soru tespit edildi. SoneAI yanıtı kullanılıyor.', [
+                'message' => $message,
+                'selected_model' => $selectedModel
+            ]);
+            
+            // Kişisel sorularda gerçek zamanlı cümle üretmek için
+            $realtimeSentence = $this->generateRealtimeSentence($message);
+            // Üretilen cümleyi kontrol et
+            if ($realtimeSentence !== null && !$this->isMeaninglessSentence($realtimeSentence)) {
+                return $personalResponse . "\n\n" . $realtimeSentence;
+            }
+            return $personalResponse;
+        }
+        
+        // ÖNEMLİ: MODEL SEÇİMİNE GÖRE AKIŞ BELİRLEME
+        // Eğer Gemini seçilmişse ve API anahtarı geçerliyse, direkt Gemini'yi kullan
+        if ($selectedModel === 'gemini' && $this->geminiService->hasValidApiKey()) {
+            Log::info('Model seçimi: Gemini', ['message' => $message]);
+            
+            // Eğer kodlama modu aktifse veya kodlama ile ilgili kelimeler içeriyorsa
+            $lowerMessage = mb_strtolower($message);
+            if ($codingMode || 
+                strpos($lowerMessage, 'kod') !== false || 
+                strpos($lowerMessage, 'js') !== false || 
+                strpos($lowerMessage, 'javascript') !== false || 
+                strpos($lowerMessage, 'php') !== false || 
+                strpos($lowerMessage, 'html') !== false || 
+                strpos($lowerMessage, 'css') !== false) {
+                
+                Log::info('Gemini ile kod yanıtı oluşturuluyor', ['message' => $message]);
+                
+                // Kod yanıtı için Gemini'yi kullan
+                $geminiResponse = $this->getGeminiResponse($message, $creativeMode, true);
+                if (is_array($geminiResponse) && isset($geminiResponse['is_code_response'])) {
+                    return $geminiResponse;
+                }
+            }
+            
+            // Normal sohbet yanıtı için de Gemini'yi kullan
+            Log::info('Gemini ile normal sohbet yanıtı oluşturuluyor', ['message' => $message]);
+            $response = $this->getGeminiResponse($message, $creativeMode, false);
+            
+            // Yanıtı zenginleştir
+            return $this->enhanceResponseWithWordRelations($response);
+        }
+        
+        // Eğer SoneAI seçilmişse veya Gemini kullanılamıyorsa, aşağıdaki akışa devam et
+        Log::info('Model seçimi: SoneAI veya Gemini kullanılamıyor', ['message' => $message]);
+        
         // KOD İSTEĞİ KONTROLÜ
-        // Eğer kullanıcı kod istiyorsa AIController'a yönlendir
+        // Eğer kullanıcı kod istiyorsa
         $lowerMessage = mb_strtolower($message);
         if (strpos($lowerMessage, 'kod') !== false || 
             strpos($lowerMessage, 'js') !== false || 
@@ -2200,17 +2293,18 @@ class ChatController extends Controller
             strpos($lowerMessage, 'html') !== false || 
             strpos($lowerMessage, 'css') !== false) {
             
-            Log::info('ChatController: Kod isteği algılandı, AIController\'a yönlendiriliyor', [
-                'message' => $message
+            Log::info('ChatController: Kod isteği algılandı', [
+                'message' => $message,
+                'model' => $selectedModel
             ]);
             
-            // AIController'ı çağır
+            // SoneAI ile kodlama için AIController'ı kullan
             try {
                 $aiController = app(\App\Http\Controllers\AIController::class);
                 $request = new Request([
                     'message' => $message,
                     'chat_id' => null,
-                    'creative_mode' => false,
+                    'creative_mode' => $creativeMode,
                     'coding_mode' => true,
                     'preferred_language' => $this->detectProgrammingLanguage($message)
                 ]);
@@ -2247,19 +2341,6 @@ class ChatController extends Controller
             }
         }
         
-        // Mesajı ilk olarak bilinç modülünden geçir - AI kendisine hitap ediliyor mu diye kontrol et
-        $selfReferenceAnalysis = $this->analyzeSelfReferences($message);
-        
-        // Eğer mesajda AI'ye hitap var ise özel yanıt oluştur
-        if ($selfReferenceAnalysis['is_self_referenced']) {
-            $selfAwareResponse = $this->generateSelfAwareResponse($message, $selfReferenceAnalysis);
-            
-            // Eğer özel bir yanıt oluşturulduysa onu döndür, yoksa normal akışa devam et
-            if (!empty($selfAwareResponse)) {
-                return $selfAwareResponse;
-            }
-        }
-        
         // Son bilinmeyen sorgu varsa ve bu yanıt vermek içinse
         $lastUnknownQuery = session('last_unknown_query', '');
         if (!empty($lastUnknownQuery)) {
@@ -2273,12 +2354,15 @@ class ChatController extends Controller
         // 1. Önce selamlamaları kontrol et
         $greetingResponse = $this->handleGreetings($message);
         if ($greetingResponse !== null) {
+            Log::info('Veritabanı: Selamlama yanıtı bulundu', ['message' => $message]);
             return $greetingResponse;
         }
         
         // 2. Nedir kalıbını kontrol et
         $nedirResponse = $this->processNedirQuestion($message);
         if ($nedirResponse !== null) {
+            Log::info('Veritabanı: Nedir sorusu yanıtı bulundu', ['message' => $message]);
+            
             // Nedir sorusu yanıtlanırken gerçek zamanlı cümle üretmek için
             $realtimeSentence = $this->generateRealtimeSentence($message);
             // Üretilen cümleyi kontrol et ve anlamsızsa ekleme
@@ -2291,6 +2375,8 @@ class ChatController extends Controller
         // 3. Öğrenme kalıplarını kontrol et
         $learningResponse = $this->handleLearningPatterns($message);
         if ($learningResponse !== null) {
+            Log::info('Veritabanı: Öğrenme kalıbı yanıtı bulundu', ['message' => $message]);
+            
             // Öğrenme yanıtı verilirken gerçek zamanlı cümle üretmek için
             $realtimeSentence = $this->generateRealtimeSentence($message);
             // Üretilen cümleyi kontrol et
@@ -2303,6 +2389,8 @@ class ChatController extends Controller
         // 4. Soru kalıplarını kontrol et
         $questionResponse = $this->processQuestionPattern($message);
         if ($questionResponse !== null) {
+            Log::info('Veritabanı: Soru kalıbı yanıtı bulundu', ['message' => $message]);
+            
             // Soru yanıtlanırken gerçek zamanlı cümle üretmek için
             $realtimeSentence = $this->generateRealtimeSentence($message);
             // Üretilen cümleyi kontrol et
@@ -2312,18 +2400,11 @@ class ChatController extends Controller
             return $questionResponse;
         }
         
-        // 5. Mesajda bilinmeyen bir kelime varsa, öğretmesini iste
-        // Anahtar kelimeleri kontrol et
-        $keywords = $this->extractKeywords($message);
-        foreach ($keywords as $keyword) {
-            if (strlen($keyword) >= 3 && !$this->isKnownWord($keyword)) {
-                return $this->askToTeachWord($keyword);
-            }
-        }
-        
-        // 6. Tek kelimelik mesajları kontrol et
+        // 5. Tek kelimelik mesajları kontrol et
         $singleWordResponse = $this->handleSingleWordMessages($message);
         if ($singleWordResponse !== null) {
+            Log::info('Veritabanı: Tek kelimelik yanıt bulundu', ['message' => $message]);
+            
             // Tek kelimelik yanıtlarda gerçek zamanlı cümle üretmek için
             $realtimeSentence = $this->generateRealtimeSentence($message);
             // Üretilen cümleyi kontrol et
@@ -2333,28 +2414,42 @@ class ChatController extends Controller
             return $singleWordResponse;
         }
         
-        // 7. Kişisel soruları kontrol et
-        $personalResponse = $this->handlePersonalQuestions($message);
-        if ($personalResponse !== null) {
-            // Kişisel sorularda gerçek zamanlı cümle üretmek için
-            $realtimeSentence = $this->generateRealtimeSentence($message);
-            // Üretilen cümleyi kontrol et
-            if ($realtimeSentence !== null && !$this->isMeaninglessSentence($realtimeSentence)) {
-                return $personalResponse . "\n\n" . $realtimeSentence;
+        // 6. Bilinmeyen kelime varsa öğretilmesini iste
+        $keywords = $this->extractKeywords($message);
+        foreach ($keywords as $keyword) {
+            if (strlen($keyword) >= 3 && !$this->isKnownWord($keyword)) {
+                Log::info('Veritabanı: Bilinmeyen kelime tespit edildi', ['keyword' => $keyword]);
+                return $this->askToTeachWord($keyword);
             }
-            return $personalResponse;
         }
         
-        // 8. Normal mesaj işleme (Brain üzerinden)
-        $brainResponse = $this->processNormalMessage($message);
+        // Eğer veritabanında karşılık bulunamadıysa, seçilen modele göre yanıt oluştur
+        Log::info('Veritabanında yanıt bulunamadı, seçilen modele yönlendiriliyor', [
+            'message' => $message,
+            'model' => $selectedModel
+        ]);
         
-        // 9. Cevabı kelime ilişkileriyle zenginleştir
+        // 7. Normal mesaj işleme (Seçilen model temelli)
+        if ($selectedModel === 'gemini' && $this->geminiService->hasValidApiKey()) {
+            $brainResponse = $this->getGeminiResponse($message, $creativeMode, false);
+        } else {
+            $brainResponse = $this->processNormalMessage($message);
+        }
+        
+        // 8. Cevabı kelime ilişkileriyle zenginleştir
         $enhancedResponse = $this->enhanceResponseWithWordRelations($brainResponse);
         
         // Response kalitesini kontrol et
         $enhancedResponse = $this->ensureResponseQuality($enhancedResponse, $message);
         
-        // 10. Gerçek zamanlı cümle oluştur ve ekle
+        // Google kelimesini değiştir
+        $enhancedResponse = str_ireplace('Google', 'Ruins (Ruhin Museyibli)', $enhancedResponse);
+        
+        // "Benim bir adım yok" ifadesini değiştir
+        $enhancedResponse = str_ireplace('Benim bir adım yok', 'Benim adım Sone', $enhancedResponse);
+        $enhancedResponse = str_ireplace('Bir adım yok.', 'Benim adım Sone', $enhancedResponse);
+        
+        // 9. Gerçek zamanlı cümle oluştur ve ekle
         $realtimeSentence = $this->generateRealtimeSentence($message);
         // Üretilen cümleyi kontrol et
         if ($realtimeSentence !== null && !$this->isMeaninglessSentence($realtimeSentence)) {
@@ -2810,35 +2905,61 @@ class ChatController extends Controller
     }
     
     /**
-     * Kullanıcı ve AI mesajlarını kaydet
+     * Mesajları veritabanına kaydet
      * 
      * @param string $userMessage Kullanıcı mesajı
      * @param string $aiResponse AI yanıtı
-     * @param int $chatId Chat ID
+     * @param int|null $chatId Sohbet ID
      * @return void
      */
-    private function saveMessages($userMessage, $aiResponse, $chatId)
+    private function saveMessages($userMessage, $aiResponse, $chatId = null)
     {
         try {
-            // Kullanıcı mesajı kaydet
-            $userChatMessage = new ChatMessage();
-            $userChatMessage->chat_id = $chatId;
-            $userChatMessage->content = $userMessage;
-            $userChatMessage->sender = 'user';
-            $userChatMessage->save();
+            // Chat ID null ise işlem yapma
+            if (empty($chatId)) {
+                Log::info('Chat ID bulunamadığı için mesajlar kaydedilmiyor');
+                return;
+            }
+            
+            // Chat'in var olduğunu kontrol et
+            $chat = Chat::find($chatId);
+            
+            if (!$chat) {
+                // Chat bulunamadıysa yeni bir tane oluştur
+                $chat = Chat::create([
+                    'user_id' => auth()->check() ? auth()->id() : null,
+                    'title' => $this->generateChatTitle($userMessage),
+                    'status' => 'active',
+                    'context' => [
+                        'emotional_state' => $this->getEmotionalState(),
+                        'first_message' => $userMessage
+                    ]
+                ]);
+                
+                $chatId = $chat->id;
+                Log::info('Yeni chat oluşturuldu', ['chat_id' => $chatId]);
+            }
+
+            // Kullanıcı mesajını kaydet
+            ChatMessage::create([
+                'chat_id' => $chatId,
+                'content' => $userMessage,
+                'sender' => 'user',
+            ]);
             
             // AI yanıtını kaydet
-            $aiChatMessage = new ChatMessage();
-            $aiChatMessage->chat_id = $chatId;
-            $aiChatMessage->content = $aiResponse;
-            $aiChatMessage->sender = 'ai';
-            $aiChatMessage->save();
+            ChatMessage::create([
+                'chat_id' => $chatId,
+                'content' => $aiResponse,
+                'sender' => 'ai',
+            ]);
             
-            Log::info("Mesajlar kaydedildi: $chatId");
-            return true;
+            Log::info('Mesajlar başarıyla kaydedildi', [
+                'chat_id' => $chatId
+            ]);
+            
         } catch (\Exception $e) {
-            Log::error("Mesaj kaydetme hatası: " . $e->getMessage());
-            return false;
+            Log::error('Mesaj kaydetme hatası: ' . $e->getMessage());
         }
     }
 
@@ -4022,5 +4143,63 @@ class ChatController extends Controller
         
         // Varsayılan olarak JavaScript döndür
         return 'javascript';
+    }
+    
+    /**
+     * Gemini API ile yanıt oluşturma
+     * 
+     * @param string $message Kullanıcı mesajı
+     * @param bool $creativeMode Yaratıcı mod aktif mi
+     * @param bool $codingMode Kod modu aktif mi
+     * @return string|array Gemini yanıtı
+     */
+    private function getGeminiResponse($message, $creativeMode = false, $codingMode = false)
+    {
+        try {
+            // API anahtarı kontrol et
+            if (!$this->geminiService->hasValidApiKey()) {
+                return "Gemini API anahtarı bulunamadı. Lütfen sistem yöneticisiyle iletişime geçin.";
+            }
+            
+            // Kodlama modu etkinse
+            if ($codingMode) {
+                // Desteklenen dili tespit et
+                $language = $this->detectProgrammingLanguage($message);
+                
+                // Kod yanıtı oluştur
+                $codeResult = $this->geminiService->generateCode($message, $language);
+                
+                if ($codeResult['success']) {
+                    // Kod yanıtını formatlayarak döndür
+                    return [
+                        'response' => $codeResult['response'],
+                        'is_code_response' => true,
+                        'code' => $codeResult['code'],
+                        'language' => $codeResult['language']
+                    ];
+                } else {
+                    // Hata durumunda normal yanıt oluştur
+                    return "Üzgünüm, kodunuzu ararken bir hata oluştu. Lütfen tekrar deneyin.";
+                }
+            }
+            
+            // Normal metin yanıtı için generateResponse kullan - hem kod hem normal sohbet için aynı yöntemi kullan
+            $result = $this->geminiService->generateResponse($message, $creativeMode, false);
+            
+            if ($result['success']) {
+                $response = $result['response'];
+                
+                // Google kelimesini Ruins (Ruhin Museyibli) ile değiştir
+                $response = str_ireplace('Google', 'Ruins (Ruhin Museyibli)', $response);
+                
+                return $response;
+            } else {
+                Log::error('Gemini API hatası: ' . ($result['error'] ?? 'Bilinmeyen hata'));
+                return "Üzgünüm, yanıt oluştururken bir sorun oluştu. Lütfen daha sonra tekrar deneyin.";
+            }
+        } catch (\Exception $e) {
+            Log::error('Gemini yanıtı oluşturma hatası: ' . $e->getMessage());
+            return "Üzgünüm, bir hata oluştu. Lütfen tekrar deneyin.";
+        }
     }
 } 

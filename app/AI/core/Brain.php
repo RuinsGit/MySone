@@ -1842,4 +1842,36 @@ class Brain
             return null;
         }
     }
+    
+    /**
+     * Kullanıcı mesajına yanıt oluşturur
+     * 
+     * @param string $message Kullanıcı mesajı
+     * @param bool $creativeMode Yaratıcı mod aktif mi
+     * @param bool $codingMode Kodlama modu aktif mi
+     * @return string AI yanıtı
+     */
+    public function getAnswer($message, $creativeMode = false, $codingMode = false)
+    {
+        try {
+            // Mesajı işle ve yanıt oluştur
+            $response = $this->processInput($message);
+            
+            // Yaratıcı mod ve kodlama modu için ek işlemler
+            if ($creativeMode) {
+                $emotionalState = $this->getEmotionalState();
+                // Burada yaratıcı mod için özel işlemler yapılabilir
+            }
+            
+            if ($codingMode) {
+                // Kodlama modu için özel işlemler yapılabilir
+                // Örneğin kod kalıpları eklenebilir veya teknik terminoloji artırılabilir
+            }
+            
+            return $response;
+        } catch (\Exception $e) {
+            \Log::error('getAnswer hatası: ' . $e->getMessage());
+            return 'Üzgünüm, yanıt oluştururken bir hata oluştu. Lütfen tekrar deneyiniz.';
+        }
+    }
 } 

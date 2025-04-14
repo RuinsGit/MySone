@@ -88,6 +88,7 @@ Route::get('/', [ChatController::class, 'index'])->name('chat');
 // Yönetim Paneli Routes
 Route::prefix('manage')->name('manage.')->group(function () {
     Route::get('/', [ManageController::class, 'index'])->name('index');
+    Route::post('/', [ManageController::class, 'index'])->name('login');
     
     // Ayarlar ve eğitim
     Route::post('/update-settings', [ManageController::class, 'updateSettings']);

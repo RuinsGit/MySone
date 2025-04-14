@@ -2135,7 +2135,7 @@
             notification.style.maxWidth = '100%';
             notification.style.margin = '1rem 0';
             notification.innerHTML = `
-                <div style="display: inline-block; background-color: #e2f0fd; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.9rem;">
+                <div style="display: inline-block; background-color:rgb(61, 63, 65); padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.9rem;">
                     <i class="fas fa-info-circle mr-2"></i>
                     ${selectedModel === 'soneai' ? 'SoneAI' : 'SoneAI Turbo'} modeli aktif
                 </div>

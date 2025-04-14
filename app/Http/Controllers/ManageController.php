@@ -18,9 +18,33 @@ class ManageController extends Controller
      * 
      * @return \Illuminate\View\View
      */
-    public function index()
+    public function index(Request $request)
     {
-        return view('ai.manage');
+        // Oturum şifresini kontrol et
+        $sessionPassword = $request->session()->get('manage_password');
+        
+        // Şifre post edilmişse
+        if ($request->isMethod('post')) {
+            $password = $request->input('password');
+            
+            // Şifre doğruysa
+            if ($password === '1111') {
+                // Şifreyi oturuma kaydet
+                $request->session()->put('manage_password', $password);
+                return redirect()->route('manage.index');
+            } else {
+                // Yanlış şifre
+                return view('ai.manage-login')->with('error', 'Hatalı şifre!');
+            }
+        }
+        
+        // Şifre doğruysa veya oturumda kayıtlıysa
+        if ($sessionPassword === '1111') {
+            return view('ai.manage');
+        }
+        
+        // Şifre henüz girilmemiş, login sayfasını göster
+        return view('ai.manage-login');
     }
     
     /**

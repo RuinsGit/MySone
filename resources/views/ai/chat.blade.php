@@ -8,9 +8,9 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css">
 <style>
     :root {
-        --ai-primary: #4872b0;
-        --ai-primary-light: #6991c7;
-        --ai-primary-dark: #375e96;
+        --ai-primary:rgb(64, 26, 233);
+        --ai-primary-light:rgb(10, 76, 161);
+        --ai-primary-dark:rgb(17, 46, 85);
         --ai-secondary: #5a9676;
         --ai-accent: #b07d48;
         --ai-dark: #2c3036;
@@ -1302,9 +1302,9 @@
     /* Koyu tema ince ayarlar */
     @media (prefers-color-scheme: dark) {
         :root {
-            --ai-primary: #5884c9;
-            --ai-primary-light: #7ba1df;
-            --ai-primary-dark: #406cb2;
+            --ai-primary:rgb(174, 194, 226);
+            --ai-primary-light:rgb(10, 67, 160);
+            --ai-primary-dark:rgb(15, 36, 70);
             --ai-secondary: #5a9676;
             --ai-accent: #b07d48;
             --ai-message-bg: #2a3547;
@@ -1642,7 +1642,7 @@
     <!-- Sol Sidebar - Büyük ekranlarda görünür -->
     <div class="sidebar">
         <div class="sidebar-header">
-            <div class="sidebar-logo" style="width: 35px; height: 35px;">
+            <div class="sidebar-logo" >
                 <img src="{{ asset('images/sone.png') }}" alt="SoneAI Logo" 
                    style="background-size:cover;
                    background-position: center;
@@ -1727,7 +1727,15 @@
             <!-- AI Message -->
             <div class="message message-ai">
                 <div class="message-avatar">
-                    <i class="fas fa-robot"></i>
+                <img src="{{ asset('images/sone.png') }}" alt="SoneAI Logo" 
+                   style="background-size:cover;
+                   background-position: center;
+                   background-repeat: no-repeat;
+                   border-radius: 50%;
+                   width: 28px;
+                   height: 28px;
+                   !important;
+                   ">
                 </div>
                 <div class="message-content">
                     <p>Merhaba! Ben SoneAI. Size nasıl yardımcı olabilirim?</p>
@@ -2069,10 +2077,25 @@
             const messageEl = document.createElement('div');
             messageEl.className = `message message-${sender}`;
             
-            // Avatar ekle
+            // Avatar oluştur
             const avatarEl = document.createElement('div');
             avatarEl.className = 'message-avatar';
-            avatarEl.innerHTML = `<i class="fas fa-${sender === 'user' ? 'user' : 'robot'}"></i>`;
+
+            // AI mesajları için SoneAI logosu, kullanıcı mesajları için kullanıcı ikonu
+            if (sender === 'ai') {
+                avatarEl.innerHTML = `<img src="{{ asset('images/sone.png') }}" alt="SoneAI Logo" 
+                        style="background-size:cover;
+                        background-position: center;
+                        background-repeat: no-repeat;
+                        border-radius: 50%;
+                        width: 28px;
+                        height: 28px;
+                        !important;
+                        ">`;
+            } else {
+                avatarEl.innerHTML = `<i class="fas fa-user"></i>`;
+            }
+
             messageEl.appendChild(avatarEl);
             
             // Mesaj içeriği

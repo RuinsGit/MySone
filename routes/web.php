@@ -221,3 +221,11 @@ Route::prefix('api/ai/code-consciousness')->group(function () {
     Route::get('/suggest-codes', [App\Http\Controllers\AICodeConsciousnessController::class, 'suggestCodes']);
     Route::get('/suggest-flow', [App\Http\Controllers\AICodeConsciousnessController::class, 'suggestCodeFlow']);
 });
+
+// AI rotaları
+Route::prefix('ai')->group(function () {
+    Route::get('/chat', [AIController::class, 'chat'])->name('ai.chat');
+    Route::post('/active-user', [AIController::class, 'updateActiveUser'])->name('ai.active-user');
+    Route::get('/active-users', [AIController::class, 'getActiveUsers'])->name('ai.active-users');
+    Route::get('/active-users-admin', [AIController::class, 'showActiveUsersAdmin'])->name('ai.active-users-admin');
+});

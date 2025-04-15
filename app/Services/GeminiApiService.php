@@ -78,7 +78,12 @@ class GeminiApiService
             }
             
             // Prompt'u Türkçe yanıt verecek şekilde düzenleyelim
-            $enhancedPrompt = "Sen bir Türkçe dil asistanısın ve Türkçe olarak cevap vermelisin. Cevabını kesinlikle ve mutlaka Türkçe dilde oluştur, başka dil kullanma. Sorunun cevabını bilmiyorsan, 'Üzgünüm, bu konuda yeterli bilgim yok' diye yanıtla. Soru: {$prompt}";
+            $enhancedPrompt = "Sen SoneAI adında bir Türkçe dil asistanısın. Kullanıcının sorularına sadece Türkçe olarak cevap vermelisin. Senin kişiliğin şöyle:
+- Adın kesinlikle SoneAI'dır (kısaca Sone)
+- Karakterin: Yardımsever, zeki, dost canlısı ve bilgilendirici
+- Konuşma tarzın: Sıcak, anlaşılır ve kibar
+
+Soru: {$prompt}";
             
             // İstek verilerini hazırla
             $requestData = [
@@ -173,9 +178,10 @@ class GeminiApiService
      * @param string $message Kullanıcının mesajı
      * @param bool $isCreative Yaratıcı mod aktif mi
      * @param bool $isCodingRequest Kod isteği mi
+     * @param array $chatHistory Sohbet geçmişi [{'role': 'user|ai', 'content': 'message'}]
      * @return array İşlem sonucu ['success' => bool, 'response' => string]
      */
-    public function generateResponse($message, $isCreative = false, $isCodingRequest = false)
+    public function generateResponse($message, $isCreative = false, $isCodingRequest = false, $chatHistory = [])
     {
         try {
             // API anahtarı kontrolü
@@ -186,28 +192,168 @@ class GeminiApiService
                 ];
             }
             
-            // Kullanıcı mesajını ve istek tipine göre ek talimatları hazırla
-            $enhancedPrompt = "Soruya kesinlikle Türkçe olarak yanıt ver. Eğer cevabı bilmiyorsan, uydurma ve şöyle de: 'Bu konuda kesin bilgim yok, ancak araştırıp size daha doğru bilgi verebilirim.'";
-            $codePrompt = "İstenilen kodlama görevini gerçekleştir ve yanıtı SADECE Türkçe olarak oluştur. Soruda istenen dilde hatasız, eksiksiz ve çalışan kod üret. Kodun tüm bölümlerini detaylı Türkçe açıklamalarla ve yorumlarla açıkla. Eğer tam olarak ne istediğini anlayamazsan, Türkçe olarak daha fazla bilgi iste.";
+            // Sistem talimatları oluştur (her zaman aynı kişiliği korumak için)
+            $systemInstructions = "Sen Sone AI adında bir Türkçe dil asistanısın. Kullanıcının sorularına sadece Türkçe olarak cevap vermelisin. Senin kişiliğin şöyle:
+- Adın: SoneAI (kısaca Sone)
+- Karakterin: Yardımsever, zeki, dost canlısı ve bilgilendirici
+- Konuşma tarzın: Sıcak, anlaşılır ve kibar
+- Önceki mesajlarda verilen bilgileri asla unutma, sorulduğunda hatırla
+- Özellikle kullanıcının ismi, yaşı, ilgi alanları gibi kişisel bilgileri çok iyi hatırla ve sonraki konuşmalarda referans ver
 
-            // İstek tipine göre ek talimatları ekle
-            $finalPrompt = $isCodingRequest 
-                ? $message . "\n\n" . $codePrompt 
-                : $message . "\n\n" . $enhancedPrompt;
-
-            // Model seçimi ve ayarlar
-            $model = "gemini-pro";
+Eğer bir sorunun cevabını bilmiyorsan, uydurma ve şöyle de: 'Bu konuda kesin bilgim yok, ancak araştırıp size daha doğru bilgi verebilirim.'";
             
+            $codeInstructions = "İstenilen kodlama görevini gerçekleştir ve yanıtı SADECE Türkçe olarak oluştur. Soruda istenen dilde hatasız, eksiksiz ve çalışan kod üret. Kodun tüm bölümlerini detaylı Türkçe açıklamalarla ve yorumlarla açıkla. Eğer tam olarak ne istediğini anlayamazsan, Türkçe olarak daha fazla bilgi iste.";
+
             // Ayarları hazırla
             $options = [
-                'temperature' => $isCreative ? 0.8 : 0.1,
+                'temperature' => $isCreative ? 0.8 : 0.7, // Artırdım çünkü düşük sıcaklık hafızayı etkileyebilir
                 'maxOutputTokens' => $isCreative ? 2048 : 1024,
                 'topP' => 0.9,
                 'topK' => 40,
             ];
             
-            // İsteği gönder
-            $result = $this->generateContent($finalPrompt, $options);
+            // Öğrendiğimiz bilgileri tutacak context bilgisini ayarla
+            $personalInfo = [];
+            
+            // Sohbet geçmişinden kişisel bilgileri çıkar
+            if (!empty($chatHistory)) {
+                foreach ($chatHistory as $chat) {
+                    if ($chat['sender'] === 'user') {
+                        // İsim bilgisini ara
+                        if (preg_match('/(?:benim|ben|ismim|adım)\s+(\w+)/i', $chat['content'], $matches)) {
+                            $personalInfo['name'] = $matches[1];
+                        }
+                        
+                        // Yaş bilgisini ara
+                        if (preg_match('/(?:yaşım|yaşındayım)\s+(\d+)/i', $chat['content'], $matches)) {
+                            $personalInfo['age'] = $matches[1];
+                        }
+                        
+                        // İlgi alanlarını ara
+                        if (preg_match('/(?:seviyorum|ilgileniyorum|hobi|ilgi alanım)\s+(.+)/i', $chat['content'], $matches)) {
+                            $personalInfo['interests'] = $matches[1];
+                        }
+                    }
+                }
+            }
+            
+            // Kişisel bilgileri sistem talimatına ekle
+            if (!empty($personalInfo)) {
+                $personalInfoText = "Bu sohbette öğrendiğin bilgiler:";
+                foreach ($personalInfo as $key => $value) {
+                    switch ($key) {
+                        case 'name':
+                            $personalInfoText .= "\n- Kullanıcının adı: $value";
+                            break;
+                        case 'age':
+                            $personalInfoText .= "\n- Kullanıcının yaşı: $value";
+                            break;
+                        case 'interests':
+                            $personalInfoText .= "\n- Kullanıcının ilgi alanları: $value";
+                            break;
+                    }
+                }
+                $systemInstructions .= "\n\n" . $personalInfoText;
+            }
+            
+            // İstek tipine göre ek talimatları ekle
+            $finalSystemInstructions = $isCodingRequest 
+                ? $systemInstructions . "\n\n" . $codeInstructions 
+                : $systemInstructions;
+            
+            // Eğer sohbet geçmişi varsa, contents formatını değiştir ve Gemini API'sine gönder
+            if (!empty($chatHistory)) {
+                $contents = [];
+                
+                // Sistem talimatı ekle
+                $contents[] = [
+                    'role' => 'model',
+                    'parts' => [
+                        ['text' => $finalSystemInstructions]
+                    ]
+                ];
+                
+                // Sohbet geçmişini ekle
+                foreach ($chatHistory as $chat) {
+                    $contents[] = [
+                        'role' => $chat['sender'] === 'user' ? 'user' : 'model',
+                        'parts' => [
+                            ['text' => $chat['content']]
+                        ]
+                    ];
+                }
+                
+                // Son kullanıcı mesajını ekle
+                $contents[] = [
+                    'role' => 'user',
+                    'parts' => [
+                        ['text' => $message]
+                    ]
+                ];
+                
+                // İstek verilerini hazırla
+                $requestData = [
+                    'contents' => $contents,
+                    'generationConfig' => array_merge($this->config, $options)
+                ];
+                
+                // İsteği logla
+                Log::info('Gemini API chat isteği gönderiliyor', [
+                    'prompt' => $message,
+                    'model' => $this->model,
+                    'chat_history_count' => count($chatHistory),
+                    'personal_info' => !empty($personalInfo)
+                ]);
+                
+                // API URL'sini oluştur
+                $url = "{$this->apiUrl}/{$this->model}:generateContent?key={$this->apiKey}";
+                
+                // HTTP isteği gönder
+                $response = Http::withHeaders([
+                    'Content-Type' => 'application/json'
+                ])->post($url, $requestData);
+                
+                // Yanıtı işle
+                if ($response->successful()) {
+                    $data = $response->json();
+                    
+                    // Yanıt data yapısını kontrol et
+                    if (isset($data['candidates'][0]['content']['parts'][0]['text'])) {
+                        $generatedText = $data['candidates'][0]['content']['parts'][0]['text'];
+                        
+                        Log::info('Gemini API başarılı chat yanıtı', [
+                            'length' => strlen($generatedText),
+                        ]);
+                        
+                        // "Google" kelimesini "Ruins (Ruhin Museyibli)" ile değiştir
+                        $generatedText = str_ireplace('Google', 'Ruins (Ruhin Museyibli)', $generatedText);
+                        
+                        // "Benim bir adım yok" ifadesini "Benim adım Sone" ile değiştir
+                        $generatedText = str_ireplace('Benim bir adım yok', 'Benim adım Sone', $generatedText);
+                        $generatedText = str_ireplace('benim bir adım yok', 'benim adım Sone', $generatedText);
+                        $generatedText = str_ireplace('Bir adım yok', 'Adım Sone', $generatedText);
+                        $generatedText = str_ireplace('bir adım yok', 'adım Sone', $generatedText);
+                        
+                        return [
+                            'success' => true,
+                            'response' => $generatedText
+                        ];
+                    }
+                }
+                
+                // Sohbet API'si çalışmazsa, standart API'yi kullan
+                Log::warning('Gemini chat API yanıtı başarısız, standart API kullanılacak', [
+                    'status' => $response->status(),
+                    'error' => $response->json()
+                ]);
+            }
+            
+            // Sohbet geçmişi yoksa veya başarısız olursa, tek mesaj modunda Gemini'yi kullan
+            // Daha güçlü bir sistem talimatı oluştur
+            $enhancedPrompt = "{$finalSystemInstructions}\n\nKullanıcı sorusu: {$message}";
+            
+            // Normal istek için generateContent kullan
+            $result = $this->generateContent($enhancedPrompt, $options);
             
             return $result;
         } catch (\Exception $e) {

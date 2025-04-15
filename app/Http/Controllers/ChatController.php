@@ -67,7 +67,8 @@ class ChatController extends Controller
                 $processedResponse = $this->processMessage($message, [
                     'creative_mode' => $creativeMode,
                     'coding_mode' => $codingMode,
-                    'selected_model' => $selectedModel
+                    'selected_model' => $selectedModel,
+                    'chat_id' => $chatId
                 ]);
                 
                 // Eğer dönen değer bir array ise (kod yanıtı) onu doğrudan kullan
@@ -2194,6 +2195,7 @@ class ChatController extends Controller
      * Kullanıcı mesajını işleyen metod
      * 
      * @param string $userMessage Kullanıcı mesajı
+     * @param array $options İşleme seçenekleri
      * @return string|array İşlenmiş AI yanıtı veya kod yanıtı için array
      */
     private function processMessage($userMessage, $options = [])
@@ -2205,6 +2207,7 @@ class ChatController extends Controller
         $creativeMode = $options['creative_mode'] ?? false;
         $codingMode = $options['coding_mode'] ?? false;
         $selectedModel = $options['selected_model'] ?? 'gemini';
+        $chatId = $options['chat_id'] ?? null;
         
         // Mesaj boşsa, basit bir karşılama yanıtı döndür
         if (empty($message)) {
@@ -2266,7 +2269,7 @@ class ChatController extends Controller
                 Log::info('Gemini ile kod yanıtı oluşturuluyor', ['message' => $message]);
                 
                 // Kod yanıtı için Gemini'yi kullan
-                $geminiResponse = $this->getGeminiResponse($message, $creativeMode, true);
+                $geminiResponse = $this->getGeminiResponse($message, $creativeMode, true, $chatId);
                 if (is_array($geminiResponse) && isset($geminiResponse['is_code_response'])) {
                     return $geminiResponse;
                 }
@@ -2274,7 +2277,7 @@ class ChatController extends Controller
             
             // Normal sohbet yanıtı için de Gemini'yi kullan
             Log::info('Gemini ile normal sohbet yanıtı oluşturuluyor', ['message' => $message]);
-            $response = $this->getGeminiResponse($message, $creativeMode, false);
+            $response = $this->getGeminiResponse($message, $creativeMode, false, $chatId);
             
             // Yanıtı zenginleştir
             return $this->enhanceResponseWithWordRelations($response);
@@ -3857,8 +3860,8 @@ class ChatController extends Controller
         // AI'nın kimlik bilgileri
         $selfIdentity = [
             'name' => 'SoneAI',
-            'aliases' => ['sone', 'yapay zeka', 'asistan', 'robot', 'ai', 'yapay'],
-            'personal_pronouns' => ['sen', 'sana', 'seni', 'senin', 'sende', 'senden'],
+            'aliases' => ['sone', 'sonecim', 'asistan'],
+            'personal_pronouns' => ['ciosssa', 'ciosssa', 'ciosssa', 'ciosssa', 'ciosssa', 'ciosssa'],
             'references' => ['dostum', 'arkadaşım', 'yardımcım', 'asistanım']
         ];
         
@@ -4151,9 +4154,10 @@ class ChatController extends Controller
      * @param string $message Kullanıcı mesajı
      * @param bool $creativeMode Yaratıcı mod aktif mi
      * @param bool $codingMode Kod modu aktif mi
+     * @param int|null $chatId Sohbet ID
      * @return string|array Gemini yanıtı
      */
-    private function getGeminiResponse($message, $creativeMode = false, $codingMode = false)
+    private function getGeminiResponse($message, $creativeMode = false, $codingMode = false, $chatId = null)
     {
         try {
             // API anahtarı kontrol et
@@ -4161,12 +4165,37 @@ class ChatController extends Controller
                 return "Gemini API anahtarı bulunamadı. Lütfen sistem yöneticisiyle iletişime geçin.";
             }
             
+            // Sohbet geçmişini al (varsa)
+            $chatHistory = [];
+            if (!empty($chatId)) {
+                try {
+                    // Son 20 mesajı al (10 soru-cevap çifti) - daha fazla bağlam için arttırıldı
+                    $previousMessages = \App\Models\ChatMessage::where('chat_id', $chatId)
+                        ->orderBy('created_at', 'desc')
+                        ->limit(20)
+                        ->get();
+                    
+                    if ($previousMessages->count() > 0) {
+                        // Mesajları doğru sırayla düzenle (eskiden yeniye)
+                        $chatHistory = $previousMessages->reverse()->values()->toArray();
+                        
+                        Log::info('Gemini API için sohbet geçmişi alındı', [
+                            'chat_id' => $chatId,
+                            'message_count' => count($chatHistory)
+                        ]);
+                    }
+                } catch (\Exception $e) {
+                    Log::error('Sohbet geçmişi alınırken hata: ' . $e->getMessage());
+                    // Hata olsa bile devam et
+                }
+            }
+            
             // Kodlama modu etkinse
             if ($codingMode) {
                 // Desteklenen dili tespit et
                 $language = $this->detectProgrammingLanguage($message);
                 
-                // Kod yanıtı oluştur
+                // Kod yanıtı oluştur - sohbet geçmişini ekleme çünkü kod yanıtları için gerekli değil
                 $codeResult = $this->geminiService->generateCode($message, $language);
                 
                 if ($codeResult['success']) {
@@ -4183,8 +4212,30 @@ class ChatController extends Controller
                 }
             }
             
-            // Normal metin yanıtı için generateResponse kullan - hem kod hem normal sohbet için aynı yöntemi kullan
-            $result = $this->geminiService->generateResponse($message, $creativeMode, false);
+            // Sohbet geçmişi boşsa ve chat ID varsa, bu yeni bir sohbet
+            // Yeni sohbette kişiselleştirme için chat başlangıç bilgisini ekle
+            if (empty($chatHistory) && !empty($chatId)) {
+                try {
+                    $chat = \App\Models\Chat::find($chatId);
+                    if ($chat && isset($chat->context['first_message'])) {
+                        // Sohbetin ilk mesajından sohbet bağlamını başlat
+                        $chatHistory[] = [
+                            'sender' => 'user',
+                            'content' => $chat->context['first_message']
+                        ];
+                        // AI'nın ilk yanıtını ekle (yoksa tanıtım mesajı)
+                        $chatHistory[] = [
+                            'sender' => 'ai',
+                            'content' => 'Merhaba! Ben SoneAI. Size nasıl yardımcı olabilirim?'
+                        ];
+                    }
+                } catch (\Exception $e) {
+                    Log::error('Sohbet bağlam bilgisi alınırken hata: ' . $e->getMessage());
+                }
+            }
+            
+            // Normal metin yanıtı için generateResponse kullan
+            $result = $this->geminiService->generateResponse($message, $creativeMode, false, $chatHistory);
             
             if ($result['success']) {
                 $response = $result['response'];

@@ -522,28 +522,56 @@
         .input-wrapper {
             height: 48px;
             margin: 0;
-            background-color: var(--mobile-input-bg);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 14px;
+            background: linear-gradient(90deg, rgba(41, 45, 62, 0.9), rgba(45, 50, 80, 0.85), rgba(41, 45, 62, 0.9));
+            background-size: 200% 100%;
+            animation: gradientFlow 8s linear infinite;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 25px;
             display: flex;
             align-items: center;
             padding: 0 0.75rem;
             width: 100%;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .input-wrapper::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent,
+                rgba(87, 132, 255, 0.1),
+                rgba(87, 132, 255, 0.2),
+                rgba(87, 132, 255, 0.1),
+                transparent
+            );
+            animation: lightSweep 5s infinite ease-in-out;
+            pointer-events: none;
         }
         
         .input-wrapper:focus-within {
-            border-color: var(--mobile-highlight);
-            background-color: rgba(51, 54, 76, 0.95);
-            box-shadow: 0 2px 15px rgba(88, 130, 239, 0.2);
-            transform: none;
+            background: linear-gradient(90deg, rgba(45, 50, 80, 0.95), rgba(50, 60, 95, 0.9), rgba(45, 50, 80, 0.95));
+            background-size: 200% 100%;
+            border-color: rgba(87, 132, 255, 0.5);
+            box-shadow: 0 2px 20px rgba(87, 132, 255, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        .input-wrapper:focus-within::before {
+            animation: lightSweep 3s infinite ease-in-out;
         }
         
         .message-input {
             flex: 1;
             border: none;
             background: transparent;
-            color: var(--mobile-text);
+            color: rgba(255, 255, 255, 0.9);
             padding: 0.6rem;
             height: 100%;
             font-size: 0.95rem;
@@ -551,8 +579,17 @@
         }
         
         .message-input::placeholder {
-            color: var(--mobile-text-light);
-            opacity: 0.75;
+            color: rgba(180, 185, 210, 0.6);
+            transition: all 0.3s ease;
+        }
+        
+        .message-input:focus {
+            outline: none;
+        }
+        
+        .message-input:focus::placeholder {
+            color: rgba(180, 185, 210, 0.4);
+            transform: translateX(5px);
         }
         
         .send-button {
@@ -560,7 +597,7 @@
             height: 40px;
             min-width: 40px;
             background: linear-gradient(135deg, #5782ef, #665ff5);
-            border-radius: 12px;
+            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -569,11 +606,46 @@
             box-shadow: 0 3px 8px rgba(88, 130, 239, 0.35);
             margin-left: 0.5rem;
             transition: all 0.25s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .send-button::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at center, rgba(255, 255, 255, 0.2) 0%, transparent 70%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .send-button:hover {
+            transform: scale(1.05);
+            background: linear-gradient(135deg, #6691f1, #7771f7);
         }
         
         .send-button:active {
             transform: scale(0.95);
             box-shadow: 0 2px 5px rgba(88, 130, 239, 0.3);
+        }
+        
+        .send-button:active::after {
+            opacity: 1;
+        }
+        
+        @keyframes gradientFlow {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        @keyframes lightSweep {
+            0% { left: -100%; }
+            50% { left: 100%; }
+            100% { left: 100%; }
         }
         
         /* Düşünme Animasyonu */
@@ -1487,6 +1559,79 @@
             max-width: none;
         }
     }
+
+    /* iPhone X ve daha yeni cihazlar için safe area desteği */
+    @supports (padding: max(0px)) {
+        @media (max-width: 767px) {
+            :root {
+                --safe-area-inset-bottom: env(safe-area-inset-bottom, 20px);
+            }
+            
+            .app-container {
+                padding-top: env(safe-area-inset-top);
+                padding-bottom: var(--safe-area-inset-bottom);
+            }
+            
+            .input-container {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                padding-bottom: max(1.5rem, var(--safe-area-inset-bottom));
+                padding-left: max(1rem, env(safe-area-inset-left));
+                padding-right: max(1rem, env(safe-area-inset-right));
+                z-index: 100;
+            }
+            
+            .chat-messages-container {
+                margin-bottom: calc(var(--mobile-footer-height) + var(--safe-area-inset-bottom));
+                padding-bottom: 2rem;
+            }
+        }
+    }
+
+    @media (max-width: 767px) {
+        .input-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 0.8rem 0.75rem;
+            background-color: rgba(30, 31, 39, 0.95);
+            backdrop-filter: blur(var(--glass-blur));
+            -webkit-backdrop-filter: blur(var(--glass-blur));
+            z-index: 30;
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            border-radius: 20px 20px 0 0;
+            box-shadow: 0 -5px 15px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+            margin-bottom: 0;
+        }
+        
+        .input-container.keyboard-visible {
+            transform: translateY(0);
+        }
+        
+        .chat-messages-container {
+            margin-bottom: calc(var(--mobile-footer-height) + var(--safe-area-inset-bottom, 20px));
+            padding-bottom: 2.5rem;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        /* Büyük ekranlı telefonlar için ayarlar */
+        @media (min-height: 800px) {
+            .input-container {
+                padding-bottom: max(1.2rem, var(--safe-area-inset-bottom));
+            }
+            
+            .chat-messages-container {
+                margin-bottom: calc(var(--mobile-footer-height) + 15px + var(--safe-area-inset-bottom, 20px));
+            }
+        }
+    }
 </style>
 @endsection
 
@@ -1497,12 +1642,15 @@
     <!-- Sol Sidebar - Büyük ekranlarda görünür -->
     <div class="sidebar">
         <div class="sidebar-header">
-            <div class="sidebar-logo">
-                <img src="{{ asset('images/sone.png') }}" alt="SoneAI Logo" class="w-10 h-10"
+            <div class="sidebar-logo" style="width: 35px; height: 35px;">
+                <img src="{{ asset('images/sone.png') }}" alt="SoneAI Logo" 
                    style="background-size:cover;
                    background-position: center;
                    background-repeat: no-repeat;
                    border-radius: 50%;
+                   width: 35px;
+                   height: 35px;
+                   !important;
                    ">
                 <span class="logo-text">SoneAI</span>
             </div>
@@ -1551,12 +1699,15 @@
         <!-- Header -->
         <header class="chat-header">
             <div class="chat-header-title">
-                <div class="chat-logo">
-                   <img src="{{ asset('images/sone.png') }}" alt="SoneAI Logo" class="w-10 h-10"
+                <div class="chat-logo" style="width: 35px; height: 35px;">
+                   <img src="{{ asset('images/sone.png') }}" alt="SoneAI Logo" 
                    style="background-size:cover;
                    background-position: center;
                    background-repeat: no-repeat;
                    border-radius: 50%;
+                   width: 35px;
+                   height: 35px;
+                   !important;
                    ">
                 </div>
                 <h1>SoneAI</h1>
@@ -1679,6 +1830,8 @@
         const settingsOverlay = document.getElementById('settings-overlay');
         const toggleSettings = document.getElementById('toggle-settings');
         const closeSettings = document.getElementById('close-settings');
+        const inputContainer = document.querySelector('.input-container');
+        const chatMessagesContainer = document.querySelector('.chat-messages-container');
         
         // Masaüstü kontrolleri
         const creativeToggle = document.getElementById('creative-toggle');
@@ -1693,6 +1846,32 @@
         const mobileCodeLanguage = document.getElementById('mobile-code-language');
         const mobileLangSettings = document.getElementById('mobile-language-settings');
         const mobileModelSelector = document.getElementById('mobile-model-selector');
+        
+        // Mobil cihazlar için klavye olayları
+        function setupMobileKeyboardEvents() {
+            if (window.innerWidth <= 767) {
+                // Klavye açıldığında
+                messageInput.addEventListener('focus', function() {
+                    setTimeout(function() {
+                        inputContainer.classList.add('keyboard-visible');
+                        scrollToBottom();
+                    }, 300);
+                });
+                
+                // Klavye kapandığında
+                messageInput.addEventListener('blur', function() {
+                    setTimeout(function() {
+                        inputContainer.classList.remove('keyboard-visible');
+                    }, 100);
+                });
+            }
+        }
+        
+        // Mobil cihazlar için viewport yüksekliği ayarı
+        function setVhVariable() {
+            let vh = window.innerHeight * 0.01;
+            document.documentElement.style.setProperty('--vh', `${vh}px`);
+        }
         
         // Uygulama durumu
         let isCreativeMode = localStorage.getItem('creative_mode') === 'true';
@@ -2032,7 +2211,9 @@
         // Aşağı kaydır
         function scrollToBottom() {
             setTimeout(() => {
-                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                if (chatMessagesContainer) {
+                    chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight;
+                }
             }, 10);
         }
         
@@ -2052,23 +2233,31 @@
         }
         
         // Mesaj gönderme event listener'ı
-        sendMessageBtn.addEventListener('click', function() {
-            const message = messageInput.value.trim();
-            if (message) {
-                sendMessage(message);
-            }
-        });
-        
-        // Enter tuşu ile göndermeyi etkinleştir
-        messageInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
+        if (sendMessageBtn) {
+            sendMessageBtn.addEventListener('click', function() {
                 const message = messageInput.value.trim();
                 if (message) {
                     sendMessage(message);
+                    messageInput.blur(); // Mobil klavyeyi kapat
                 }
-            }
-        });
+            });
+        }
+        
+        // Enter tuşu ile göndermeyi etkinleştir
+        if (messageInput) {
+            messageInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    const message = messageInput.value.trim();
+                    if (message) {
+                        sendMessage(message);
+                        if (window.innerWidth <= 767) {
+                            messageInput.blur(); // Mobil klavyeyi kapat
+                        }
+                    }
+                }
+            });
+        }
         
         // Ayarlar paneli
         if (toggleSettings) toggleSettings.addEventListener('click', toggleSettingsPanel);
@@ -2156,14 +2345,20 @@
             }, 3000);
         }
         
+        // Mobil klavye görünürlüğünü takip et
+        setupMobileKeyboardEvents();
+        
+        // Viewport yüksekliğini ayarla
+        setVhVariable();
+        window.addEventListener('resize', setVhVariable);
+        
+        // Yönlendirme değişikliğinde de yüksekliği güncelle
+        window.addEventListener('orientationchange', function() {
+            setTimeout(setVhVariable, 200);
+        });
+        
         // Varsayılan ayarları yükle
         loadSettings();
-        
-        // Mobil klavye görünürlüğünü düzenle
-        window.addEventListener('resize', function() {
-            const vh = window.innerHeight * 0.01;
-            document.documentElement.style.setProperty('--vh', `${vh}px`);
-        });
     });
 </script>
 @endsection 

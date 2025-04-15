@@ -469,7 +469,7 @@
         }
         
         .message-user .message-content {
-            background: linear-gradient(135deg, #5782ef, #665ff5);
+            background: linear-gradient(135deg, #054640, #054640);
             color: white;
             border-bottom-right-radius: 5px;
         }
@@ -498,7 +498,7 @@
         }
         
         .message-user .message-avatar {
-            background: linear-gradient(135deg, #666fff, #3d3ff5);
+            background: linear-gradient(135deg, #054640, #054640);
             margin-left: auto;
         }
         
@@ -1302,13 +1302,13 @@
     /* Koyu tema ince ayarlar */
     @media (prefers-color-scheme: dark) {
         :root {
-            --ai-primary:rgb(174, 194, 226);
+            --ai-primary:rgb(215, 92, 240);
             --ai-primary-light:rgb(10, 67, 160);
             --ai-primary-dark:rgb(15, 36, 70);
             --ai-secondary: #5a9676;
             --ai-accent: #b07d48;
             --ai-message-bg: #2a3547;
-            --ai-user-message-bg: #2a4539;
+            --ai-user-message-bg: #054640;
             --ai-light: #1a212c;
             --ai-dark: #111827;
             --ai-text-dark: #e5e7eb;
@@ -1652,7 +1652,7 @@
                    height: 35px;
                    !important;
                    ">
-                <span class="logo-text">SoneAI</span>
+                <span class="logo-text" style="color:rgb(255, 255, 255);">SoneAI</span>
             </div>
             
             <div class="model-selector-container">

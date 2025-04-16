@@ -49,6 +49,13 @@ Route::prefix('admin')->group(function () {
 
         Route::post('logout', [AdminController::class, 'logout'])->name('admin.logout');
 
+        // Kullanıcı istatistikleri için rotalar
+        Route::prefix('user-stats')->name('admin.user-stats.')->group(function () {
+            Route::get('/', [App\Http\Controllers\Admin\UserStatsController::class, 'index'])->name('index');
+            Route::get('/ip/{ip}', [App\Http\Controllers\Admin\UserStatsController::class, 'showIpDetails'])->name('ip-details');
+            Route::get('/visitor/{visitorId}', [App\Http\Controllers\Admin\UserStatsController::class, 'showVisitorDetails'])->name('visitor-details');
+        });
+
         // AI Modelleri için rotalar
         Route::prefix('ai')->name('admin.ai.')->group(function () {
             Route::get('/', [AdminAIController::class, 'index'])->name('index');

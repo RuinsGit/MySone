@@ -14,6 +14,8 @@ class ChatMessage extends Model
         'content',
         'sender',
         'metadata',
+        'ip_address',
+        'device_info',
     ];
 
     protected $casts = [

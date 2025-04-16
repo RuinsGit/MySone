@@ -61,18 +61,16 @@
                             <p>Sayfalar</p>
                         </a>
                     </li>
+
                     <li class="nav-item">
-                        <a href="{{ route('admin.ai.index') }}" class="nav-link {{ request()->routeIs('admin.ai.*') ? 'active' : '' }}">
+                        <a href="{{ route('admin.user-stats.index') }}" class="nav-link {{ request()->routeIs('admin.user-stats.*') ? 'active' : '' }}">
                             <i class="nav-icon fas fa-robot"></i>
-                            <p>AI Modelleri</p>
+                            <p>Kullanıcı İstatistikleri</p>
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a href="{{ route('back.chat.index') }}" class="nav-link {{ request()->routeIs('back.chat.*') ? 'active' : '' }}">
-                            <i class="nav-icon fas fa-comments"></i>
-                            <p>AI Sohbet</p>
-                        </a>
-                    </li>
+
+                        
+                 
                 </ul>
             </nav>
             <!-- /.sidebar-menu -->

@@ -10,6 +10,7 @@ use App\Models\ChatMessage;
 use App\Models\Chat;
 use Illuminate\Support\Facades\Http;
 use App\Services\GeminiApiService;
+use App\Helpers\DeviceHelper;
 
 class ChatController extends Controller
 {
@@ -31,6 +32,14 @@ class ChatController extends Controller
     
     public function index()
     {
+        // Ziyaretçi ID'sini kontrol et veya oluştur
+        if (!session()->has('visitor_id')) {
+            session(['visitor_id' => uniqid('visitor_', true)]);
+        }
+        
+        // Kullanıcı bilgilerini kaydet
+        $this->recordUserVisit();
+        
         $initialState = [
             'emotional_state' => $this->brain->getEmotionalState(),
             'memory_usage' => $this->brain->getMemoryUsage(),
@@ -2935,7 +2944,8 @@ class ChatController extends Controller
                     'status' => 'active',
                     'context' => [
                         'emotional_state' => $this->getEmotionalState(),
-                        'first_message' => $userMessage
+                        'first_message' => $userMessage,
+                        'visitor_id' => session('visitor_id')
                     ]
                 ]);
                 
@@ -2943,11 +2953,24 @@ class ChatController extends Controller
                 Log::info('Yeni chat oluşturuldu', ['chat_id' => $chatId]);
             }
 
+            // Kullanıcı cihaz bilgilerini al
+            $deviceInfo = DeviceHelper::getUserDeviceInfo();
+            
+            // Metadata bilgilerini hazırla
+            $metadata = [
+                'visitor_id' => session('visitor_id'),
+                'session_id' => session()->getId(),
+                'timestamp' => now()->timestamp
+            ];
+            
             // Kullanıcı mesajını kaydet
             ChatMessage::create([
                 'chat_id' => $chatId,
                 'content' => $userMessage,
                 'sender' => 'user',
+                'ip_address' => $deviceInfo['ip_address'],
+                'device_info' => $deviceInfo['device_info'],
+                'metadata' => $metadata
             ]);
             
             // AI yanıtını kaydet
@@ -2955,10 +2978,15 @@ class ChatController extends Controller
                 'chat_id' => $chatId,
                 'content' => $aiResponse,
                 'sender' => 'ai',
+                'ip_address' => $deviceInfo['ip_address'],
+                'device_info' => $deviceInfo['device_info'],
+                'metadata' => $metadata
             ]);
             
             Log::info('Mesajlar başarıyla kaydedildi', [
-                'chat_id' => $chatId
+                'chat_id' => $chatId,
+                'ip' => $deviceInfo['ip_address'],
+                'visitor_id' => session('visitor_id')
             ]);
             
         } catch (\Exception $e) {
@@ -4251,6 +4279,28 @@ class ChatController extends Controller
         } catch (\Exception $e) {
             Log::error('Gemini yanıtı oluşturma hatası: ' . $e->getMessage());
             return "Üzgünüm, bir hata oluştu. Lütfen tekrar deneyin.";
+        }
+    }
+
+    /**
+     * Kullanıcı ziyaret bilgilerini kaydet
+     */
+    private function recordUserVisit()
+    {
+        try {
+            $deviceInfo = DeviceHelper::getUserDeviceInfo();
+            $visitorId = session('visitor_id');
+            $ipAddress = $deviceInfo['ip_address'];
+
+            // Bilgileri loglayalım
+            Log::info('Kullanıcı ziyareti kaydedildi', [
+                'ip' => $ipAddress, 
+                'visitor_id' => $visitorId,
+                'device_info' => $deviceInfo['device_info']
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Kullanıcı ziyareti kaydedilirken hata: ' . $e->getMessage());
         }
     }
 } 

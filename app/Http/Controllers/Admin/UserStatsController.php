@@ -15,37 +15,37 @@ class UserStatsController extends Controller
      */
     public function index()
     {
-        // IP adreslerine göre istatistikleri al
-        $ipStats = ChatMessage::select('ip_address', DB::raw('COUNT(*) as message_count'))
+        // Tüm IP adreslerini ve mesaj sayılarını al
+        $ipStats = \DB::table('chat_messages')
+            ->select('ip_address', \DB::raw('count(*) as message_count'))
             ->whereNotNull('ip_address')
             ->groupBy('ip_address')
             ->orderBy('message_count', 'desc')
-            ->limit(100)
+            ->limit(50)
             ->get();
-            
-        // Ziyaretçi ID'lerine göre istatistikleri al - hem JSON_EXTRACT hem LIKE kullanalım
-        $visitorStats = DB::table('chat_messages')
+        
+        // visitor_id'ye göre mesaj sayılarını al
+        $visitorStats = \DB::table('chat_messages')
             ->select(
-                DB::raw('JSON_UNQUOTE(JSON_EXTRACT(metadata, "$.visitor_id")) as visitor_id'), 
-                DB::raw('MIN(ip_address) as ip_address'),
-                DB::raw('COUNT(*) as message_count')
+                \DB::raw('JSON_EXTRACT(metadata, "$.visitor_id") as visitor_id'),
+                \DB::raw('MIN(ip_address) as ip_address'),
+                \DB::raw('COUNT(*) as message_count')
             )
-            ->whereNotNull('metadata')
             ->whereRaw('JSON_EXTRACT(metadata, "$.visitor_id") IS NOT NULL')
             ->groupBy('visitor_id')
             ->orderBy('message_count', 'desc')
             ->limit(50)
             ->get();
-            
-        // Eğer visitor_id bulunamadıysa LIKE ile deneyelim
+        
+        // JSON_EXTRACT bulunmazsa, LIKE ile dene
         if ($visitorStats->isEmpty()) {
             \Log::info('JSON_EXTRACT ile visitor_id bulunamadı, LIKE ile deneniyor');
             
-            $visitorStats = DB::table('chat_messages')
+            $visitorStats = \DB::table('chat_messages')
                 ->select(
-                    DB::raw('SUBSTRING_INDEX(SUBSTRING_INDEX(metadata, \'"visitor_id":"\', -1), \'"\', 1) as visitor_id'),
-                    DB::raw('MIN(ip_address) as ip_address'),
-                    DB::raw('COUNT(*) as message_count')
+                    \DB::raw('SUBSTRING_INDEX(SUBSTRING_INDEX(metadata, \'"visitor_id":"\', -1), \'"\', 1) as visitor_id'),
+                    \DB::raw('MIN(ip_address) as ip_address'),
+                    \DB::raw('COUNT(*) as message_count')
                 )
                 ->where('metadata', 'LIKE', '%"visitor_id"%')
                 ->groupBy('visitor_id')
@@ -54,15 +54,26 @@ class UserStatsController extends Controller
                 ->get();
         }
         
+        // Ziyaretçi adlarını çek
+        $visitorIds = $visitorStats->pluck('visitor_id')->map(function($id) {
+            return str_replace('"', '', $id);
+        })->toArray();
+        
+        $visitorNames = \DB::table('visitor_names')
+            ->whereIn('visitor_id', $visitorIds)
+            ->pluck('name', 'visitor_id')
+            ->toArray();
+        
         \Log::info('Ziyaretçi istatistikleri alındı', [
             'visitor_count' => $visitorStats->count(),
             'ip_count' => $ipStats->count(),
+            'visitor_names_count' => count($visitorNames)
         ]);
-            
+        
         // Gün başına mesaj sayısı
-        $dailyMessageStats = ChatMessage::select(
-                DB::raw('DATE(created_at) as date'), 
-                DB::raw('COUNT(*) as message_count')
+        $dailyMessageStats = \App\Models\ChatMessage::select(
+                \DB::raw('DATE(created_at) as date'), 
+                \DB::raw('COUNT(*) as message_count')
             )
             ->groupBy('date')
             ->orderBy('date', 'desc')
@@ -72,7 +83,7 @@ class UserStatsController extends Controller
         // Cihaz bilgilerine göre istatistikler (tarayıcı, işletim sistemi vs)
         $deviceStats = $this->generateDeviceStats();
             
-        return view('admin.user_stats.index', compact('ipStats', 'visitorStats', 'dailyMessageStats', 'deviceStats'));
+        return view('admin.user_stats.index', compact('ipStats', 'visitorStats', 'dailyMessageStats', 'deviceStats', 'visitorNames'));
     }
     
     /**
@@ -122,46 +133,32 @@ class UserStatsController extends Controller
      */
     public function showVisitorDetails($visitorId)
     {
-        // Ziyaretçi ID'sini çift tırnaklar içinde arıyoruz çünkü JSON'da bu şekilde saklanıyor
-        $quotedVisitorId = '"' . $visitorId . '"';
+        // Temiz ziyaretçi ID'si oluştur
+        $cleanVisitorId = str_replace('"', '', $visitorId);
         
-        // İlk yöntem: JSON_EXTRACT kullanarak
-        $messagesQuery1 = ChatMessage::whereRaw('JSON_EXTRACT(metadata, "$.visitor_id") = ?', [$quotedVisitorId]);
-        
-        // İkinci yöntem: JSON_CONTAINS kullanarak
-        $messagesQuery2 = ChatMessage::whereRaw('JSON_CONTAINS(metadata, ?, "$.visitor_id")', [$quotedVisitorId]);
-        
-        // Üçüncü yöntem: LIKE operatörü kullanarak (not optimal ama bazen çalışabilir)
-        $messagesQuery3 = ChatMessage::where('metadata', 'LIKE', '%"visitor_id":"' . $visitorId . '"%');
-        
-        // Log için bazı bilgileri yazdıralım
-        \Log::info('Ziyaretçi ID araması yapılıyor', [
-            'visitor_id' => $visitorId,
-            'quoted_visitor_id' => $quotedVisitorId,
-            'count_method1' => $messagesQuery1->count(),
-            'count_method2' => $messagesQuery2->count(),
-            'count_method3' => $messagesQuery3->count()
-        ]);
-        
-        // En iyi sonucu veren metodu seçelim
-        if ($messagesQuery1->count() > 0) {
-            $messages = $messagesQuery1->orderBy('created_at', 'desc')->paginate(50);
-            $queryMethod = 'JSON_EXTRACT';
-        } elseif ($messagesQuery2->count() > 0) {
-            $messages = $messagesQuery2->orderBy('created_at', 'desc')->paginate(50);
-            $queryMethod = 'JSON_CONTAINS';
+        // Sorgu metodu belirle (JSON_EXTRACT, JSON_CONTAINS veya LIKE)
+        $queryMethod = 'JSON_EXTRACT';
+        $quotedVisitorId = '"' . $cleanVisitorId . '"';
+
+        // Ziyaretçiye ait mesajları, tırnakları temizleyerek sorgula
+        if ($queryMethod === 'JSON_EXTRACT') {
+            $messagesQuery = ChatMessage::whereRaw('JSON_EXTRACT(metadata, "$.visitor_id") = ?', [$quotedVisitorId]);
+            $messagesQuery1 = clone $messagesQuery;
+            $messages = $messagesQuery->orderBy('created_at', 'desc')->paginate(50);
+        } elseif ($queryMethod === 'JSON_CONTAINS') {
+            $messagesQuery = ChatMessage::whereRaw('JSON_CONTAINS(metadata, ?, "$.visitor_id")', [$quotedVisitorId]);
+            $messagesQuery1 = clone $messagesQuery;
+            $messages = $messagesQuery->orderBy('created_at', 'desc')->paginate(50);
         } else {
-            $messages = $messagesQuery3->orderBy('created_at', 'desc')->paginate(50);
-            $queryMethod = 'LIKE';
+            $messagesQuery = ChatMessage::where('metadata', 'LIKE', '%"visitor_id":"' . $cleanVisitorId . '"%');
+            $messagesQuery1 = clone $messagesQuery;
+            $messages = $messagesQuery->orderBy('created_at', 'desc')->paginate(50);
         }
         
-        // Log bilgisi
-        \Log::info("Ziyaretçi mesajları bulundu ($queryMethod metodu)", [
-            'visitor_id' => $visitorId,
-            'message_count' => $messages->count()
-        ]);
+        // Ziyaretçinin bilgilerini çek
+        $visitorInfo = DB::table('visitor_names')->where('visitor_id', $cleanVisitorId)->first();
         
-        // IP adreslerini seçilen metoda göre alalım
+        // Kullanılan IP adreslerini bul
         if ($queryMethod === 'JSON_EXTRACT') {
             $ipAddresses = ChatMessage::whereRaw('JSON_EXTRACT(metadata, "$.visitor_id") = ?', [$quotedVisitorId])
                 ->select('ip_address')
@@ -175,7 +172,7 @@ class UserStatsController extends Controller
                 ->pluck('ip_address')
                 ->toArray();
         } else {
-            $ipAddresses = ChatMessage::where('metadata', 'LIKE', '%"visitor_id":"' . $visitorId . '"%')
+            $ipAddresses = ChatMessage::where('metadata', 'LIKE', '%"visitor_id":"' . $cleanVisitorId . '"%')
                 ->select('ip_address')
                 ->distinct()
                 ->pluck('ip_address')
@@ -189,7 +186,8 @@ class UserStatsController extends Controller
             'last_message' => $messagesQuery1->orderBy('created_at', 'desc')->first(),
             'user_messages' => $messagesQuery1->where('sender', 'user')->count(),
             'ai_messages' => $messagesQuery1->where('sender', 'ai')->count(),
-            'ip_count' => count($ipAddresses)
+            'ip_count' => count($ipAddresses),
+            'visitor_name' => $visitorInfo->name ?? null
         ];
         
         // Cihaz bilgisi
@@ -205,7 +203,8 @@ class UserStatsController extends Controller
         \Log::info('Cihaz bilgisi kontrol ediliyor', [
             'visitor_id' => $visitorId,
             'device_info_found' => !is_null($deviceInfo),
-            'latest_message_found' => !is_null($latestMessage)
+            'latest_message_found' => !is_null($latestMessage),
+            'visitor_name' => $visitorInfo->name ?? 'Bulunamadı'
         ]);
         
         return view('admin.user_stats.visitor_details', compact('messages', 'visitorId', 'stats', 'deviceInfo', 'ipAddresses'));

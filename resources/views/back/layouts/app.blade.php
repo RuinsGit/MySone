@@ -55,17 +55,19 @@
             <!-- Sidebar Menu -->
             <nav class="mt-2">
                 <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu">
+                  
+
                     <li class="nav-item">
-                        <a href="{{ route('back.pages.index') }}" class="nav-link {{ request()->routeIs('back.pages.*') ? 'active' : '' }}">
-                            <i class="nav-icon fas fa-file"></i>
-                            <p>Sayfalar</p>
+                        <a href="{{ route('admin.user-stats.index') }}" class="nav-link {{ request()->routeIs('admin.user-stats.*') ? 'active' : '' }}">
+                            <i class="nav-icon fas fa-user-clock"></i>
+                            <p>Kullanıcı İstatistikleri</p>
                         </a>
                     </li>
 
                     <li class="nav-item">
-                        <a href="{{ route('admin.user-stats.index') }}" class="nav-link {{ request()->routeIs('admin.user-stats.*') ? 'active' : '' }}">
-                            <i class="nav-icon fas fa-robot"></i>
-                            <p>Kullanıcı İstatistikleri</p>
+                        <a href="{{ route('admin.message-history.index') }}" class="nav-link {{ request()->routeIs('admin.message-history.*') ? 'active' : '' }}">
+                            <i class="nav-icon fas fa-comments"></i>
+                            <p>Mesaj Geçmişi</p>
                         </a>
                     </li>
 

@@ -15,12 +15,12 @@ class DeviceHelper
         $ip = self::getRealIpAddress();
         
         // Cihaz bilgilerini json formatında sakla
-        $deviceInfo = json_encode([
+        $deviceInfo = [
             'user_agent' => $userAgent,
             'browser' => self::getBrowser($userAgent),
             'os' => self::getOS($userAgent),
             'device_type' => self::getDeviceType($userAgent)
-        ]);
+        ];
         
         return [
             'ip_address' => $ip,

@@ -1855,6 +1855,20 @@
         const mobileLangSettings = document.getElementById('mobile-language-settings');
         const mobileModelSelector = document.getElementById('mobile-model-selector');
         
+        // Kullanıcı adı kontrolü
+        const needsName = {{ $initialState['needs_name'] ? 'true' : 'false' }};
+        let nameRequested = false;
+        
+        // İlk yükleme sırasında kullanıcı adı isteme
+        if (needsName && !nameRequested) {
+            setTimeout(() => {
+                addMessage("Merhaba! Ben SoneAI. Sana nasıl hitap etmemi istersin?", 'ai');
+                nameRequested = true;
+                messageInput.placeholder = "Adınızı yazın...";
+                messageInput.focus();
+            }, 1000);
+        }
+        
         // Mobil cihazlar için klavye olayları
         function setupMobileKeyboardEvents() {
             if (window.innerWidth <= 767) {
@@ -1958,7 +1972,7 @@
         }
         
         // Mesaj gönder
-        async function sendMessage(message) {
+        async function sendMessage(message, isFirstMessage = false) {
             if (!message.trim()) return;
             
             // Kullanıcı mesajını ekle
@@ -1986,7 +2000,8 @@
                     creative_mode: isCreativeMode,
                     coding_mode: isCodingMode,
                     preferred_language: language,
-                    model: selectedModel
+                    model: selectedModel,
+                    is_first_message: isFirstMessage
                 };
                 
                 // API isteği gönder
@@ -2004,6 +2019,12 @@
                     
                     // Thinking animasyonunu kaldır
                     hideThinking();
+                    
+                    // İsim kaydedildiyse, input placeholder'ı güncelle
+                    if (data.name_saved) {
+                        messageInput.placeholder = "Mesajınızı yazın...";
+                        messageInput.focus();
+                    }
                     
                     // Chat ID'yi kaydet
                     if (data.chat_id) {
@@ -2260,7 +2281,9 @@
             sendMessageBtn.addEventListener('click', function() {
                 const message = messageInput.value.trim();
                 if (message) {
-                    sendMessage(message);
+                    // İlk mesaj kontrolü (isim sorgusu için)
+                    const isFirstMessage = needsName && nameRequested && !localStorage.getItem('current_chat_id');
+                    sendMessage(message, isFirstMessage);
                     messageInput.blur(); // Mobil klavyeyi kapat
                 }
             });
@@ -2273,7 +2296,9 @@
                     e.preventDefault();
                     const message = messageInput.value.trim();
                     if (message) {
-                        sendMessage(message);
+                        // İlk mesaj kontrolü (isim sorgusu için)
+                        const isFirstMessage = needsName && nameRequested && !localStorage.getItem('current_chat_id');
+                        sendMessage(message, isFirstMessage);
                         if (window.innerWidth <= 767) {
                             messageInput.blur(); // Mobil klavyeyi kapat
                         }

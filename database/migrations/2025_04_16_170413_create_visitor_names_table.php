@@ -11,12 +11,6 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('chat_messages', function (Blueprint $table) {
-            $table->string('ip_address')->nullable()->after('metadata');
-            $table->text('device_info')->nullable()->after('ip_address');
-        });
-
-        // Ziyaretçi adlarını saklamak için yeni bir tablo oluştur
         Schema::create('visitor_names', function (Blueprint $table) {
             $table->id();
             $table->string('visitor_id')->unique();
@@ -32,11 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('chat_messages', function (Blueprint $table) {
-            $table->dropColumn('ip_address');
-            $table->dropColumn('device_info');
-        });
-
         Schema::dropIfExists('visitor_names');
     }
-}; 
+};

@@ -11,6 +11,7 @@ use App\Models\Chat;
 use Illuminate\Support\Facades\Http;
 use App\Services\GeminiApiService;
 use App\Helpers\DeviceHelper;
+use App\Services\RecordVisit;
 
 class ChatController extends Controller
 {
@@ -21,13 +22,16 @@ class ChatController extends Controller
      */
     protected $geminiService;
     
+    protected $recordVisit;
+    
     /**
      * Constructor
      */
-    public function __construct(GeminiApiService $geminiService = null)
+    public function __construct(GeminiApiService $geminiService = null, RecordVisit $recordVisit)
     {
         $this->brain = new Brain();
         $this->geminiService = $geminiService ?? app(GeminiApiService::class);
+        $this->recordVisit = $recordVisit;
     }
     
     public function index()
@@ -37,13 +41,36 @@ class ChatController extends Controller
             session(['visitor_id' => uniqid('visitor_', true)]);
         }
         
+        // Ziyaretçi adını kontrol et (önceden kaydedilmiş mi?)
+        if (!session()->has('visitor_name')) {
+            try {
+                $visitorId = session('visitor_id');
+                $visitorInfo = \DB::table('visitor_names')->where('visitor_id', $visitorId)->first();
+                
+                if ($visitorInfo && !empty($visitorInfo->name)) {
+                    session(['visitor_name' => $visitorInfo->name]);
+                    \Log::info('Kayıtlı ziyaretçi adı bulundu', [
+                        'visitor_id' => $visitorId,
+                        'name' => $visitorInfo->name
+                    ]);
+                }
+            } catch (\Exception $e) {
+                \Log::error('Ziyaretçi adı kontrolü hatası: ' . $e->getMessage());
+            }
+        }
+        
         // Kullanıcı bilgilerini kaydet
         $this->recordUserVisit();
+        
+        // Kullanıcının adını kontrol et
+        $visitorName = session('visitor_name');
+        $needsName = !$visitorName;
         
         $initialState = [
             'emotional_state' => $this->brain->getEmotionalState(),
             'memory_usage' => $this->brain->getMemoryUsage(),
-            'learning_progress' => $this->brain->getLearningProgress()
+            'learning_progress' => $this->brain->getLearningProgress(),
+            'needs_name' => $needsName
         ];
         
         return view('ai.chat', compact('initialState'));
@@ -63,6 +90,45 @@ class ChatController extends Controller
                 return response()->json([
                     'success' => true,
                     'response' => 'Lütfen bir mesaj yazın.'
+                ]);
+            }
+            
+            // Kullanıcı adını kontrol et ve kaydet (eğer bu ilk mesajsa ve henüz bir ad yoksa)
+            if (!session('visitor_name') && $request->input('is_first_message', false)) {
+                $visitorName = $message;
+                session(['visitor_name' => $visitorName]);
+                
+                // Kullanıcı adını veritabanına kaydet
+                try {
+                    $deviceInfo = DeviceHelper::getUserDeviceInfo();
+                    $visitorId = session('visitor_id');
+                    
+                    // Visitor_names tablosuna kaydet
+                    \DB::table('visitor_names')->updateOrInsert(
+                        ['visitor_id' => $visitorId],
+                        [
+                            'name' => $visitorName,
+                            'ip_address' => $deviceInfo['ip_address'],
+                            'device_info' => $deviceInfo['device_info'],
+                            'created_at' => now(),
+                            'updated_at' => now()
+                        ]
+                    );
+                    
+                    \Log::info('Yeni kullanıcı adı kaydedildi', [
+                        'visitor_id' => $visitorId,
+                        'name' => $visitorName,
+                        'ip' => $deviceInfo['ip_address']
+                    ]);
+                } catch (\Exception $e) {
+                    \Log::error('Kullanıcı adı kayıt hatası: ' . $e->getMessage());
+                }
+                
+                // Sadece ad kaydedildi, kullanıcıya hoş geldin mesajı gönder
+                return response()->json([
+                    'success' => true,
+                    'response' => "Merhaba {$visitorName}! Size nasıl yardımcı olabilirim?",
+                    'name_saved' => true
                 ]);
             }
             
@@ -2945,7 +3011,8 @@ class ChatController extends Controller
                     'context' => [
                         'emotional_state' => $this->getEmotionalState(),
                         'first_message' => $userMessage,
-                        'visitor_id' => session('visitor_id')
+                        'visitor_id' => session('visitor_id'),
+                        'visitor_name' => session('visitor_name')
                     ]
                 ]);
                 
@@ -2959,6 +3026,7 @@ class ChatController extends Controller
             // Metadata bilgilerini hazırla
             $metadata = [
                 'visitor_id' => session('visitor_id'),
+                'visitor_name' => session('visitor_name'),
                 'session_id' => session()->getId(),
                 'timestamp' => now()->timestamp
             ];
@@ -4288,16 +4356,11 @@ class ChatController extends Controller
     private function recordUserVisit()
     {
         try {
-            $deviceInfo = DeviceHelper::getUserDeviceInfo();
             $visitorId = session('visitor_id');
-            $ipAddress = $deviceInfo['ip_address'];
-
-            // Bilgileri loglayalım
-            Log::info('Kullanıcı ziyareti kaydedildi', [
-                'ip' => $ipAddress, 
-                'visitor_id' => $visitorId,
-                'device_info' => $deviceInfo['device_info']
-            ]);
+            $visitorName = session('visitor_name');
+            
+            // RecordVisit servisini kullanarak ziyaretçi bilgilerini kaydet
+            $this->recordVisit->record($visitorId, $visitorName);
             
         } catch (\Exception $e) {
             Log::error('Kullanıcı ziyareti kaydedilirken hata: ' . $e->getMessage());

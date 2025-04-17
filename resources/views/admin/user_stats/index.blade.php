@@ -43,6 +43,7 @@
                 <thead>
                     <tr>
                         <th>Ziyaretçi ID</th>
+                        <th>Ziyaretçi Adı</th>
                         <th>IP Adresi</th>
                         <th>Mesaj Sayısı</th>
                         <th>İşlemler</th>
@@ -52,6 +53,12 @@
                     @foreach($visitorStats as $stat)
                     <tr>
                         <td>{{ str_replace('"', '', $stat->visitor_id) }}</td>
+                        <td>
+                            @php 
+                                $cleanVisitorId = str_replace('"', '', $stat->visitor_id);
+                            @endphp
+                            {{ $visitorNames[$cleanVisitorId] ?? 'İsimsiz Ziyaretçi' }}
+                        </td>
                         <td>{{ $stat->ip_address }}</td>
                         <td>{{ $stat->message_count }}</td>
                         <td>

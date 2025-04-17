@@ -13,17 +13,17 @@ class ChatMessage extends Model
         'chat_id',
         'content',
         'sender',
-        'metadata',
         'ip_address',
         'device_info',
+        'metadata'
     ];
 
     protected $casts = [
-        'metadata' => 'array',
+        'metadata' => 'array'
     ];
 
     /**
-     * Mesajın ait olduğu chat'i getir
+     * Bu mesajın ait olduğu sohbet
      */
     public function chat()
     {

@@ -91,6 +91,7 @@
                 <thead>
                     <tr>
                         <th>Ziyaretçi ID</th>
+                        <th>Ziyaretçi Adı</th>
                         <th>İşlemler</th>
                     </tr>
                 </thead>
@@ -98,6 +99,15 @@
                     @foreach($visitorIds as $visitorId)
                     <tr>
                         <td>{{ str_replace('"', '', $visitorId) }}</td>
+                        <td>
+                            @php
+                                $cleanVisitorId = str_replace('"', '', $visitorId);
+                                $visitorName = \DB::table('visitor_names')
+                                    ->where('visitor_id', $cleanVisitorId)
+                                    ->value('name');
+                            @endphp
+                            {{ $visitorName ?? 'İsimsiz Ziyaretçi' }}
+                        </td>
                         <td>
                             <a href="{{ route('admin.user-stats.visitor-details', ['visitorId' => str_replace('"', '', $visitorId)]) }}" class="btn btn-primary btn-sm">
                                 <i class="fas fa-eye"></i> Ziyaretçi Detaylarını Görüntüle
@@ -135,9 +145,31 @@
                         <td>{{ $message->id }}</td>
                         <td>{{ $message->chat_id }}</td>
                         <td>
-                            <span class="badge bg-{{ $message->sender == 'user' ? 'primary' : 'success' }}">
-                                {{ $message->sender == 'user' ? 'Kullanıcı' : 'AI' }}
-                            </span>
+                            @if($message->sender == 'user')
+                                @php
+                                    $visitorId = null;
+                                    $visitorName = null;
+                                    try {
+                                        $metadata = is_array($message->metadata) 
+                                            ? $message->metadata 
+                                            : json_decode($message->metadata, true);
+                                        
+                                        if (isset($metadata['visitor_id'])) {
+                                            $visitorId = $metadata['visitor_id'];
+                                            $visitorName = \DB::table('visitor_names')
+                                                ->where('visitor_id', $visitorId)
+                                                ->value('name');
+                                        }
+                                    } catch (\Exception $e) {
+                                        // JSON çözümlenemedi veya hata oluştu, sessizce devam et
+                                    }
+                                @endphp
+                                <span class="badge bg-primary">
+                                    {{ $visitorName ? $visitorName : 'Kullanıcı' }}
+                                </span>
+                            @else
+                                <span class="badge bg-success">AI</span>
+                            @endif
                         </td>
                         <td>{{ \Illuminate\Support\Str::limit($message->content, 100) }}</td>
                         <td>{{ $message->created_at->format('d.m.Y H:i:s') }}</td>

@@ -10,7 +10,7 @@ use App\Http\Controllers\ManageController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\AIController;
 use App\Http\Controllers\ConsciousnessController;
-
+use App\Http\Controllers\Admin\MessageHistoryController;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -48,6 +48,13 @@ Route::prefix('admin')->group(function () {
         })->name('admin.profile');
 
         Route::post('logout', [AdminController::class, 'logout'])->name('admin.logout');
+
+        Route::prefix('message-history')->name('admin.message-history.')->group(function () {
+            Route::get('/', [MessageHistoryController::class, 'index'])->name('index');
+            Route::get('/user/{visitorId}', [MessageHistoryController::class, 'userHistory'])->name('user');
+            Route::get('/chat/{chatId}', [MessageHistoryController::class, 'chatHistory'])->name('chat');
+            Route::get('/visitors', [MessageHistoryController::class, 'visitors'])->name('visitors');
+        });
 
         // Kullanıcı istatistikleri için rotalar
         Route::prefix('user-stats')->name('admin.user-stats.')->group(function () {

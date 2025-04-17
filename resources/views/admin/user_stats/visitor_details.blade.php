@@ -2,7 +2,13 @@
 
 @section('content')
 <div class="container-fluid px-4">
-    <h1 class="mt-4">Ziyaretçi Detayları: {{ $visitorId }}</h1>
+    @php
+        $visitorName = \DB::table('visitor_names')
+            ->where('visitor_id', $visitorId)
+            ->value('name');
+    @endphp
+    
+    <h1 class="mt-4">Ziyaretçi Detayları: {{ $visitorName ?? 'İsimsiz Ziyaretçi' }} <small class="text-muted">({{ $visitorId }})</small></h1>
     <ol class="breadcrumb mb-4">
         <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Dashboard</a></li>
         <li class="breadcrumb-item"><a href="{{ route('admin.user-stats.index') }}">Kullanıcı İstatistikleri</a></li>
@@ -21,6 +27,10 @@
                         <tr>
                             <th>Ziyaretçi ID:</th>
                             <td><code>{{ $visitorId }}</code></td>
+                        </tr>
+                        <tr>
+                            <th>Ziyaretçi Adı:</th>
+                            <td>{{ $visitorName ?? 'İsimsiz Ziyaretçi' }}</td>
                         </tr>
                         <tr>
                             <th>Toplam Mesaj Sayısı:</th>
@@ -132,9 +142,31 @@
                         <td>{{ $message->id }}</td>
                         <td>{{ $message->chat_id }}</td>
                         <td>
-                            <span class="badge bg-{{ $message->sender == 'user' ? 'primary' : 'success' }}">
-                                {{ $message->sender == 'user' ? 'Kullanıcı' : 'AI' }}
-                            </span>
+                            @if($message->sender == 'user')
+                                @php
+                                    $visitorId = null;
+                                    $visitorName = null;
+                                    try {
+                                        $metadata = is_array($message->metadata) 
+                                            ? $message->metadata 
+                                            : json_decode($message->metadata, true);
+                                        
+                                        if (isset($metadata['visitor_id'])) {
+                                            $visitorId = $metadata['visitor_id'];
+                                            $visitorName = \DB::table('visitor_names')
+                                                ->where('visitor_id', $visitorId)
+                                                ->value('name');
+                                        }
+                                    } catch (\Exception $e) {
+                                        // JSON çözümlenemedi veya hata oluştu, sessizce devam et
+                                    }
+                                @endphp
+                                <span class="badge bg-primary">
+                                    {{ $visitorName ? $visitorName : 'Kullanıcı' }}
+                                </span>
+                            @else
+                                <span class="badge bg-success">AI</span>
+                            @endif
                         </td>
                         <td>{{ $message->ip_address }}</td>
                         <td>{{ \Illuminate\Support\Str::limit($message->content, 100) }}</td>

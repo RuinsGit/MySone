@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\AI\Core\Brain;
-use App\AI\Core\WordRelations;
+use App\AI\core\Brain;
+use App\AI\core\WordRelations;
 use Illuminate\Support\Facades\Log;
 use App\Models\ChatMessage;
 use App\Models\Chat;
@@ -136,6 +136,7 @@ class ChatController extends Controller
             $creativeMode = $request->input('creative_mode', false);
             $codingMode = $request->input('coding_mode', false);
             $selectedModel = $request->input('model', 'gemini'); // Varsayılan olarak Gemini
+            $chatHistory = $request->input('chat_history', []); // Sohbet geçmişini al
             
             // Mesaj işleme
             try {
@@ -143,7 +144,8 @@ class ChatController extends Controller
                     'creative_mode' => $creativeMode,
                     'coding_mode' => $codingMode,
                     'selected_model' => $selectedModel,
-                    'chat_id' => $chatId
+                    'chat_id' => $chatId,
+                    'chat_history' => $chatHistory // Sohbet geçmişini ekle
                 ]);
                 
                 // Eğer dönen değer bir array ise (kod yanıtı) onu doğrudan kullan
@@ -2283,6 +2285,7 @@ class ChatController extends Controller
         $codingMode = $options['coding_mode'] ?? false;
         $selectedModel = $options['selected_model'] ?? 'gemini';
         $chatId = $options['chat_id'] ?? null;
+        $chatHistory = $options['chat_history'] ?? []; // Sohbet geçmişini al
         
         // Mesaj boşsa, basit bir karşılama yanıtı döndür
         if (empty($message)) {
@@ -2344,7 +2347,7 @@ class ChatController extends Controller
                 Log::info('Gemini ile kod yanıtı oluşturuluyor', ['message' => $message]);
                 
                 // Kod yanıtı için Gemini'yi kullan
-                $geminiResponse = $this->getGeminiResponse($message, $creativeMode, true, $chatId);
+                $geminiResponse = $this->getGeminiResponse($message, $creativeMode, true, $chatId, $chatHistory);
                 if (is_array($geminiResponse) && isset($geminiResponse['is_code_response'])) {
                     return $geminiResponse;
                 }
@@ -2352,7 +2355,7 @@ class ChatController extends Controller
             
             // Normal sohbet yanıtı için de Gemini'yi kullan
             Log::info('Gemini ile normal sohbet yanıtı oluşturuluyor', ['message' => $message]);
-            $response = $this->getGeminiResponse($message, $creativeMode, false, $chatId);
+            $response = $this->getGeminiResponse($message, $creativeMode, false, $chatId, $chatHistory);
             
             // Yanıtı zenginleştir
             return $this->enhanceResponseWithWordRelations($response);
@@ -4245,108 +4248,78 @@ class ChatController extends Controller
     }
     
     /**
-     * Gemini API ile yanıt oluşturma
+     * Gemini API'den yanıt almayı deneyen metod
      * 
      * @param string $message Kullanıcı mesajı
-     * @param bool $creativeMode Yaratıcı mod aktif mi
-     * @param bool $codingMode Kod modu aktif mi
+     * @param bool $creativeMode Yaratıcı mod
+     * @param bool $codingMode Kodlama modu
      * @param int|null $chatId Sohbet ID
+     * @param array $chatHistory Sohbet geçmişi
      * @return string|array Gemini yanıtı
      */
-    private function getGeminiResponse($message, $creativeMode = false, $codingMode = false, $chatId = null)
+    private function getGeminiResponse($message, $creativeMode = false, $codingMode = false, $chatId = null, $chatHistory = [])
     {
         try {
-            // API anahtarı kontrol et
-            if (!$this->geminiService->hasValidApiKey()) {
-                return "Gemini API anahtarı bulunamadı. Lütfen sistem yöneticisiyle iletişime geçin.";
-            }
+            Log::info("Gemini API isteği başlatılıyor", [
+                'creative_mode' => $creativeMode,
+                'coding_mode' => $codingMode,
+                'has_chat_id' => !empty($chatId),
+                'has_chat_history' => !empty($chatHistory)
+            ]);
             
-            // Sohbet geçmişini al (varsa)
-            $chatHistory = [];
-            if (!empty($chatId)) {
-                try {
-                    // Son 20 mesajı al (10 soru-cevap çifti) - daha fazla bağlam için arttırıldı
-                    $previousMessages = \App\Models\ChatMessage::where('chat_id', $chatId)
-                        ->orderBy('created_at', 'desc')
-                        ->limit(20)
-                        ->get();
-                    
-                    if ($previousMessages->count() > 0) {
-                        // Mesajları doğru sırayla düzenle (eskiden yeniye)
-                        $chatHistory = $previousMessages->reverse()->values()->toArray();
-                        
-                        Log::info('Gemini API için sohbet geçmişi alındı', [
-                            'chat_id' => $chatId,
-                            'message_count' => count($chatHistory)
-                        ]);
-                    }
-                } catch (\Exception $e) {
-                    Log::error('Sohbet geçmişi alınırken hata: ' . $e->getMessage());
-                    // Hata olsa bile devam et
-                }
-            }
-            
-            // Kodlama modu etkinse
+            // Kodlama modu aktifse
             if ($codingMode) {
-                // Desteklenen dili tespit et
-                $language = $this->detectProgrammingLanguage($message);
+                // Programlama dili belirle
+                $langRegex = '/(javascript|python|php|html|css|sql|java|c\+\+|ruby|go)/i';
+                preg_match($langRegex, $message, $matches);
+                $language = !empty($matches) ? strtolower($matches[1]) : 'javascript';
                 
-                // Kod yanıtı oluştur - sohbet geçmişini ekleme çünkü kod yanıtları için gerekli değil
-                $codeResult = $this->geminiService->generateCode($message, $language);
+                // Gemini API'den kod yanıtı al
+                $response = $this->geminiService->generateCode($message, $language);
                 
-                if ($codeResult['success']) {
-                    // Kod yanıtını formatlayarak döndür
+                if ($response['success']) {
+                    Log::info("Gemini kod yanıtı başarılı");
+                    
                     return [
-                        'response' => $codeResult['response'],
                         'is_code_response' => true,
-                        'code' => $codeResult['code'],
-                        'language' => $codeResult['language']
+                        'response' => $response['response'],
+                        'code' => $response['code'],
+                        'language' => $response['language']
                     ];
                 } else {
-                    // Hata durumunda normal yanıt oluştur
-                    return "Üzgünüm, kodunuzu ararken bir hata oluştu. Lütfen tekrar deneyin.";
+                    Log::error("Gemini kod yanıtı hatası", ['error' => $response['error'] ?? 'Bilinmeyen hata']);
+                    return "Kod oluşturulurken bir sorun oluştu: " . ($response['error'] ?? 'Bilinmeyen hata');
                 }
-            }
-            
-            // Sohbet geçmişi boşsa ve chat ID varsa, bu yeni bir sohbet
-            // Yeni sohbette kişiselleştirme için chat başlangıç bilgisini ekle
-            if (empty($chatHistory) && !empty($chatId)) {
-                try {
-                    $chat = \App\Models\Chat::find($chatId);
-                    if ($chat && isset($chat->context['first_message'])) {
-                        // Sohbetin ilk mesajından sohbet bağlamını başlat
-                        $chatHistory[] = [
-                            'sender' => 'user',
-                            'content' => $chat->context['first_message']
-                        ];
-                        // AI'nın ilk yanıtını ekle (yoksa tanıtım mesajı)
-                        $chatHistory[] = [
-                            'sender' => 'ai',
-                            'content' => 'Merhaba! Ben SoneAI. Size nasıl yardımcı olabilirim?'
-                        ];
-                    }
-                } catch (\Exception $e) {
-                    Log::error('Sohbet bağlam bilgisi alınırken hata: ' . $e->getMessage());
-                }
-            }
-            
-            // Normal metin yanıtı için generateResponse kullan
-            $result = $this->geminiService->generateResponse($message, $creativeMode, false, $chatHistory);
-            
-            if ($result['success']) {
-                $response = $result['response'];
-                
-                // Google kelimesini Ruins (Ruhin Museyibli) ile değiştir
-                $response = str_ireplace('Google', 'Ruins (Ruhin Museyibli)', $response);
-                
-                return $response;
             } else {
-                Log::error('Gemini API hatası: ' . ($result['error'] ?? 'Bilinmeyen hata'));
-                return "Üzgünüm, yanıt oluştururken bir sorun oluştu. Lütfen daha sonra tekrar deneyin.";
+                // Normal konuşma yanıtı için
+
+                // Chat geçmişini Gemini formatına dönüştür
+                $formattedChatHistory = [];
+                if (!empty($chatHistory)) {
+                    foreach ($chatHistory as $entry) {
+                        if (isset($entry['sender']) && isset($entry['content'])) {
+                            $formattedChatHistory[] = [
+                                'sender' => $entry['sender'], 
+                                'content' => $entry['content']
+                            ];
+                        }
+                    }
+                }
+                
+                // Gemini API'den yanıt al
+                $response = $this->geminiService->generateResponse($message, $creativeMode, false, $formattedChatHistory);
+                
+                if ($response['success']) {
+                    Log::info("Gemini normal yanıt başarılı");
+                    return $response['response'];
+                } else {
+                    Log::error("Gemini normal yanıt hatası", ['error' => $response['error'] ?? 'Bilinmeyen hata']);
+                    return "Yanıt oluşturulurken bir sorun oluştu: " . ($response['error'] ?? 'Bilinmeyen hata');
+                }
             }
         } catch (\Exception $e) {
-            Log::error('Gemini yanıtı oluşturma hatası: ' . $e->getMessage());
-            return "Üzgünüm, bir hata oluştu. Lütfen tekrar deneyin.";
+            Log::error('getGeminiResponse Hata: ' . $e->getMessage());
+            return "Gemini API ile iletişimde bir sorun oluştu. Lütfen tekrar deneyin.";
         }
     }
 

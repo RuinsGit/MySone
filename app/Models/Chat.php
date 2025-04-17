@@ -13,15 +13,15 @@ class Chat extends Model
         'user_id',
         'title',
         'status',
-        'context',
+        'context'
     ];
 
     protected $casts = [
-        'context' => 'array',
+        'context' => 'array'
     ];
 
     /**
-     * Chat'e ait mesajları getir
+     * Bu sohbete ait mesajlar
      */
     public function messages()
     {
@@ -29,7 +29,22 @@ class Chat extends Model
     }
 
     /**
-     * Chat'in sahibi olan kullanıcıyı getir
+     * Son 20 mesajı al
+     *
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    public function getLastMessages($limit = 20)
+    {
+        return $this->messages()
+            ->orderBy('created_at', 'desc')
+            ->take($limit)
+            ->get()
+            ->reverse()
+            ->values();
+    }
+
+    /**
+     * Bu sohbete ait kullanıcı
      */
     public function user()
     {

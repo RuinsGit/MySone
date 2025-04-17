@@ -2014,6 +2014,7 @@
         let isCreativeMode = localStorage.getItem('creative_mode') === 'true';
         let isCodingMode = localStorage.getItem('coding_mode') === 'true';
         let selectedModel = localStorage.getItem('selected_model') || 'gemini';
+        let chatHistory = JSON.parse(localStorage.getItem('chat_history')) || [];
         
         // Depolanan ayarları yükle
         function loadSettings() {
@@ -2094,6 +2095,9 @@
             addMessage(message, 'user');
             messageInput.value = '';
             
+            // Kullanıcı mesajını geçmişe ekle
+            addToChatHistory(message, 'user');
+            
             // Yanıt bekleniyor
             showThinking();
             
@@ -2116,7 +2120,8 @@
                     coding_mode: isCodingMode,
                     preferred_language: language,
                     model: selectedModel,
-                    is_first_message: isFirstMessage
+                    is_first_message: isFirstMessage,
+                    chat_history: chatHistory // Sohbet geçmişini API'ye gönder
                 };
                 
                 // API isteği gönder
@@ -2153,9 +2158,13 @@
                     if (data.is_code_response) {
                         // Mesajı göster
                         addMessage(finalResponse, 'ai', data.code, data.language);
+                        // AI yanıtını geçmişe ekle
+                        addToChatHistory(finalResponse, 'ai');
                     } else {
                         // Normal yanıt
                         addMessage(finalResponse, 'ai');
+                        // AI yanıtını geçmişe ekle
+                        addToChatHistory(finalResponse, 'ai');
                     }
                     
                     // Mesajlar alanına otomatik kaydır
@@ -2582,6 +2591,49 @@
                 }
             }
         };
+
+        // Mesaj geçmişine yeni bir mesajı ekle
+        function addToChatHistory(message, sender) {
+            // Geçmişi maksimum 10 mesajla sınırla
+            if (chatHistory.length >= 20) {
+                chatHistory.shift(); // En eski mesajı çıkar
+            }
+            
+            // Yeni mesajı ekle
+            chatHistory.push({
+                sender: sender,
+                content: message,
+                timestamp: new Date().toISOString()
+            });
+            
+            // Geçmişi local storage'a kaydet
+            localStorage.setItem('chat_history', JSON.stringify(chatHistory));
+        }
+
+        // Mesaj geçmişini temizle
+        function clearChatHistory() {
+            chatHistory = [];
+            localStorage.removeItem('chat_history');
+        }
+
+        // Yeni chat başlat
+        function startNewChat() {
+            localStorage.removeItem('current_chat_id');
+            clearChatHistory();
+            messagesContainer.innerHTML = '';
+            addMessage("Merhaba! Ben SoneAI. Size nasıl yardımcı olabilirim?", 'ai');
+        }
+
+        // Mobil yeni chat butonu
+        document.getElementById('mobile-new-chat-btn').addEventListener('click', function() {
+            startNewChat();
+            toggleSettingsPanel();
+        });
+
+        // Yeni chat butonu masaüstü
+        document.getElementById('new-chat-btn').addEventListener('click', function() {
+            startNewChat();
+        });
     });
 </script>
 @endsection 

@@ -149,6 +149,7 @@ Route::prefix('api/ai')->group(function () {
 
 // APIController için API route
 Route::post('/api/ai/process', [ChatController::class, 'sendMessage']);
+Route::post('/api/ai/load-history', [ChatController::class, 'loadHistory']);
 
 // Arama API rotaları
 Route::prefix('api/search')->group(function () {

@@ -1747,6 +1747,25 @@
             }
         }
     }
+
+    /* Mesaj gönderen ismi için stil */
+    .message-sender-name {
+        font-size: 0.8rem;
+        margin-bottom: 4px;
+        opacity: 0.8;
+        font-weight: 500;
+    }
+
+    .message-ai .message-sender-name {
+        color: var(--ai-text-color, #759bef);
+        margin-left: 40px;
+    }
+
+    .message-user .message-sender-name {
+        color: var(--user-text-color, #30a77f);
+        margin-right: 40px;
+        text-align: right;
+    }
 </style>
 @endsection
 
@@ -1970,6 +1989,9 @@
         const mobileLangSettings = document.getElementById('mobile-language-settings');
         const mobileModelSelector = document.getElementById('mobile-model-selector');
         
+        // Kullanıcı adını localStorage'a kaydet
+        let visitorName = localStorage.getItem('visitor_name') || '';
+        
         // Kullanıcı adı kontrolü
         const needsName = {{ $initialState['needs_name'] ? 'true' : 'false' }};
         let nameRequested = false;
@@ -2121,7 +2143,8 @@
                     preferred_language: language,
                     model: selectedModel,
                     is_first_message: isFirstMessage,
-                    chat_history: chatHistory // Sohbet geçmişini API'ye gönder
+                    chat_history: chatHistory, // Sohbet geçmişini API'ye gönder
+                    visitor_name: visitorName // Kullanıcı adını da gönder
                 };
                 
                 // API isteği gönder
@@ -2140,10 +2163,12 @@
                     // Thinking animasyonunu kaldır
                     hideThinking();
                     
-                    // İsim kaydedildiyse, input placeholder'ı güncelle
+                    // İsim kaydedildiyse, input placeholder'ı güncelle ve localStorage'a kaydet
                     if (data.name_saved) {
                         messageInput.placeholder = "Mesajınızı yazın...";
                         messageInput.focus();
+                        visitorName = message.trim();
+                        localStorage.setItem('visitor_name', visitorName);
                     }
                     
                     // Chat ID'yi kaydet
@@ -2242,6 +2267,12 @@
             }
 
             messageEl.appendChild(avatarEl);
+            
+            // Kullanıcı adı veya AI adı ekleyerek görüntüle
+            const nameEl = document.createElement('div');
+            nameEl.className = 'message-sender-name';
+            nameEl.textContent = sender === 'ai' ? 'SoneAI' : (visitorName || 'Misafir');
+            messageEl.appendChild(nameEl);
             
             // Mesaj içeriği
             const contentEl = document.createElement('div');

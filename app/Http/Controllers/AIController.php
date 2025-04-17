@@ -23,6 +23,37 @@ class AIController extends Controller
     public function processInput(Request $request)
     {
         try {
+            // Aynı mesaj tekrarını önlemek için başlangıçta bir log mesajı ekleyelim
+            Log::info('AIController::processInput çağrıldı', [
+                'message' => $request->input('message'),
+                'chat_id' => $request->input('chat_id')
+            ]);
+            
+            // Çift istek gönderimini kontrol ediyoruz
+            $requestKey = md5($request->input('message') . $request->input('chat_id') . time());
+            $cacheKey = 'last_request_' . $request->input('chat_id');
+            $lastRequestKey = cache()->get($cacheKey);
+            
+            // Son bir saniye içinde aynı chatId için yapılan istekleri engelle
+            if ($lastRequestKey !== null && time() - cache()->get($cacheKey . '_time', 0) <= 1) {
+                Log::warning('Kısa sürede birden fazla istek algılandı ve engellendi', [
+                    'chat_id' => $request->input('chat_id'),
+                    'message' => $request->input('message')
+                ]);
+                
+                return response()->json([
+                    'success' => true,
+                    'response' => "İsteğiniz işleniyor, lütfen bekleyin...",
+                    'is_code_response' => false,
+                    'duplicate_request' => true,
+                    'chat_id' => $request->input('chat_id'),
+                ]);
+            }
+            
+            // Yeni isteği önbelleğe al
+            cache()->put($cacheKey, $requestKey, now()->addMinutes(5));
+            cache()->put($cacheKey . '_time', time(), now()->addMinutes(5));
+            
             // Gelen isteği işle
             $message = $request->input('message');
             $chatId = $request->input('chat_id');

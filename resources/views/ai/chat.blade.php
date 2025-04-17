@@ -32,6 +32,7 @@
         background-color: #f5f7fa;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         color: var(--ai-text-dark);
+        -webkit-text-size-adjust: 100%; /* Safari için metin boyutu ayarlaması */
     }
     
     /* ===== Medya Sorguları ===== */
@@ -890,7 +891,7 @@
     
     .message-user .message-content {
         background-color: var(--ai-user-message-bg);
-        color: var(--ai-text-dark);
+        color: white;
         border-bottom-right-radius: 5px;
     }
     

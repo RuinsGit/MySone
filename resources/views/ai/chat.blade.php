@@ -471,8 +471,12 @@
         
         .message-user .message-content {
             background: linear-gradient(135deg, #054640, #054640);
-            color: white;
+            color: white !important;
             border-bottom-right-radius: 5px;
+        }
+        
+        .message-user .message-content p {
+            color: white !important;
         }
         
         .message-content p {
@@ -890,9 +894,13 @@
     }
     
     .message-user .message-content {
-        background-color: var(--ai-user-message-bg);
-        color: white;
+        background: linear-gradient(135deg, #054640, #054640);
+        color: white !important;
         border-bottom-right-radius: 5px;
+    }
+    
+    .message-user .message-content p {
+        color: white !important;
     }
     
     .message-content p {
@@ -1630,6 +1638,112 @@
             
             .chat-messages-container {
                 margin-bottom: calc(var(--mobile-footer-height) + 15px + var(--safe-area-inset-bottom, 20px));
+            }
+        }
+    }
+    
+    /* Safari için ek düzeltmeler */
+    @media not all and (min-resolution:.001dpcm) {
+        @supports (-webkit-appearance:none) {
+            .message-user .message-content {
+                color: white !important;
+            }
+            
+            .message-user .message-content p {
+                color: white !important;
+            }
+            
+            @media (max-width: 767px) {
+                .message-user .message-content {
+                    background-color: #054640 !important;
+                    background-image: none !important;
+                }
+            }
+        }
+    }
+    
+    /* iOS Safari için ek düzeltmeler */
+    @supports (-webkit-touch-callout: none) {
+        .message-user .message-content {
+            color: white !important;
+        }
+        
+        .message-user .message-content p {
+            color: white !important;
+        }
+        
+        @media (max-width: 767px) {
+            .message-user .message-content {
+                background-color: #054640 !important;
+                background-image: none !important;
+            }
+        }
+    }
+
+    /* Mobil Safari için düzeltmeler */
+    @media (max-width: 767px) {
+        @supports (-webkit-touch-callout: none) {
+            .app-container {
+                height: -webkit-fill-available !important;
+            }
+            
+            .chat-messages-container {
+                margin-bottom: calc(var(--mobile-footer-height) + 20px);
+                position: relative;
+                z-index: 20;
+            }
+            
+            .input-container {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                padding-bottom: max(0.9rem, env(safe-area-inset-bottom, 20px));
+                background-color: rgba(30, 31, 39, 0.95);
+                -webkit-backdrop-filter: blur(var(--glass-blur));
+                z-index: 40;
+            }
+            
+            /* Safari için mesaj içeriği düzeltmeleri */
+            .message-content {
+                -webkit-box-sizing: border-box;
+                box-sizing: border-box;
+                width: auto;
+            }
+            
+            /* Safari için animasyonları düzeltmeler */
+            .message-ai {
+                -webkit-animation: messageFadeInLeft 0.3s ease forwards;
+            }
+            
+            .message-user {
+                -webkit-animation: messageFadeInRight 0.3s ease forwards;
+            }
+            
+            /* Kullanıcı mesajları metin rengi düzeltmesi */
+            .message-user .message-content {
+                color: white !important;
+            }
+            
+            .message-user .message-content p {
+                color: white !important;
+            }
+            
+            /* Mesaj arka plan rengi düzeltmesi */
+            .message-user .message-content {
+                background-color: #054640 !important;
+                background-image: linear-gradient(135deg, #054640, #054640) !important;
+            }
+            
+            /* Güvenli alan iyileştirmeleri */
+            .input-container {
+                padding-bottom: max(0.9rem, env(safe-area-inset-bottom, 20px)) !important;
+            }
+            
+            /* İçerik düzgün görüntüleme için ekstra önlem */
+            body.safari-browser .message-user .message-content,
+            body.safari-browser .message-user .message-content p {
+                color: white !important;
             }
         }
     }
@@ -2408,6 +2522,66 @@
         
         // Varsayılan ayarları yükle
         loadSettings();
+
+        // Safari metin rengini düzeltme fonksiyonu
+        function fixSafariColors() {
+            const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+            
+            if (isSafari || isIOS) {
+                document.documentElement.classList.add('safari-browser');
+                
+                // Mevcut mesajları düzelt
+                const fixMessages = function() {
+                    const userMessages = document.querySelectorAll('.message-user .message-content');
+                    userMessages.forEach(msg => {
+                        msg.style.setProperty('color', 'white', 'important');
+                        const paragraphs = msg.querySelectorAll('p');
+                        paragraphs.forEach(p => p.style.setProperty('color', 'white', 'important'));
+                    });
+                };
+                
+                // İlk yükleme için düzelt
+                fixMessages();
+                
+                // Mesaj eklendiğinde düzelt
+                const observer = new MutationObserver(mutations => {
+                    mutations.forEach(mutation => {
+                        if (mutation.type === 'childList' && mutation.addedNodes.length) {
+                            fixMessages();
+                        }
+                    });
+                });
+                
+                observer.observe(messagesContainer, { childList: true, subtree: true });
+            }
+        }
+        
+        // Safari renk düzeltmesini uygula
+        fixSafariColors();
+        
+        // Mesaj ekleme fonksiyonunda da renklerin düzgün görünmesini sağla
+        const originalAddMessage = addMessage;
+        addMessage = function(message, sender, codeContent = null, codeLanguage = 'javascript') {
+            originalAddMessage(message, sender, codeContent, codeLanguage);
+            
+            // Safari için ek düzeltme
+            if (/^((?!chrome|android).)*safari/i.test(navigator.userAgent) || /iPad|iPhone|iPod/.test(navigator.userAgent)) {
+                if (sender === 'user') {
+                    setTimeout(() => {
+                        const lastMessage = messagesContainer.lastElementChild;
+                        if (lastMessage && lastMessage.classList.contains('message-user')) {
+                            const content = lastMessage.querySelector('.message-content');
+                            if (content) {
+                                content.style.setProperty('color', 'white', 'important');
+                                const paragraphs = content.querySelectorAll('p');
+                                paragraphs.forEach(p => p.style.setProperty('color', 'white', 'important'));
+                            }
+                        }
+                    }, 10);
+                }
+            }
+        };
     });
 </script>
 @endsection 

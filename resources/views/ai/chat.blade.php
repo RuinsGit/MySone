@@ -1766,6 +1766,42 @@
         margin-right: 40px;
         text-align: right;
     }
+
+    @media (max-width: 768px) {
+        /* Mobil görünüm stilleri */
+        
+        /* Tam ekran butonu için stil */
+        #fullscreen-toggle {
+            margin-right: 10px;
+            color: #fff;
+        }
+        
+        #fullscreen-toggle:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+    }
+
+    /* Tam ekran buton stili */
+    #fullscreen-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background-color: rgba(255, 255, 255, 0.05);
+        color: var(--ai-primary);
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    #fullscreen-toggle:hover {
+        background-color: rgba(64, 26, 233, 0.1);
+    }
+    
+    #fullscreen-toggle i {
+        font-size: 14px;
+    }
 </style>
 @endsection
 
@@ -1850,6 +1886,9 @@
                 </div>
             </div>
             <div class="chat-controls">
+                <button id="fullscreen-toggle" class="p-2 rounded-full hover:bg-gray-100 mr-2" aria-label="Tam Ekran">
+                    <i class="fas fa-expand"></i>
+                </button>
                 <button id="toggle-settings" class="p-2 rounded-full hover:bg-gray-100" aria-label="Ayarlar">
                     <i class="fas fa-cog"></i>
                 </button>
@@ -1962,7 +2001,75 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/languages/html.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/languages/sql.min.js"></script>
 <script>
+    // Hızlı erişim için global değişken
+    let fullscreenToggleBtn;
+    
+    // Sayfa yüklenmesi sırasında global değişkeni ayarla
+    window.onload = function() {
+        console.log('Sayfa tam olarak yüklendi (window.onload)');
+        fullscreenToggleBtn = document.getElementById('fullscreen-toggle');
+        console.log('Global fullscreenToggleBtn:', fullscreenToggleBtn);
+        
+        if (fullscreenToggleBtn) {
+            fullscreenToggleBtn.onclick = function() {
+                console.log('window.onload - Tam ekran butonuna tıklandı');
+                toggleFullScreenGlobal();
+                return false;
+            };
+        }
+    };
+    
+    // Global erişim için tam ekran fonksiyonu
+    function toggleFullScreenGlobal() {
+        console.log('toggleFullScreenGlobal çağrıldı');
+        try {
+            if (!document.fullscreenElement &&
+                !document.mozFullScreenElement &&
+                !document.webkitFullscreenElement &&
+                !document.msFullscreenElement) {
+                
+                console.log('Tam ekran moduna geçiliyor (global)');
+                if (document.documentElement.requestFullscreen) {
+                    document.documentElement.requestFullscreen();
+                } else if (document.documentElement.mozRequestFullScreen) {
+                    document.documentElement.mozRequestFullScreen();
+                } else if (document.documentElement.webkitRequestFullscreen) {
+                    document.documentElement.webkitRequestFullscreen();
+                } else if (document.documentElement.msRequestFullscreen) {
+                    document.documentElement.msRequestFullscreen();
+                }
+                
+                // İkonu değiştir
+                if (fullscreenToggleBtn) {
+                    fullscreenToggleBtn.querySelector('i').classList.remove('fa-expand');
+                    fullscreenToggleBtn.querySelector('i').classList.add('fa-compress');
+                }
+            } else {
+                console.log('Tam ekran modundan çıkılıyor (global)');
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.mozCancelFullScreen) {
+                    document.mozCancelFullScreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                } else if (document.msExitFullscreen) {
+                    document.msExitFullscreen();
+                }
+                
+                // İkonu değiştir
+                if (fullscreenToggleBtn) {
+                    fullscreenToggleBtn.querySelector('i').classList.remove('fa-compress');
+                    fullscreenToggleBtn.querySelector('i').classList.add('fa-expand');
+                }
+            }
+        } catch (error) {
+            console.error('Tam ekran işlemi sırasında hata oluştu (global):', error);
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
+        console.log('Sayfa yüklendi, DOM hazır');
+        
         // DOM elemanlarını seç
         const messageInput = document.getElementById('message-input');
         const sendMessageBtn = document.getElementById('send-message');
@@ -1974,6 +2081,9 @@
         const closeSettings = document.getElementById('close-settings');
         const inputContainer = document.querySelector('.input-container');
         const chatMessagesContainer = document.querySelector('.chat-messages-container');
+        const fullscreenToggle = document.getElementById('fullscreen-toggle');
+        
+        console.log('Tam ekran butonu element:', fullscreenToggle);
         
         // Masaüstü kontrolleri
         const creativeToggle = document.getElementById('creative-toggle');
@@ -2644,6 +2754,104 @@
         document.getElementById('new-chat-btn').addEventListener('click', function() {
             startNewChat();
         });
+
+        // Tam ekran modu değişkenini tanımla
+        let isFullScreen = false;
+        
+        // Tam ekran butonuna tıklama olayı ekle
+        if (fullscreenToggle) {
+            console.log('Tam ekran butonu bulundu, event listener ekleniyor');
+            try {
+                fullscreenToggle.addEventListener('click', function(e) {
+                    console.log('Tam ekran butonuna tıklandı (event listener)');
+                    e.preventDefault();
+                    toggleFullScreen();
+                });
+                
+                // Alternatif olarak onclick özelliğini de ekleyelim
+                fullscreenToggle.onclick = function() {
+                    console.log('Tam ekran butonuna tıklandı (onclick)');
+                    toggleFullScreen();
+                    return false;
+                };
+                
+                console.log('Event listener başarıyla eklendi');
+            } catch (error) {
+                console.error('Event listener eklenirken hata oluştu:', error);
+            }
+        } else {
+            console.error('Tam ekran butonu bulunamadı!');
+        }
+        
+        // Tam ekran modunu açıp kapatan fonksiyon
+        function toggleFullScreen() {
+            console.log('toggleFullScreen çağrıldı, mevcut durum:', isFullScreen);
+            try {
+                if (!isFullScreen) {
+                    // Tam ekran moduna geç
+                    console.log('Tam ekran moduna geçiliyor...');
+                    if (document.documentElement.requestFullscreen) {
+                        document.documentElement.requestFullscreen();
+                    } else if (document.documentElement.mozRequestFullScreen) { // Firefox
+                        document.documentElement.mozRequestFullScreen();
+                    } else if (document.documentElement.webkitRequestFullscreen) { // Chrome, Safari, Opera
+                        document.documentElement.webkitRequestFullscreen();
+                    } else if (document.documentElement.msRequestFullscreen) { // IE/Edge
+                        document.documentElement.msRequestFullscreen();
+                    }
+                    console.log('Tam ekran modu etkinleştirildi');
+                    
+                    // İkon değiştir
+                    fullscreenToggle.querySelector('i').classList.remove('fa-expand');
+                    fullscreenToggle.querySelector('i').classList.add('fa-compress');
+                    isFullScreen = true;
+                } else {
+                    // Tam ekran modundan çık
+                    console.log('Tam ekran modundan çıkılıyor...');
+                    if (document.exitFullscreen) {
+                        document.exitFullscreen();
+                    } else if (document.mozCancelFullScreen) { // Firefox
+                        document.mozCancelFullScreen();
+                    } else if (document.webkitExitFullscreen) { // Chrome, Safari, Opera
+                        document.webkitExitFullscreen();
+                    } else if (document.msExitFullscreen) { // IE/Edge
+                        document.msExitFullscreen();
+                    }
+                    console.log('Tam ekran modundan çıkıldı');
+                    
+                    // İkon değiştir
+                    fullscreenToggle.querySelector('i').classList.remove('fa-compress');
+                    fullscreenToggle.querySelector('i').classList.add('fa-expand');
+                    isFullScreen = false;
+                }
+            } catch (error) {
+                console.error('Tam ekran işlemi sırasında hata oluştu:', error);
+            }
+        }
+        
+        // Tam ekran durumu değiştiğinde çalışacak olay dinleyicisi
+        document.addEventListener('fullscreenchange', updateFullscreenButtonIcon);
+        document.addEventListener('webkitfullscreenchange', updateFullscreenButtonIcon);
+        document.addEventListener('mozfullscreenchange', updateFullscreenButtonIcon);
+        document.addEventListener('MSFullscreenChange', updateFullscreenButtonIcon);
+        
+        // Tam ekran durumuna göre buton ikonunu güncelle
+        function updateFullscreenButtonIcon() {
+            if (document.fullscreenElement || 
+                document.webkitFullscreenElement || 
+                document.mozFullScreenElement ||
+                document.msFullscreenElement) {
+                // Tam ekran modunda
+                fullscreenToggle.querySelector('i').classList.remove('fa-expand');
+                fullscreenToggle.querySelector('i').classList.add('fa-compress');
+                isFullScreen = true;
+            } else {
+                // Normal modda
+                fullscreenToggle.querySelector('i').classList.remove('fa-compress');
+                fullscreenToggle.querySelector('i').classList.add('fa-expand');
+                isFullScreen = false;
+            }
+        }
     });
 </script>
 @endsection 

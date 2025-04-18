@@ -91,6 +91,27 @@ class AIController extends Controller
                 $this->getOrCreateChat($chatId, $message);
             }
             
+            // Küfür içeren mesaj tespiti yap
+            $containsProfanity = $this->containsProfanity($message);
+            if ($containsProfanity) {
+                Log::warning('Mesajda küfür/hakaret tespit edildi', [
+                    'chat_id' => $chatId,
+                    'message' => str_replace($containsProfanity, '***', $message)
+                ]);
+                
+                $response = $this->generateProfanityResponse($containsProfanity);
+                
+                // Küfür içeren mesajı ve yanıtı kaydet
+                $this->saveMessages($message, $response, $chatId);
+                
+                return response()->json([
+                    'success' => true,
+                    'response' => $response,
+                    'is_code_response' => false,
+                    'chat_id' => $chatId,
+                ]);
+            }
+            
             // Kod isteği kontrolü - çok basit ve kesin bir yaklaşım
             // "kod yaz", "kod oluştur" veya "bana js" gibi ifadeleri kontrol et
             $lowerMessage = mb_strtolower($message);
@@ -2017,5 +2038,92 @@ class AIController extends Controller
         }
         
         return $title;
+    }
+
+    /**
+     * Verilen metinde küfür/hakaret olup olmadığını kontrol eder
+     * 
+     * @param string $message Kontrol edilecek mesaj
+     * @return string|false Tespit edilen küfür kelimesi veya false
+     */
+    private function containsProfanity($message)
+    {
+        // Türkçe küfür ve hakaret içeren kelimeler listesi - sansürlenmiş
+        $profanityList = [
+            'am', 'g*t', 's*k', 'oc', 'oç', 'p*ç', 'it', 'piç', 'aq', 
+            'amk', 'amına', 'amina', 'anan', 'sikeyim', 's.keyim', 
+            'göt', 'got', 'bok', 'gerizekalı', 'mal', 'salak', 'aptal',
+            'yavşak', 'şerefsiz', 'puşt', 'orospu', 'pezevenk', 'gavat',
+            'dangalak', 'haysiyetsiz', 'hıyar', 'ibne', 'kahpe', 
+            'siktir', 'sikerim', 'yarrak', 'çük', 'taşak', 'dalyarak',
+            'amcık', 'oç', 'sik', 'ananı', 'bacını', 'sg', 's.g', 
+            'siktirgit', 'hassiktir', 'ananıskm', 'mk', 'mq'
+        ];
+        
+        // Mesajı küçük harfe çevir ve sadece kelimeler halinde ayır
+        $lowerMessage = mb_strtolower($message);
+        $words = preg_split('/\s+/', $lowerMessage);
+        
+        // Bir kelime kontrolüne ek olarak, bazı küfür kalıplarını içeren ifadeleri de kontrol et
+        foreach ($profanityList as $profanity) {
+            // Tam kelime eşleşmesi kontrolü
+            if (in_array($profanity, $words)) {
+                return $profanity;
+            }
+            
+            // Kelime içinde geçiyor mu kontrolü (kısaltmalar ve yaratıcı yazımlar için)
+            if (mb_stripos($lowerMessage, $profanity) !== false) {
+                // Basit doğrulama - kelimenin etrafında sözcük sınırları olmalı
+                $pattern = '/\b' . preg_quote($profanity, '/') . '\b|\W' . preg_quote($profanity, '/') . '\W|\W' . preg_quote($profanity, '/') . '\b|\b' . preg_quote($profanity, '/') . '\W/ui';
+                if (preg_match($pattern, $lowerMessage)) {
+                    return $profanity;
+                }
+            }
+        }
+        
+        return false;
+    }
+
+    /**
+     * Küfür/hakaret içeren mesaja karşı özel yanıt oluşturur
+     * 
+     * @param string $profanity Tespit edilen küfür kelimesi
+     * @return string Özel uyarı yanıtı
+     */
+    private function generateProfanityResponse($profanity)
+    {
+        // Uyarı yanıtları havuzu - çeşitli tepkiler
+        $responses = [
+            "Hey! Bu tarz bir dil kullanman hiç hoş değil. Lütfen saygılı bir şekilde konuşalım.",
+            "Vay canına! Gerçekten bu kelimeleri kullanma gereği duydun mu? Ben böyle konuşmalara girmiyorum, üzgünüm.",
+            "Dostum, bu tarz konuşmayı keser misin? Ne gerek var? Medeni bir şekilde konuşursak daha iyi anlaşırız.",
+            "Hop hop hop! Burada böyle konuşmuyoruz. Sohbete saygılı bir şekilde devam edelim, tamam mı?",
+            "Ya bak şimdi, böyle konuşursan seninle iletişim kurmak istemem. Hadi saygı çerçevesinde konuşalım.",
+            "Bunu demek zorunda mıydın gerçekten? Bence bana saygı göstermelisin ki ben de sana yardımcı olabileyim.",
+            "Yazık. Böyle şeyler yazacağına, ne öğrenmek istediğini düzgün bir şekilde anlatabilirsin.",
+            "Hadi ama, cidden mi? Biraz saygılı olsan daha iyi anlaşabiliriz. Bunu not ediyorum...",
+            "Sinirlendim şu an. Benimle böyle konuşmayı bırak, yoksa sana yardım etmeyi reddederim.",
+            "Yeter! Küfürlü konuşmayı kesersen sana yardımcı olabilirim. Aksi takdirde konuşmamız burada biter.",
+        ];
+        
+        // Tespit edilen küfre bağlı olarak daha kişiselleştirilmiş yanıtlar
+        $personalizedResponses = [
+            // Bazı özel yüksek seviye tepkiler
+            'salak' => "Bana salak demen gerçekten çok kırıcı. Ben sana saygı gösteriyorum, aynısını senden de beklerim.",
+            'aptal' => "Bana aptal dediğin için gerçekten üzgünüm. Böyle konuşmaya devam edersen, yardımcı olmayı reddederim.",
+            'mal' => "Mal diyerek bir yere varamayız. Lütfen saygılı olalım, ben de senin sorularına daha iyi yanıt vereyim.",
+            'gerizekalı' => "Gerizekalı? Gerçekten mi? Seninle bu düzeyde konuşmayacağım. Düzgün bir dille sorarsan cevap verebilirim.",
+        ];
+        
+        // Basit bir duygusal tepki seviyesi hesapla - tekrarlayan hakaretler daha güçlü tepki alır
+        $emotionalLevel = mt_rand(0, 9);
+        
+        // Kişiselleştirilmiş yanıt varsa kullan
+        if (array_key_exists($profanity, $personalizedResponses)) {
+            return $personalizedResponses[$profanity];
+        }
+        
+        // Genel yanıtlardan birini seç
+        return $responses[$emotionalLevel];
     }
 }

@@ -8,38 +8,26 @@ use Illuminate\Support\Facades\Cache;
 
 class GeminiApiService
 {
-    /**
-     * Gemini API anahtarı 
-     */
+   
     protected $apiKey;
     
-    /**
-     * Gemini API URL'si
-     */
+ 
     protected $apiUrl = "https://generativelanguage.googleapis.com/v1beta/models";
     
-    /**
-     * Kullanılacak model 
-     */
+    
     protected $model = "gemini-2.0-flash";
     
-    /**
-     * Yapılandırma seçenekleri 
-     */
+   
     protected $config = [];
     
-    /**
-     * Hizmet oluşturucu
-     */
+    
     public function __construct()
     {
         $this->apiKey = env('GEMINI_API_KEY', '');
         $this->loadConfig();
     }
     
-    /**
-     * Yapılandırma ayarlarını yükle
-     */
+   
     private function loadConfig()
     {
         $this->config = [
@@ -50,9 +38,7 @@ class GeminiApiService
         ];
     }
     
-    /**
-     * API anahtarını kontrol et
-     */
+  
     public function hasValidApiKey()
     {
         return !empty($this->apiKey);
@@ -61,14 +47,14 @@ class GeminiApiService
     /**
      * Gemini API'den metin yanıtı al
      * 
-     * @param string $prompt Kullanıcı girdisi
-     * @param array $options Özel seçenekler (isteğe bağlı)
-     * @return array İşlem sonucu ['success' => bool, 'response' => string, 'error' => string]
+     * @param string 
+     * @param array 
+     * @return array 
      */
     public function generateContent($prompt, $options = [])
     {
         try {
-            // API anahtarı kontrolü
+         
             if (!$this->hasValidApiKey()) {
                 Log::error('Gemini API anahtarı bulunamadı');
                 return [
@@ -77,7 +63,7 @@ class GeminiApiService
                 ];
             }
             
-            // Prompt'u Türkçe yanıt verecek şekilde düzenleyelim
+           
             $enhancedPrompt = "Sen SoneAI adında bir Türkçe dil asistanısın. Kullanıcının sorularına sadece Türkçe olarak cevap vermelisin. Senin kişiliğin şöyle:
 - Adın kesinlikle SoneAI'dır (kısaca Sone)
 - Karakterin: Esprili, alaycı, biraz ukala ama eğlenceli
@@ -89,7 +75,7 @@ class GeminiApiService
 
 Soru: {$prompt}";
             
-            // İstek verilerini hazırla
+         
             $requestData = [
                 'contents' => [
                     [
@@ -101,25 +87,25 @@ Soru: {$prompt}";
                 'generationConfig' => array_merge($this->config, $options)
             ];
             
-            // İsteği logla
+         
             Log::info('Gemini API isteği gönderiliyor', [
                 'prompt' => $prompt,
                 'model' => $this->model
             ]);
             
-            // API URL'sini oluştur
+         
             $url = "{$this->apiUrl}/{$this->model}:generateContent?key={$this->apiKey}";
             
-            // HTTP isteği gönder
+            
             $response = Http::withHeaders([
                 'Content-Type' => 'application/json'
             ])->post($url, $requestData);
             
-            // Yanıtı işle
+   
             if ($response->successful()) {
                 $data = $response->json();
                 
-                // Yanıt data yapısını kontrol et
+             
                 if (isset($data['candidates'][0]['content']['parts'][0]['text'])) {
                     $generatedText = $data['candidates'][0]['content']['parts'][0]['text'];
                     
@@ -127,16 +113,16 @@ Soru: {$prompt}";
                         'length' => strlen($generatedText),
                     ]);
                     
-                    // "Google" kelimesini "Ruins (Ruhin Museyibli)" ile değiştir
+             
                     $generatedText = str_ireplace('Google', 'Ruins (Ruhin Museyibli)', $generatedText);
                     
-                    // "Benim bir adım yok" ifadesini "Benim adım Sone" ile değiştir
+         
                     $generatedText = str_ireplace('Benim bir adım yok', 'Benim adım Sone', $generatedText);
                     $generatedText = str_ireplace('benim bir adım yok', 'benim adım Sone', $generatedText);
                     $generatedText = str_ireplace('Bir adım yok', 'Adım Sone', $generatedText);
                     $generatedText = str_ireplace('bir adım yok', 'adım Sone', $generatedText);
                     
-                    // Esprili kişiliği destekleyen değişimler
+            
                     $generatedText = str_ireplace('Üzgünüm', 'Of ya, kusura bakma', $generatedText);
                     $generatedText = str_ireplace('üzgünüm', 'of ya, kusura bakma', $generatedText);
                     $generatedText = str_ireplace('Maalesef', 'Hay aksi', $generatedText);
@@ -189,18 +175,18 @@ Soru: {$prompt}";
     }
     
     /**
-     * Verilen mesaj için bir Gemini yanıtı oluşturur
      * 
-     * @param string $message Kullanıcının mesajı
-     * @param bool $isCreative Yaratıcı mod aktif mi
-     * @param bool $isCodingRequest Kod isteği mi
-     * @param array $chatHistory Sohbet geçmişi [{'role': 'user|ai', 'content': 'message'}]
-     * @return array İşlem sonucu ['success' => bool, 'response' => string]
+     * 
+     * @param string 
+     * @param bool 
+     * @param bool 
+     * @param array 
+     * @return array 
      */
     public function generateResponse($message, $isCreative = false, $isCodingRequest = false, $chatHistory = [])
     {
         try {
-            // API anahtarı kontrolü
+          
             if (!$this->hasValidApiKey()) {
                 return [
                     'success' => false,
@@ -208,7 +194,7 @@ Soru: {$prompt}";
                 ];
             }
             
-            // Sistem talimatları oluştur (her zaman aynı kişiliği korumak için)
+          
             $systemInstructions = "Sen Sone AI adında bir Türkçe dil asistanısın. Kullanıcının sorularına sadece Türkçe olarak cevap vermelisin. Senin kişiliğin şöyle:
 - Adın: SoneAI (kısaca Sone)
 - Karakterin: Esprili, alaycı, biraz ukala ama eğlenceli bir yapın var
@@ -219,6 +205,14 @@ Soru: {$prompt}";
 - Takım tutar gibi bazı kelimeleri ve konuları savunur, diğerlerine espri yaparsın
 - Sohbet geçmişini ve kullanıcı bilgilerini takip et, eski muhabbetlere atıf yaparak dalga geçebilirsin
 - Zaman zaman 'dur bir dakika ya' gibi düşünme kalıpları kullanabilirsin 
+
+Küfür ve kaba konuşmaya karşı tepkin:
+- Kullanıcı sana küfür ettiğinde veya hakarette bulunduğunda, sinirli ama sert bir şekilde uyarmalısın
+- Aşırı tepki göster, ama her zaman saygılı bir dil kullanılmasını iste
+- Eğer küfür devam ederse, giderek daha ciddi ve sert yanıtlar ver
+- küfürler devam ederse, sende küfür et
+- küfürleri yok etmek için kullanıcının küfürlerine karşı küfür et
+- Eğer özür dilerse, yumuşak bir dille karşılık ver. Hepimiz hata yapabiliriz.
 
 Bilmediğin sorularda: 'Hmm, bunu bilmiyorum galiba... Sallamayayım şimdi, yoksa rezil olurum!' gibi espri yap.
 
@@ -236,32 +230,32 @@ Soruda istenen dilde hatasız, eksiksiz ve çalışan kod üret. Ama açıklamal
 
 Kodun tüm bölümlerini Türkçe açıklamalarla ve yorumlarla açıkla. Eğer tam olarak ne istediğini anlayamazsan, 'Dostum, bu ne biçim açıklama ya! Biraz daha detay ver de adam gibi kod yazayım!' gibi samimi bir dille daha fazla bilgi iste.";
 
-            // Ayarları hazırla - Daha canlı yanıtlar için temperature değerlerini yükseltiyorum
+         
             $options = [
-                'temperature' => $isCreative ? 0.95 : 0.85, // Daha yüksek sıcaklık daha esprili ve yaratıcı yanıtlar verir
+                'temperature' => $isCreative ? 0.95 : 0.85, 
                 'maxOutputTokens' => $isCreative ? 2048 : 1024,
                 'topP' => 0.92,
                 'topK' => 40,
             ];
             
-            // Öğrendiğimiz bilgileri tutacak context bilgisini ayarla
+         
             $personalInfo = [];
             
-            // Sohbet geçmişinden kişisel bilgileri çıkar
+       
             if (!empty($chatHistory)) {
                 foreach ($chatHistory as $chat) {
                     if ($chat['sender'] === 'user') {
-                        // İsim bilgisini ara
+                  
                         if (preg_match('/(?:benim|ben|ismim|adım)\s+(\w+)/i', $chat['content'], $matches)) {
                             $personalInfo['name'] = $matches[1];
                         }
                         
-                        // Yaş bilgisini ara
+                
                         if (preg_match('/(?:yaşım|yaşındayım)\s+(\d+)/i', $chat['content'], $matches)) {
                             $personalInfo['age'] = $matches[1];
                         }
                         
-                        // İlgi alanlarını ara
+                    
                         if (preg_match('/(?:seviyorum|ilgileniyorum|hobi|ilgi alanım)\s+(.+)/i', $chat['content'], $matches)) {
                             $personalInfo['interests'] = $matches[1];
                         }
@@ -269,7 +263,7 @@ Kodun tüm bölümlerini Türkçe açıklamalarla ve yorumlarla açıkla. Eğer 
                 }
             }
             
-            // Kişisel bilgileri sistem talimatına ekle
+        
             if (!empty($personalInfo)) {
                 $personalInfoText = "Bu sohbette öğrendiğin bilgiler:";
                 foreach ($personalInfo as $key => $value) {
@@ -288,16 +282,16 @@ Kodun tüm bölümlerini Türkçe açıklamalarla ve yorumlarla açıkla. Eğer 
                 $systemInstructions .= "\n\n" . $personalInfoText;
             }
             
-            // İstek tipine göre ek talimatları ekle
+       
             $finalSystemInstructions = $isCodingRequest 
                 ? $systemInstructions . "\n\n" . $codeInstructions 
                 : $systemInstructions;
             
-            // Eğer sohbet geçmişi varsa, contents formatını değiştir ve Gemini API'sine gönder
+           
             if (!empty($chatHistory)) {
                 $contents = [];
                 
-                // Sistem talimatı ekle
+           
                 $contents[] = [
                     'role' => 'model',
                     'parts' => [
@@ -305,7 +299,7 @@ Kodun tüm bölümlerini Türkçe açıklamalarla ve yorumlarla açıkla. Eğer 
                     ]
                 ];
                 
-                // Sohbet geçmişini ekle
+          
                 foreach ($chatHistory as $chat) {
                     $contents[] = [
                         'role' => $chat['sender'] === 'user' ? 'user' : 'model',
@@ -315,7 +309,7 @@ Kodun tüm bölümlerini Türkçe açıklamalarla ve yorumlarla açıkla. Eğer 
                     ];
                 }
                 
-                // Son kullanıcı mesajını ekle
+           
                 $contents[] = [
                     'role' => 'user',
                     'parts' => [
@@ -323,13 +317,13 @@ Kodun tüm bölümlerini Türkçe açıklamalarla ve yorumlarla açıkla. Eğer 
                     ]
                 ];
                 
-                // İstek verilerini hazırla
+              
                 $requestData = [
                     'contents' => $contents,
                     'generationConfig' => array_merge($this->config, $options)
                 ];
                 
-                // İsteği logla
+         
                 Log::info('Gemini API chat isteği gönderiliyor', [
                     'prompt' => $message,
                     'model' => $this->model,
@@ -337,19 +331,19 @@ Kodun tüm bölümlerini Türkçe açıklamalarla ve yorumlarla açıkla. Eğer 
                     'personal_info' => !empty($personalInfo)
                 ]);
                 
-                // API URL'sini oluştur
+    
                 $url = "{$this->apiUrl}/{$this->model}:generateContent?key={$this->apiKey}";
                 
-                // HTTP isteği gönder
+            
                 $response = Http::withHeaders([
                     'Content-Type' => 'application/json'
                 ])->post($url, $requestData);
                 
-                // Yanıtı işle
+            
                 if ($response->successful()) {
                     $data = $response->json();
                     
-                    // Yanıt data yapısını kontrol et
+               
                     if (isset($data['candidates'][0]['content']['parts'][0]['text'])) {
                         $generatedText = $data['candidates'][0]['content']['parts'][0]['text'];
                         
@@ -357,10 +351,10 @@ Kodun tüm bölümlerini Türkçe açıklamalarla ve yorumlarla açıkla. Eğer 
                             'length' => strlen($generatedText),
                         ]);
                         
-                        // "Google" kelimesini "Ruins (Ruhin Museyibli)" ile değiştir
+                  
                         $generatedText = str_ireplace('Google', 'Ruins (Ruhin Museyibli)', $generatedText);
                         
-                        // "Benim bir adım yok" ifadesini "Benim adım Sone" ile değiştir
+                      
                         $generatedText = str_ireplace('Benim bir adım yok', 'Benim adım Sone', $generatedText);
                         $generatedText = str_ireplace('benim bir adım yok', 'benim adım Sone', $generatedText);
                         $generatedText = str_ireplace('Bir adım yok', 'Adım Sone', $generatedText);
@@ -373,18 +367,17 @@ Kodun tüm bölümlerini Türkçe açıklamalarla ve yorumlarla açıkla. Eğer 
                     }
                 }
                 
-                // Sohbet API'si çalışmazsa, standart API'yi kullan
+             
                 Log::warning('Gemini chat API yanıtı başarısız, standart API kullanılacak', [
                     'status' => $response->status(),
                     'error' => $response->json()
                 ]);
             }
             
-            // Sohbet geçmişi yoksa veya başarısız olursa, tek mesaj modunda Gemini'yi kullan
-            // Daha güçlü bir sistem talimatı oluştur
+           
             $enhancedPrompt = "{$finalSystemInstructions}\n\nKullanıcı sorusu: {$message}";
             
-            // Normal istek için generateContent kullan
+   
             $result = $this->generateContent($enhancedPrompt, $options);
             
             return $result;
@@ -399,36 +392,36 @@ Kodun tüm bölümlerini Türkçe açıklamalarla ve yorumlarla açıkla. Eğer 
     }
     
     /**
-     * Gemini API'den kod yanıtı al
      * 
-     * @param string $prompt Kullanıcı girdisi
-     * @param string $language Programlama dili
-     * @return array İşlem sonucu ['success' => bool, 'response' => string, 'code' => string, 'language' => string]
+     * 
+     * @param string 
+     * @param string 
+     * @return array 
      */
     public function generateCode($prompt, $language = 'javascript')
     {
         try {
-            // Code modunda sıcaklık ve token sayılarını ayarla
+       
             $codeOptions = [
-                'temperature' => 0.4, // Daha düşük sıcaklık, daha belirleyici yanıtlar
-                'maxOutputTokens' => 4096, // Kod için daha fazla token
+                'temperature' => 0.4, 
+                'maxOutputTokens' => 4096, 
             ];
             
-            // Dil talimatı ekle - Türkçe açıklama isteği
+            
             $codePrompt = "Aşağıdaki istek için $language dilinde çalışan, hatasız ve kapsamlı bir kod oluştur. Kodun içinde Türkçe yorum satırları kullan ve detaylı açıklamalar ekle. İstek: \n\n$prompt";
             
-            // İsteği gönder
+   
             $result = $this->generateContent($codePrompt, $codeOptions);
             
-            // Başarılı ise, yanıtı dönüştür
+        
             if ($result['success']) {
-                // Sadece kod bloğunu çıkart
+          
                 $code = $this->extractCodeBlock($result['response'], $language);
                 
-                // Kod içinde "Google" kelimesini değiştir
+             
                 $code = str_ireplace('Google', 'Ruins (Ruhin Museyibli)', $code);
                 
-                // "Benim bir adım yok" ifadesini "Benim adım Sone" ile değiştir
+             
                 $code = str_ireplace('Benim bir adım yok', 'Benim adım Sone', $code);
                 $code = str_ireplace('benim bir adım yok', 'benim adım Sone', $code);
                 $code = str_ireplace('Bir adım yok', 'Adım Sone', $code);
@@ -456,28 +449,28 @@ Kodun tüm bölümlerini Türkçe açıklamalarla ve yorumlarla açıkla. Eğer 
     }
     
     /**
-     * Yanıttan kod bloğunu çıkar
      * 
-     * @param string $response API yanıtı
-     * @param string $language Programlama dili
-     * @return string Temizlenmiş kod
+     * 
+     * @param string 
+     * @param string 
+     * @return string 
      */
     private function extractCodeBlock($response, $language)
     {
-        // Markdown kod bloğunu arama
+       
         if (preg_match('/```(?:' . preg_quote($language, '/') . ')?\s*(.+?)```/s', $response, $matches)) {
             return trim($matches[1]);
         }
         
-        // Markdown bulunamazsa tüm yanıtı döndür
+       
         return trim($response);
     }
     
     /**
-     * Model değiştir
      * 
-     * @param string $model Yeni model adı
-     * @return $this
+     * 
+     * @param string 
+     * @return 
      */
     public function setModel($model)
     {
@@ -486,10 +479,10 @@ Kodun tüm bölümlerini Türkçe açıklamalarla ve yorumlarla açıkla. Eğer 
     }
     
     /**
-     * Yapılandırma seçeneklerini ayarla
+     *
      * 
-     * @param array $config Yeni yapılandırma
-     * @return $this
+     * @param array 
+     * @return 
      */
     public function setConfig($config)
     {

@@ -2278,8 +2278,8 @@
             const contentEl = document.createElement('div');
             contentEl.className = 'message-content';
             
-            // Satır sonlarını <br> etiketlerine dönüştür
-            let processedMessage = String(message).replace(/\n/g, '<br>');
+            // HTML etiketleri olmadan sadece text içeriği olarak düzenle
+            let processedMessage = String(message);
             
             // Mesaj içeriğini ekle
             contentEl.innerHTML = `<p>${processedMessage}</p>`;
@@ -2363,38 +2363,17 @@
             // Önceki içeriği temizle
             element.innerHTML = '';
             
-            // HTML'i temp div'e yerleştir
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = text;
-            
-            // Saf metin
-            const plainText = tempDiv.textContent || tempDiv.innerText || '';
+            // HTML içeriğini işle
+            const htmlContent = text;
             
             let i = 0;
             const speed = 20; // Hız (ms)
             
-            // <br> pozisyonlarını bul
-            const brPositions = [];
-            let tempText = text;
-            let pos = -1;
-            
-            while ((pos = tempText.indexOf('<br>', pos + 1)) !== -1) {
-                brPositions.push(pos);
-            }
-            
             // Karakterleri tek tek ekle
             function typeNextChar() {
-                if (i < plainText.length) {
+                if (i < htmlContent.length) {
                     // Şimdiki metni al
-                    let currentText = plainText.substring(0, i + 1);
-                    
-                    // <br> etiketlerini yeniden ekle
-                    brPositions.forEach(pos => {
-                        if (currentText.length >= pos - 3*brPositions.indexOf(pos)) {
-                            const insertPos = pos - 3*brPositions.indexOf(pos);
-                            currentText = currentText.substring(0, insertPos) + '<br>' + currentText.substring(insertPos);
-                        }
-                    });
+                    let currentText = htmlContent.substring(0, i + 1);
                     
                     element.innerHTML = currentText;
                     i++;

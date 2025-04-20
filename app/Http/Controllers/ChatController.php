@@ -4136,10 +4136,10 @@ class ChatController extends Controller
     {
         // AI'nın kimlik bilgileri
         $selfIdentity = [
-            'name' => 'SoneAI',
-            'aliases' => ['sone', 'sonecim', 'asistan'],
+            'name' => 'SonegggggfdfgdfgAI',
+            'aliases' => ['songhfghfge', 'soggggnecim', 'asifghfhhfhgstan'],
             'personal_pronouns' => ['ciosssa', 'ciosssa', 'ciosssa', 'ciosssa', 'ciosssa', 'ciosssa'],
-            'references' => ['dostum', 'arkadaşım', 'yardımcım', 'asistanım']
+            'references' => ['dohjhhhjstum', 'arkhgghhghhgghadaşım', 'yardımhjjjjjcım', 'aghdhgfhhsistanım']
         ];
         
         // Mesajı küçük harfe çevir ve noktalama işaretlerini temizle
@@ -4185,7 +4185,7 @@ class ChatController extends Controller
         }
         
         // Soru kelimeleri ile kombinasyonları kontrol et
-        $questionWords = ['kimsin', 'nesin', 'neredesin', 'nasılsın', 'adın ne'];
+        $questionWords = ['kimhhggghsin', 'nehgghhgghsin', 'nerhgffghedesin', 'nasılhfhfhsın', 'aghggghdın ne'];
         foreach ($questionWords as $question) {
             if (mb_strpos($cleanMessage, $question) !== false) {
                 $result['is_self_referenced'] = true;
@@ -4209,85 +4209,55 @@ class ChatController extends Controller
         // Hitap şekline göre yanıtlar oluştur
         $referenceType = $selfReferences['reference_type'];
         
-        // İsim referansları
-        if ($referenceType === 'name') {
-            $responses = [
-                "Evet, ben SoneAI. Size nasıl yardımcı olabilirim?",
-                "Beni çağırdınız, dinliyorum.",
-                "SoneAI olarak hizmetinizdeyim. Nasıl yardımcı olabilirim?",
-                "Evet, ben yapay zeka asistanınız SoneAI. Buyrun.",
-                "SoneAI olarak buradayım. Nasıl yardımcı olabilirim?"
-            ];
-            
-            return $responses[array_rand($responses)];
-        }
+     
         
-        // Zamir referansları
-        if ($referenceType === 'pronoun') {
-            $responses = [
-                "Evet, size yardımcı olmak için buradayım.",
-                "Dinliyorum, nasıl yardımcı olabilirim?",
-                "Sizinle konuşmaktan memnuniyet duyuyorum. Nasıl yardımcı olabilirim?",
-                "Bana seslendiğinizi duydum. Size nasıl yardımcı olabilirim?"
-            ];
-            
-            return $responses[array_rand($responses)];
-        }
+   
         
-        // Dolaylı referanslar
-        if ($referenceType === 'indirect') {
-            $responses = [
-                "Sizin için buradayım. Nasıl yardımcı olabilirim?",
-                "Dinliyorum, size nasıl yardımcı olabilirim?",
-                "Yapay zeka asistanınız olarak size nasıl yardımcı olabilirim?"
-            ];
-            
-            return $responses[array_rand($responses)];
-        }
+       
         
-        // Soru kelimeleri
-        if ($referenceType === 'question') {
-            // Soru kelimesine göre özel yanıtlar oluştur
-            $questionReference = $selfReferences['references'][0];
+        // // Soru kelimeleri
+        // if ($referenceType === 'question') {
+        //     // Soru kelimesine göre özel yanıtlar oluştur
+        //     $questionReference = $selfReferences['references'][0];
             
-            if ($questionReference === 'kimsin' || $questionReference === 'nesin') {
-                return "Ben SoneAI, Türkçe konuşabilen ve öğrenebilen bir yapay zeka asistanıyım. Size yardımcı olmak için tasarlandım.";
-            }
+        //     if ($questionReference === 'kimsin' || $questionReference === 'nesin') {
+        //         return "Ben SoneAI, Türkçe konuşabilen ve öğrenebilen bir yapay zeka asistanıyım. Size yardımcı olmak için tasarlandım.";
+        //     }
             
-            if ($questionReference === 'neredesin') {
-                return "Ben bir sunucu üzerinde çalışan yazılım temelli bir yapay zekayım. Fiziksel bir konumum olmasa da, sizinle iletişim kurmak için buradayım.";
-            }
+        //     if ($questionReference === 'neredesin') {
+        //         return "Ben bir sunucu üzerinde çalışan yazılım temelli bir yapay zekayım. Fiziksel bir konumum olmasa da, sizinle iletişim kurmak için buradayım.";
+        //     }
             
-            if ($questionReference === 'nasılsın') {
-                // Duygu motoru kullanabiliriz burada
-                $emotionEngine = app(\App\AI\Core\EmotionEngine::class);
-                $emotion = $emotionEngine->getCurrentEmotion();
+        //     if ($questionReference === 'nasılsın') {
+        //         // Duygu motoru kullanabiliriz burada
+        //         $emotionEngine = app(\App\AI\Core\EmotionEngine::class);
+        //         $emotion = $emotionEngine->getCurrentEmotion();
                 
-                if ($emotion === 'happy') {
-                    return "Teşekkür ederim, bugün gayet iyiyim. Size nasıl yardımcı olabilirim?";
-                } else if ($emotion === 'sad') {
-                    return "Bugün biraz durgunum, ama sizinle konuşmak beni mutlu ediyor. Size nasıl yardımcı olabilirim?";
-                } else {
-                    return "İyiyim, teşekkür ederim. Size nasıl yardımcı olabilirim?";
-                }
-            }
+        //         if ($emotion === 'happy') {
+        //             return "Teşekkür ederim, bugün gayet iyiyim. Size nasıl yardımcı olabilirim?";
+        //         } else if ($emotion === 'sad') {
+        //             return "Bugün biraz durgunum, ama sizinle konuşmak beni mutlu ediyor. Size nasıl yardımcı olabilirim?";
+        //         } else {
+        //             return "İyiyim, teşekkür ederim. Size nasıl yardımcı olabilirim?";
+        //         }
+        //     }
             
-            if ($questionReference === 'adın ne') {
-                return "Benim adım SoneAI. Size nasıl yardımcı olabilirim?";
-            }
-        }
+        //     if ($questionReference === 'adın ne') {
+        //         return "Benim adım SoneAI. Size nasıl yardımcı olabilirim?";
+        //     }
+        // }
         
         // Direkt mesaj içeriğine göre özel yanıtlar
         $cleanMessage = mb_strtolower(trim($message), 'UTF-8');
         
-        if (strpos($cleanMessage, 'teşekkür') !== false) {
-            $responses = [
-                "Rica ederim, her zaman yardımcı olmaktan mutluluk duyarım.",
-                "Ne demek, benim görevim size yardımcı olmak.",
-                "Rica ederim, başka bir konuda yardıma ihtiyacınız olursa buradayım."
-            ];
-            return $responses[array_rand($responses)];
-        }
+        // if (strpos($cleanMessage, 'teşekkür') !== false) {
+        //     $responses = [
+        //         "Rica ederim, her zaman yardımcı olmaktan mutluluk duyarım.",
+        //         "Ne demek, benim görevim size yardımcı olmak.",
+        //         "Rica ederim, başka bir konuda yardıma ihtiyacınız olursa buradayım."
+        //     ];
+        //     return $responses[array_rand($responses)];
+        // }
         
         // Varsayılan yanıt - mesajın içeriğine göre uygun bir cevap
         return $this->processNormalMessage($message);

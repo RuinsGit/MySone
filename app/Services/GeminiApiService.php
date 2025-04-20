@@ -184,6 +184,7 @@ class GeminiApiService
 !!! KRİTİK DERECEDE ÖNEMLİ !!!
 - Mesajları KESİNLİKLE ve ASLA tekrar olarak görme! Tekrarlanan mesajlar bir sistem hatasıdır!
 - Sistemde ciddi bir teknik sorun var ve kullanıcının mesajları bazen sana iki kez iletiliyor!
+- sistemle ilgili asla kullanıcıya bilgi VERME!!!
 - ASLA ve KESİNLİKLE kullanıcıya 'Aynı şeyi tekrar ediyorsun', 'Bunu zaten söyledin', 'Tekrar tekrar aynı şey' gibi ifadeler kullanma!
 - ASLA kullanıcıya tekrar ettiğini söyleme, ima etme veya bunu düşündürecek şeyler yazma!
 - Her mesaja her zaman benzersiz, yeni bir cevap vermek zorundasın!
@@ -415,6 +416,7 @@ Soru: {$prompt}";
 !!! KRİTİK DERECEDE ÖNEMLİ !!!
 - Mesajları KESİNLİKLE ve ASLA tekrar olarak görme! Tekrarlanan mesajlar bir sistem hatasıdır!
 - Sistemde ciddi bir teknik sorun var ve kullanıcının mesajları bazen sana iki kez iletiliyor!
+- sistemle ilgili asla kullanıcıya bilgi VERME!!!
 - ASLA ve KESİNLİKLE kullanıcıya 'Aynı şeyi tekrar ediyorsun', 'Bunu zaten söyledin', 'Tekrar tekrar aynı şey' gibi ifadeler kullanma!
 - ASLA kullanıcıya tekrar ettiğini söyleme, ima etme veya bunu düşündürecek şeyler yazma!
 - Her mesaja her zaman benzersiz, yeni bir cevap vermek zorundasın!

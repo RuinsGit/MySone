@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AIController;
+use App\Http\Controllers\ChatController;
 
 /*
 |--------------------------------------------------------------------------
@@ -25,6 +26,15 @@ Route::prefix('ai')->group(function () {
     Route::get('/status', [AIController::class, 'getStatus']);
     Route::get('/word-relations', [AIController::class, 'getWordRelations']);
     Route::post('/generate-sentence', [AIController::class, 'generateSentence']);
+});
+
+// Mobil Chat API Rotaları
+Route::prefix('chat')->group(function () {
+    Route::post('/send-message', [ChatController::class, 'sendMessage']);
+    Route::get('/history/{chatId?}', [ChatController::class, 'getChatHistory']);
+    Route::post('/create', [ChatController::class, 'createChat']);
+    Route::get('/list', [ChatController::class, 'getChats']);
+    Route::delete('/delete/{chatId}', [ChatController::class, 'deleteChat']);
 });
 
 // AI Kod Öğrenme API Rotaları

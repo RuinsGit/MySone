@@ -476,6 +476,7 @@ input:checked + .toggle-slider:before {
   align-self: flex-start;
   position: relative;
   max-width: 200px;
+  z-index: 5; /* Üstte görünmesi için */
 }
 
 @keyframes pulseIn {
@@ -997,8 +998,12 @@ input:checked + .switch-slider:before {
   }
   
   .ai-thinking-wrapper {
-    bottom: 70px;
+    position: relative;
+    bottom: auto;
+    margin: 10px 0;
     padding: 0 16px;
+    width: auto;
+    clear: both;
   }
 }
 
@@ -1798,6 +1803,13 @@ button.gradient-btn:hover {
                 // Mesaj alanının en sonuna ekle (yeni mesajlar thinking'in altında görünecek)
                 if (messagesContainer && messagesContainer.contains(aiThinking)) {
                     messagesContainer.appendChild(aiThinking);
+                }
+                
+                // Mobil görünümde ekstra stil
+                if (window.innerWidth <= 767) {
+                    aiThinking.style.marginTop = '15px';
+                    aiThinking.style.marginBottom = '15px';
+                    aiThinking.style.clear = 'both';
                 }
                 
                 // Aşağı kaydır

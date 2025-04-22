@@ -25,12 +25,16 @@ class GeminiApiService
     protected $profanityThreshold = 10; // 10 küfürden sonra engelleme
     protected $blockedUsers = [];
     
+    // Tenor GIF servisini ekleyelim
+    protected $tenorGifService;
     
-    public function __construct()
+    
+    public function __construct(TenorGifService $tenorGifService = null)
     {
         $this->apiKey = env('GEMINI_API_KEY', '');
         $this->loadConfig();
         $this->loadBlockedUsers();
+        $this->tenorGifService = $tenorGifService ?? new TenorGifService();
     }
     
     /**
@@ -296,6 +300,112 @@ Soru: {$prompt}";
                     
                     // Tekrar ifadelerini filtrele
                     $generatedText = $this->filterRepetitionPhrases($generatedText);
+                    
+                    // Giphy URL'lerini filtrele
+                    $generatedText = $this->filterGiphyUrls($generatedText);
+                    
+                    // GIF gönderilip gönderilmediğini kontrol eden değişken
+                    $gifAdded = false;
+                    
+                    // GIF talepleri için özel işleme - kullanıcı doğrudan GIF istediyse
+                    if (!$gifAdded && $this->tenorGifService->hasValidApiKey() && 
+                       (stripos($prompt, 'gif') !== false || 
+                        stripos($prompt, 'kedi') !== false || 
+                        stripos($prompt, 'cat') !== false)) {
+                        
+                        // Kullanıcının istediği GIF türünü tespit et
+                        $gifQuery = 'kedi'; // varsayılan olarak kedi gif'i
+                        
+                        // Gelişmiş GIF türü tespiti
+                        $gifPatterns = [
+                            // "X gifi yolla/göster/at" kalıbı
+                            '/([a-zğüşıöç\s]+)\s+(?:gif|gifi|gifleri)(?:\s+(?:yolla|gönder|göster|at))?/ui',
+                            
+                            // "bana X gifi gönder" kalıbı
+                            '/bana\s+([a-zğüşıöç\s]+)\s+(?:gif|gifi|gifleri)(?:\s+(?:yolla|gönder|göster|at))?/ui',
+                            
+                            // "X ile ilgili gif gönder" kalıbı
+                            '/([a-zğüşıöç\s]+)\s+ile\s+ilgili\s+(?:gif|gifi|gifleri)/ui',
+                            
+                            // "X gibi/tarzı/benzeri/temalı gif gönder" kalıbı
+                            '/([a-zğüşıöç\s]+)\s+(?:gibi|tarzı|benzeri|temalı|hakkında)\s+(?:gif|gifi|gifleri)/ui'
+                        ];
+                        
+                        // Her bir kalıbı kontrol et
+                        foreach ($gifPatterns as $pattern) {
+                            if (preg_match($pattern, $prompt, $matches)) {
+                                if (!empty($matches[1])) {
+                                    $gifQuery = trim($matches[1]);
+                                    // Bazı belirteçleri temizle ("bana", "bir", "tane" vb)
+                                    $gifQuery = preg_replace('/(^|\s)(bana|bir|tane|birkaç|kaç|rica|ederim|ediyorum|lütfen)(\s|$)/ui', ' ', $gifQuery);
+                                    $gifQuery = trim($gifQuery);
+                                    break; // İlk eşleşen kalıbı kullan
+                                }
+                            }
+                        }
+                        
+                        // Komik köpek gifi göster -> köpek
+                        // Sıfatları ve fazla kelimeleri filtrele (sadece ana konuyu al)
+                        if (str_word_count($gifQuery, 0, 'üğşıöçÜĞŞİÖÇ') > 1) {
+                            // Son kelimeyi tercih et - genellikle ana konudur
+                            $words = preg_split('/\s+/', $gifQuery);
+                            $lastWord = end($words);
+                            
+                            // Eğer son kelime 3 harften uzunsa ve bazı yaygın sıfatlar değilse kullan
+                            if (mb_strlen($lastWord, 'UTF-8') > 3 && !in_array($lastWord, ['gibi', 'tarzı', 'olan', 'tane', 'türü'])) {
+                                $gifQuery = $lastWord;
+                            } else {
+                                // Değilse ilk kelimeyi kullan
+                                $gifQuery = reset($words);
+                            }
+                        }
+                        
+                        // Eğer query çok kısa veya anlamsızsa, varsayılan kategoriyi kullan
+                        if (strlen($gifQuery) < 3 || in_array(strtolower($gifQuery), ['gif', 'resim', 'görsel'])) {
+                            $gifQuery = 'kedi'; // varsayılan
+                        }
+                        
+                        // Önce kategorisi tanımlanan bir GIF türü olarak deneyelim
+                        $gifUrl = $this->tenorGifService->getCategoryGif($gifQuery);
+                        
+                        // Eğer bir sonuç bulunamadıysa, doğrudan arama yapalım
+                        if (!$gifUrl) {
+                            $gifUrl = $this->tenorGifService->getRandomGif($gifQuery);
+                        }
+                        
+                        if ($gifUrl) {
+                            if (stripos($generatedText, '[GIF]') !== false) {
+                                // [GIF] işaretleyicisi varsa onunla değiştir
+                                $generatedText = str_replace('[GIF]', $gifUrl, $generatedText);
+                            } else {
+                                // Yoksa yanıtın sonuna ekle
+                                $generatedText .= "\n\n" . $gifUrl;
+                            }
+                            $gifAdded = true; // GIF eklendiğini işaretle
+                        }
+                    }
+                    
+                    // Duygu durumlarını tespit et ve otomatik GIF ekle (yalnızca önceki adımda eklenmemişse)
+                    if (!$gifAdded && $this->tenorGifService->hasValidApiKey()) {
+                        // getDetectedEmotion fonksiyonunu çağır ve sonuçları al
+                        $emotionData = $this->getDetectedEmotion($generatedText);
+                        
+                        // Eğer bir duygu tespit edildiyse ve GIF gösterilmesi gerekiyorsa
+                        if ($emotionData && $emotionData['show_gif']) {
+                            $gifUrl = $this->tenorGifService->getEmotionGif($emotionData['emotion']);
+                            if ($gifUrl) {
+                                $generatedText .= "\n\n" . $gifUrl;
+                                $gifAdded = true;
+                                
+                                // Duygu durumu ile ilgili log kaydı
+                                Log::info('Duygu durumuna göre GIF eklendi', [
+                                    'emotion' => $emotionData['emotion'],
+                                    'score' => $emotionData['score'],
+                                    'gif_url' => $gifUrl
+                                ]);
+                            }
+                        }
+                    }
                     
                     return [
                         'success' => true,
@@ -775,6 +885,112 @@ Kodun tüm bölümlerini Türkçe açıklamalarla ve yorumlarla açıkla. Eğer 
                         // Tekrar ifadelerini filtrele
                         $generatedText = $this->filterRepetitionPhrases($generatedText);
                         
+                        // Giphy URL'lerini filtrele
+                        $generatedText = $this->filterGiphyUrls($generatedText);
+                        
+                        // GIF gönderilip gönderilmediğini kontrol eden değişken
+                        $gifAdded = false;
+                        
+                        // GIF talepleri için özel işleme - kullanıcı doğrudan GIF istediyse
+                        if (!$gifAdded && $this->tenorGifService->hasValidApiKey() && 
+                           (stripos($message, 'gif') !== false || 
+                            stripos($message, 'kedi') !== false || 
+                            stripos($message, 'cat') !== false)) {
+                            
+                            // Kullanıcının istediği GIF türünü tespit et
+                            $gifQuery = 'kedi'; // varsayılan olarak kedi gif'i
+                            
+                            // Gelişmiş GIF türü tespiti
+                            $gifPatterns = [
+                                // "X gifi yolla/göster/at" kalıbı
+                                '/([a-zğüşıöç\s]+)\s+(?:gif|gifi|gifleri)(?:\s+(?:yolla|gönder|göster|at))?/ui',
+                                
+                                // "bana X gifi gönder" kalıbı
+                                '/bana\s+([a-zğüşıöç\s]+)\s+(?:gif|gifi|gifleri)(?:\s+(?:yolla|gönder|göster|at))?/ui',
+                                
+                                // "X ile ilgili gif gönder" kalıbı
+                                '/([a-zğüşıöç\s]+)\s+ile\s+ilgili\s+(?:gif|gifi|gifleri)/ui',
+                                
+                                // "X gibi/tarzı/benzeri/temalı gif gönder" kalıbı
+                                '/([a-zğüşıöç\s]+)\s+(?:gibi|tarzı|benzeri|temalı|hakkında)\s+(?:gif|gifi|gifleri)/ui'
+                            ];
+                            
+                            // Her bir kalıbı kontrol et
+                            foreach ($gifPatterns as $pattern) {
+                                if (preg_match($pattern, $message, $matches)) {
+                                    if (!empty($matches[1])) {
+                                        $gifQuery = trim($matches[1]);
+                                        // Bazı belirteçleri temizle ("bana", "bir", "tane" vb)
+                                        $gifQuery = preg_replace('/(^|\s)(bana|bir|tane|birkaç|kaç|rica|ederim|ediyorum|lütfen)(\s|$)/ui', ' ', $gifQuery);
+                                        $gifQuery = trim($gifQuery);
+                                        break; // İlk eşleşen kalıbı kullan
+                                    }
+                                }
+                            }
+                            
+                            // Komik köpek gifi göster -> köpek
+                            // Sıfatları ve fazla kelimeleri filtrele (sadece ana konuyu al)
+                            if (str_word_count($gifQuery, 0, 'üğşıöçÜĞŞİÖÇ') > 1) {
+                                // Son kelimeyi tercih et - genellikle ana konudur
+                                $words = preg_split('/\s+/', $gifQuery);
+                                $lastWord = end($words);
+                                
+                                // Eğer son kelime 3 harften uzunsa ve bazı yaygın sıfatlar değilse kullan
+                                if (mb_strlen($lastWord, 'UTF-8') > 3 && !in_array($lastWord, ['gibi', 'tarzı', 'olan', 'tane', 'türü'])) {
+                                    $gifQuery = $lastWord;
+                                } else {
+                                    // Değilse ilk kelimeyi kullan
+                                    $gifQuery = reset($words);
+                                }
+                            }
+                            
+                            // Eğer query çok kısa veya anlamsızsa, varsayılan kategoriyi kullan
+                            if (strlen($gifQuery) < 3 || in_array(strtolower($gifQuery), ['gif', 'resim', 'görsel'])) {
+                                $gifQuery = 'kedi'; // varsayılan
+                            }
+                            
+                            // Önce kategorisi tanımlanan bir GIF türü olarak deneyelim
+                            $gifUrl = $this->tenorGifService->getCategoryGif($gifQuery);
+                            
+                            // Eğer bir sonuç bulunamadıysa, doğrudan arama yapalım
+                            if (!$gifUrl) {
+                                $gifUrl = $this->tenorGifService->getRandomGif($gifQuery);
+                            }
+                            
+                            if ($gifUrl) {
+                                if (stripos($generatedText, '[GIF]') !== false) {
+                                    // [GIF] işaretleyicisi varsa onunla değiştir
+                                    $generatedText = str_replace('[GIF]', $gifUrl, $generatedText);
+                                } else {
+                                    // Yoksa yanıtın sonuna ekle
+                                    $generatedText .= "\n\n" . $gifUrl;
+                                }
+                                $gifAdded = true; // GIF eklendiğini işaretle
+                            }
+                        }
+                        
+                        // Duygu durumlarını tespit et ve otomatik GIF ekle (yalnızca önceki adımda eklenmemişse)
+                        if (!$gifAdded && $this->tenorGifService->hasValidApiKey()) {
+                            // getDetectedEmotion fonksiyonunu çağır ve sonuçları al
+                            $emotionData = $this->getDetectedEmotion($generatedText);
+                            
+                            // Eğer bir duygu tespit edildiyse ve GIF gösterilmesi gerekiyorsa
+                            if ($emotionData && $emotionData['show_gif']) {
+                                $gifUrl = $this->tenorGifService->getEmotionGif($emotionData['emotion']);
+                                if ($gifUrl) {
+                                    $generatedText .= "\n\n" . $gifUrl;
+                                    $gifAdded = true;
+                                    
+                                    // Duygu durumu ile ilgili log kaydı
+                                    Log::info('Duygu durumuna göre GIF eklendi', [
+                                        'emotion' => $emotionData['emotion'],
+                                        'score' => $emotionData['score'],
+                                        'gif_url' => $gifUrl
+                                    ]);
+                                }
+                            }
+                        }
+                        
                         return [
                             'success' => true,
                             'response' => $generatedText
@@ -955,5 +1171,179 @@ Kodun tüm bölümlerini Türkçe açıklamalarla ve yorumlarla açıkla. Eğer 
     {
         $this->config = array_merge($this->config, $config);
         return $this;
+    }
+    
+    /**
+     * Verilen metinden Giphy GIF URL'lerini temizleyen metot
+     * 
+     * @param string $text Temizlenecek metin
+     * @return string Temizlenmiş metin
+     */
+    private function filterGiphyUrls($text)
+    {
+        // Giphy URL'lerini tanımlamak için regex
+        $giphyRegexes = [
+            '/https:\/\/media[0-9]?\.giphy\.com\/[^\s]+\.gif/i',  // Normal URL
+            '/https:\/\/giphy\.com\/[^\s]+/i',                     // Kısa URL 
+            '/https:\/\/i\.giphy\.com\/[^\s]+/i'                   // Alternatif URL
+        ];
+        
+        // Her bir regex için metni temizle
+        foreach ($giphyRegexes as $regex) {
+            $text = preg_replace($regex, '', $text);
+        }
+        
+        // Ardışık boşlukları ve gereksiz satır sonlarını temizle
+        $text = preg_replace('/\n\s*\n(\s*\n)+/', "\n\n", $text);
+        $text = preg_replace('/\s+/', ' ', $text);
+        
+        return trim($text);
+    }
+    
+    /**
+     * Üretilen metinden duygusal ifadeleri algıla
+     * 
+     * @param string $generatedText
+     * @return array|null
+     */
+    private function getDetectedEmotion($generatedText)
+    {
+        // Duygu durumları ve bunların belirteçleri
+        $emotionDetectors = [
+            // Pozitif duygular
+            'happy' => [
+                'keywords' => ['mutlu', 'sevinç', 'harika', 'güzel', 'muhteşem', 'süper', 'iyi'],
+                'ai_indicators' => ['HAHAHA', 'OHAAA', 'YEEEY', 'VAYY', 'OOO', 'WOWW'],
+                'threshold' => 2, // Duygusal yoğunluk eşiği
+                'chance_multiplier' => 2.0, // GIF gösterme olasılığı çarpanı
+            ],
+            'excited' => [
+                'keywords' => ['heyecan', 'coşku', 'inanılmaz', 'müthiş', 'çok heyecanlı', 'heyecanlı'],
+                'ai_indicators' => ['WOWW', 'VAYY CANINA', 'EVETTT', 'OHAA', 'SÜPERR'],
+                'threshold' => 1,
+                'chance_multiplier' => 1.8,
+            ],
+            'love' => [
+                'keywords' => ['sevgi', 'aşk', 'seviyorum', 'sevimli', 'tatlı', 'çok sevdim'],
+                'ai_indicators' => ['AWWW', 'KALP', '❤️', 'SEVDİM', 'CANIM'],
+                'threshold' => 2,
+                'chance_multiplier' => 1.7,
+            ],
+            'cool' => [
+                'keywords' => ['havalı', 'tarz', 'mükemmel', 'çok iyi', 'şahane'],
+                'ai_indicators' => ['COOL', 'B)', 'HAVALIYIM', 'ŞAHANEE'],
+                'threshold' => 2,
+                'chance_multiplier' => 1.5,
+            ],
+            
+            // Negatif duygular
+            'angry' => [
+                'keywords' => ['kızgın', 'öfkeli', 'sinirli', 'kızdım', 'sinirlendim'],
+                'ai_indicators' => ['ARGH', 'YA YETER', 'SAÇMALIK', 'GRR', 'OFF'],
+                'threshold' => 2,
+                'chance_multiplier' => 1.7,
+            ],
+            'sad' => [
+                'keywords' => ['üzgün', 'üzüldüm', 'mutsuz', 'hüzünlü', 'kederli'],
+                'ai_indicators' => ['AHHHH', 'ÜZGÜNÜM', ':(', 'OFF', 'KIYAMAM'],
+                'threshold' => 2,
+                'chance_multiplier' => 1.8,
+            ],
+            'confused' => [
+                'keywords' => ['kafam karıştı', 'anlamadım', 'garip', 'tuhaf', 'kafam karışık'],
+                'ai_indicators' => ['HMMMM', 'ANLAMADIM', 'NE?', '???', 'KAFAM KARIŞTI'],
+                'threshold' => 2,
+                'chance_multiplier' => 1.6,
+            ],
+            
+            // Diğer durumlar
+            'surprised' => [
+                'keywords' => ['şaşırdım', 'hayret', 'inanılmaz', 'vay canına', 'şaşkınım'],
+                'ai_indicators' => ['VAY CANINA', 'HAYRET', 'İNANILMAZ', 'ŞAŞIRDIM', 'OLAMAZ'],
+                'threshold' => 2,
+                'chance_multiplier' => 1.8,
+            ],
+            'lol' => [
+                'keywords' => ['komik', 'gülmek', 'kahkaha', 'esprili', 'komiklik'],
+                'ai_indicators' => ['HAHAHA', 'LOL', 'XDDD', ':D', 'GÜLÜYORUM'],
+                'threshold' => 1,
+                'chance_multiplier' => 2.0,
+            ],
+            'facepalm' => [
+                'keywords' => ['saçmalık', 'olmaz', 'inanamıyorum', 'imkansız', 'ah be'],
+                'ai_indicators' => ['FACEPALM', 'OF YA', 'AH BE', 'HAYIR YA', 'İNANAMIYORUM'],
+                'threshold' => 2,
+                'chance_multiplier' => 1.7,
+            ],
+            'crying' => [
+                'keywords' => ['ağlıyorum', 'hüngür', 'gözyaşı', 'duygulandım', 'duygulandırıcı'],
+                'ai_indicators' => ['AĞLIYORUM', '😭', 'HÜNGÜÜR', 'GÖZ YAŞLARIM'],
+                'threshold' => 2,
+                'chance_multiplier' => 1.8,
+            ],
+            'shrug' => [
+                'keywords' => ['bilmem', 'belki', 'olabilir', 'kim bilir', 'bilemiyorum'],
+                'ai_indicators' => ['¯\\_(ツ)_/¯', 'BİLMEM Kİ', 'KİM BİLİR', 'BELKI'],
+                'threshold' => 2,
+                'chance_multiplier' => 1.3,
+            ],
+            'wink' => [
+                'keywords' => ['göz kırpma', 'anladın mı', 'biliyor musun', 'gizli', 'ima'],
+                'ai_indicators' => [';)', 'GÖZ KIRPTI', 'ANLARSIN YA', 'EHE'],
+                'threshold' => 2,
+                'chance_multiplier' => 1.4,
+            ],
+        ];
+
+        $emotionScores = [];
+        $text = strtolower($generatedText);
+
+        // Her duygu için puan hesapla
+        foreach ($emotionDetectors as $emotion => $detectors) {
+            $score = 0;
+            
+            // AI belirteçlerini kontrol et (daha yüksek ağırlıklı)
+            foreach ($detectors['ai_indicators'] as $indicator) {
+                $count = substr_count(strtolower($generatedText), strtolower($indicator));
+                $score += $count * 2; // AI belirteçleri daha fazla ağırlığa sahip
+            }
+            
+            // Anahtar kelimeleri kontrol et
+            foreach ($detectors['keywords'] as $keyword) {
+                $count = substr_count($text, strtolower($keyword));
+                $score += $count;
+            }
+            
+            // Belirli bir eşik değerini geçtiyse, duyguyu kaydet
+            if ($score >= $detectors['threshold']) {
+                $emotionScores[$emotion] = [
+                    'score' => $score,
+                    'chance_multiplier' => $detectors['chance_multiplier']
+                ];
+            }
+        }
+        
+        // Eğer hiç duygu algılanmadıysa
+        if (empty($emotionScores)) {
+            return null;
+        }
+        
+        // En yüksek puanlı duyguyu bul
+        arsort($emotionScores);
+        $topEmotion = key($emotionScores);
+        $emotionData = $emotionScores[$topEmotion];
+        
+        // GIF gösterme olasılığını hesapla
+        $baseChance = 30; // Temel %30 şans
+        $calculatedChance = min(60, $baseChance * $emotionData['chance_multiplier']); // En fazla %60 olacak şekilde
+        
+        // Hesaplanan olasılığa göre GIF gösterilip gösterilmeyeceğine karar ver
+        $shouldShowGif = (mt_rand(1, 100) <= $calculatedChance);
+        
+        return [
+            'emotion' => $topEmotion,
+            'score' => $emotionData['score'],
+            'show_gif' => $shouldShowGif
+        ];
     }
 } 

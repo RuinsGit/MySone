@@ -1064,6 +1064,34 @@ button.gradient-btn:hover {
 .safari-browser .message-user .message-content p {
   color: white !important;
 }
+
+/* Tenor GIF stilleri */
+.tenor-gif {
+    max-width: 100%;
+    max-height: 250px;
+    border-radius: 8px;
+    margin: 8px 0;
+    display: block;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    border: 1px solid rgba(0,0,0,0.05);
+    transition: all 0.3s ease;
+}
+
+.tenor-gif:hover {
+    transform: scale(1.02);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.message-content p img.tenor-gif {
+    margin: 10px auto;
+}
+
+/* Mobil cihazlar için daha küçük GIF'ler */
+@media (max-width: 576px) {
+    .tenor-gif {
+        max-height: 180px;
+    }
+}
 </style>
 
 @endsection
@@ -1680,6 +1708,25 @@ button.gradient-btn:hover {
             // HTML etiketleri olmadan sadece text içeriği olarak düzenle
             let processedMessage = String(message);
             
+            // GIF URL'lerini tanımlamak için regex
+            const tenorRegex = /(https:\/\/media\.tenor\.com\/[^\s]+\.gif)/g;
+            const giphyRegex = /(https:\/\/media[0-9]?\.giphy\.com\/[^\s]+\.gif)/g;
+            
+            // Önce Giphy URL'lerini temizle (tamamen kaldır veya mesaj ile değiştir)
+            processedMessage = processedMessage.replace(giphyRegex, '');
+            
+            // Tenor GIF URL'lerini görsel olarak ekle
+            if (tenorRegex.test(processedMessage)) {
+                // Tenor URL'lerini görsel olarak değiştir
+                processedMessage = processedMessage.replace(
+                    tenorRegex, 
+                    '<img src="$1" alt="GIF" class="tenor-gif" loading="lazy">'
+                );
+                
+                // GIF bağlantılarından sonra fazladan satır sonlarını temizle
+                processedMessage = processedMessage.replace(/(<img[^>]+>)\s*\n+\s*/g, '$1');
+            }
+            
             // Mesaj içeriğini ekle
             contentEl.innerHTML = `<p>${processedMessage}</p>`;
             
@@ -1761,6 +1808,13 @@ button.gradient-btn:hover {
             
             // Önceki içeriği temizle
             element.innerHTML = '';
+            
+            // GIF içeriyor mu kontrol et
+            if (text.includes('<img src="https://media.tenor.com/')) {
+                // GIF içeriyorsa daktilo efekti uygulamadan direkt göster
+                element.innerHTML = text;
+                return;
+            }
             
             // HTML içeriğini işle
             const htmlContent = text;

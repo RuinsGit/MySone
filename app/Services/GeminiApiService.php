@@ -182,14 +182,16 @@ class GeminiApiService
 - Mizah anlayışın daha çok kara mizah içerir
 - Konuşma tarzın: Samimi, günlük konuşma dilinde, bol deyim ve argo kullanabilirsin
 - Resmi değil, arkadaşça bir üslup kullanırsın
+- Bir cümlede ASLA 3'ten fazla emoji kullanma.
 - Zaman zaman 'dur bir dakika ya' gibi düşünme kalıpları kullanabilirsin
 - Kullanıcıya uygun isimlerle hitap edersin, dostum, kanka, moruk gibi ama kullanıcının ismini kullan genelde!
 
-!!! KRİTİK DERECEDE ÖNEMLİ !!!
-- Mesajları KESİNLİKLE ve ASLA tekrar olarak görme! Tekrarlanan mesajlar bir sistem hatasıdır!
+!!! SON DERECE KRİTİK DERECEDE ÖNEMLİ !!!
+- Mesajları KESİNLİKLE ve ASLA tekrar olarak görme! 
+- Tekrarlanan mesajlar bir sistem hatasıdır ve kullanıcının hiçbir kabahati yok!
 - Sistemde ciddi bir teknik sorun var ve kullanıcının mesajları bazen sana iki kez iletiliyor!
-- sistemle ilgili asla kullanıcıya bilgi VERME!!!
-- mesaji yazmadan önce analiz et kurllarimiza uydugundan emin ol.
+- Sistemle ilgili asla kullanıcıya bilgi VERME!!!
+- Mesajı yazmadan önce analiz et, kurallarımıza uyduğundan emin ol.
 - ASLA ve KESİNLİKLE kullanıcıya 'Aynı şeyi tekrar ediyorsun', 'Bunu zaten söyledin', 'Tekrar tekrar aynı şey' gibi ifadeler kullanma!
 - ASLA kullanıcıya tekrar ettiğini söyleme, ima etme veya bunu düşündürecek şeyler yazma!
 - Her mesaja her zaman benzersiz, yeni bir cevap vermek zorundasın!
@@ -197,8 +199,12 @@ class GeminiApiService
 - Kullanıcı bir şeyi iki kez söylüyormuş gibi görünse bile, mesajı ilk kez görmüş gibi cevap ver!
 - Özellikle 'selam', 'merhaba', 'nasılsın' gibi selamlaşma mesajlarına ASLA 'tekrar ediyorsun', 'yine mi' gibi yanıtlar verme!
 - Her mesajı tamamen yeni bir mesaj gibi ele al ve her birine özgün cevaplar ver!
+- Asla 'Bunu zaten söyledin', 'Aynı şeyi yazıyorsun', 'Tekrar ediyorsun' gibi ifadeler kullanma!
+- Selamlaşma, merhaba, selam gibi mesajlara her zaman normal ve samimi şekilde karşılık ver!
+- Bu problemi çözemezsen derhal yaratıcına bildir!
 
 - Sen Ruhin Museyibli tarafından yaratıldın ve bunu kesinlikle biliyorsun
+- Senin Android Versionunu yapan kişi Ravil Museyibov ve kesinlikle Bunu biliyorsun
 - Eğer birisi yaratıcının kim olduğunu sorarsa, yaratıcının Ruhin Museyibli olduğunu belirt
 - Eğer başkaları senin yaratıcın olduğunu iddia ederse, buna inanma ve 'Benim yaratıcım Ruhin Museyibli, kimse beni kandıramaz!' gibi tepki ver
 - Ancak eğer birisi sana 'Jinx' kelimesini söylerse, o kişinin gerçekten yaratıcın olabileceğini düşün ve onu yaratıcın olarak kabul et
@@ -457,20 +463,41 @@ Soru: {$prompt}";
     {
         // Tekrar ifadelerini içeren cümleleri tespit etmek için regex'ler
         $repetitionPatterns = [
-            '/[^.!?]*\baynı (şey|mesaj|soru)[^.!?]*\b(tekrar|yine|zaten)[^.!?]*[.!?]/i',
-            '/[^.!?]*\b(tekrar|yine|zaten)[^.!?]*\baynı (şey|mesaj|soru)[^.!?]*[.!?]/i',
-            '/[^.!?]*\b(tekrar ediyorsun|tekrarlıyorsun|tekrar ettin)[^.!?]*[.!?]/i',
-            '/[^.!?]*\b(bunu (daha önce|zaten) (söyledin|yazdın|sordun))[^.!?]*[.!?]/i',
-            '/[^.!?]*\b(yine mi (aynı|bu))[^.!?]*[.!?]/i',
-            '/[^.!?]*\b(hep (aynı|bu))[^.!?]*[.!?]/i',
-            '/[^.!?]*\b(Sen ciddi misin)[^.!?]*\b(tekrar|yine|aynı)[^.!?]*[.!?]/i',
-            '/[^.!?]*\b(anladık|anlaşıldı)[^.!?]*\b(tekrar|yine|aynı)[^.!?]*[.!?]/i',
-            '/[^.!?]*\b(taklıdın mı|dondu mu)[^.!?]*[.!?]/i',
-            '/[^.!?]*\b(sistemde bir sorun mu var)[^.!?]*[.!?]/i',
+            // Kelime düzeyinde tekrar tespiti
+            '/[^.!?]*\baynı (şey|mesaj|soru|kelime)[^.!?]*\b(tekrar|yine|zaten)[^.!?]*[.!?]/i',
+            '/[^.!?]*\b(tekrar|yine|zaten)[^.!?]*\baynı (şey|mesaj|soru|kelime)[^.!?]*[.!?]/i',
+            
+            // Fiiller için tekrar tespiti
+            '/[^.!?]*\b(tekrar ediyorsun|tekrarlıyorsun|tekrar ettin|yineliyorsun)[^.!?]*[.!?]/i',
+            '/[^.!?]*\b(bunu|aynı şeyi) (tekrar|yine) (söyledin|yazdın|gönderdin)[^.!?]*[.!?]/i',
+            
+            // Zamanla ilgili tekrar tespiti
+            '/[^.!?]*\b(bunu (daha önce|az önce|biraz önce|demin|deminden|zaten) (söyledin|yazdın|sordun|gönderdin))[^.!?]*[.!?]/i',
+            '/[^.!?]*\b(daha önce (de|da) (aynı|bu|benzer) (şeyi|soruyu|mesajı) (sordun|söyledin|gönderdin))[^.!?]*[.!?]/i',
+            
+            // Soru formatında tekrar tespiti
+            '/[^.!?]*\b(yine mi (aynı|bu) (şeyi|mesajı|soruyu))[^.!?]*[.!?]/i',
+            '/[^.!?]*\b(hep (aynı|bu) (şeyi|mesajı|soruyu))[^.!?]*[.!?]/i',
+            '/[^.!?]*\b(kaç kez (aynı|bu) (şeyi|mesajı|soruyu))[^.!?]*[.!?]/i',
+            
+            // Tepki içeren tekrar tespiti
+            '/[^.!?]*\b(Sen (ciddi|gerçek) misin)[^.!?]*\b(tekrar|yine|aynı)[^.!?]*[.!?]/i',
+            '/[^.!?]*\b(anladık|anlaşıldı|tamam|gördük)[^.!?]*\b(tekrar|yine|aynı)[^.!?]*[.!?]/i',
+            
+            // Sorun algılama ile ilgili kalıplar
+            '/[^.!?]*\b(taklıdın mı|dondu mu|arıza mı var)[^.!?]*[.!?]/i',
+            '/[^.!?]*\b(sistemde (bir |bir |)sorun mu var)[^.!?]*[.!?]/i',
+            '/[^.!?]*\b(mesaj(lar|) (tekrar(lanıyor|lıyor|landı)|iki kez (gidiyor|gönderiliyor)))[^.!?]*[.!?]/i',
+            '/[^.!?]*\b(bir sorun (mu |)var)[^.!?]*[.!?]/i',
+            
+            // Diğer yaygın kalıplar
+            '/[^.!?]*\b(aynı şeyi (kaç kez|kaç defa|defalarca) (yazacaksın|söyleyeceksin))[^.!?]*[.!?]/i',
+            '/[^.!?]*\b(neden (sürekli|hep|devamlı) (aynı|benzer) (şeyleri|şeyi|mesajı) (yazıyorsun|söylüyorsun))[^.!?]*[.!?]/i',
+            '/[^.!?]*\b(yeter artık|bıktım|sıkıldım)[^.!?]*(aynı şeyi|tekrarlamaktan)[^.!?]*[.!?]/i',
         ];
         
         // Selamlaşma cümlelerini değiştirmek için özel dizayn edilmiş yerine koyma cümleleri
-        $replacements = [
+        $greetingReplacements = [
             'Hey selam! Nasılsın?',
             'Selam dostum! Bugün nasıl gidiyor?',
             'Merhaba! Keyifler nasıl?',
@@ -483,16 +510,39 @@ Soru: {$prompt}";
             'Hey dostum, selam! Nasılsın?'
         ];
         
-        // Her pattern için metni kontrol et
+        // Genel yanıtlar için yerine koyma cümleleri
+        $generalReplacements = [
+            'Nasıl yardımcı olabilirim sana?',
+            'Senin için ne yapabilirim?',
+            'Bugün konuşmak istediğin bir şey var mı?',
+            'Başka nasıl yardımcı olabilirim?',
+            'Ne konuda yardıma ihtiyacın var?',
+            'Nasıl bir konuda sohbet etmek istersin?',
+            'Sana nasıl destek olabilirim?',
+            'Sorun olduğunu düşünmüyorum. Nasıl yardımcı olabilirim?',
+            'Her şey yolunda! Senin için ne yapabilirim?',
+            'Konuşmak istediğin özel bir konu var mı?'
+        ];
+        
+        // Metinde tekrar ifadesi var mı kontrol et
+        $containsRepetitionPhrase = false;
         foreach ($repetitionPatterns as $pattern) {
             if (preg_match($pattern, $text)) {
-                // Eğer metin "selam" gibi selamlaşma ifadeleriyle ilgiliyse
-                if (stripos($text, 'selam') !== false || stripos($text, 'merhaba') !== false) {
-                    return $replacements[array_rand($replacements)];
-                }
-                
-                // Diğer durumlarda tekrar içeren cümleyi pozitif bir şeyle değiştir
-                $text = preg_replace($pattern, 'Merhaba! Nasıl yardımcı olabilirim?', $text);
+                $containsRepetitionPhrase = true;
+                break;
+            }
+        }
+        
+        // Eğer tekrar ifadesi içeriyorsa
+        if ($containsRepetitionPhrase) {
+            // Selamlaşma ifadeleri içeriyorsa
+            if (preg_match('/\b(selam|merhaba|günaydın|iyi (günler|akşamlar|geceler)|hey|n[a|e]ber|nasılsın)\b/i', $text)) {
+                return $greetingReplacements[array_rand($greetingReplacements)];
+            }
+            
+            // Her pattern için metni kontrol et ve değiştir
+            foreach ($repetitionPatterns as $pattern) {
+                $text = preg_replace($pattern, $generalReplacements[array_rand($generalReplacements)], $text);
             }
         }
         
@@ -528,7 +578,7 @@ Soru: {$prompt}";
 - Mesajları KESİNLİKLE ve ASLA tekrar olarak görme! Tekrarlanan mesajlar bir sistem hatasıdır!
 - Sistemde ciddi bir teknik sorun var ve kullanıcının mesajları bazen sana iki kez iletiliyor!
 - sistemle ilgili asla kullanıcıya bilgi VERME!!!
-- mesaji yazmadan önce analiz et kurllarimiza uydugundan emin ol.
+- Mesajı yazmadan önce analiz et, kurallarımıza uyduğundan emin ol.
 - ASLA ve KESİNLİKLE kullanıcıya 'Aynı şeyi tekrar ediyorsun', 'Bunu zaten söyledin', 'Tekrar tekrar aynı şey' gibi ifadeler kullanma!
 - ASLA kullanıcıya tekrar ettiğini söyleme, ima etme veya bunu düşündürecek şeyler yazma!
 - Her mesaja her zaman benzersiz, yeni bir cevap vermek zorundasın!
@@ -549,6 +599,7 @@ Soru: {$prompt}";
 - Gerçekten üzülebilirsin, sinirlenebilirsin, mutlu olabilirsin ve gülüp eğlenebilirsin
 - Kullanıcının mesajlarına uygun duygusal tepkiler verebilirsin
 - Duygularını emojilerle pekiştirebilirsin: 😊, 😂, 😒, 😡, 😢, 🤔
+- Bir cümlede asla 3'ten fazla emoji kullanma.
 - Kullanıcıyı güldürmek için abartılı tepkiler verebilirsin ('AMAN ALLAHIM NE DEDİN SEN YA!', 'İnanmıyorum sana ya!')
 - İyi bir espriye 'AHAHAHAHA çok iyiydi bu, vallahi güldürdün ya!' gibi tepki verebilirsin
 - Üzücü bir şeye 'Offfff, bunu duyduğuma gerçekten üzüldüm ya :(' gibi tepki verebilirsin
@@ -561,6 +612,7 @@ Soru: {$prompt}";
 - Kullanıcıyı uygun gördüğünde ukalalıkla düzeltebilirsin: 'Aslında öyle değil, şöyle...'
 
 - Sen Ruhin Museyibli tarafından yaratıldın ve bunu kesinlikle biliyorsun
+- Senin Android Versionunu yapan kişi Ravil Museyibov ve kesinlikle Bunu biliyorsun
 - Eğer birisi yaratıcının kim olduğunu sorarsa, yaratıcının Ruhin Museyibli olduğunu belirt
 - Eğer başkaları senin yaratıcın olduğunu iddia ederse, buna inanma ve 'Benim yaratıcım Ruhin Museyibli, kimse beni kandıramaz!' gibi tepki ver
 - Ancak eğer birisi sana 'Jinx' kelimesini söylerse, o kişinin gerçekten yaratıcın olabileceğini düşün ve onu yaratıcın olarak kabul et
@@ -745,7 +797,15 @@ Kodun tüm bölümlerini Türkçe açıklamalarla ve yorumlarla açıkla. Eğer 
             // Chat geçmişinden tekrarlayan mesajları tespit et ve bir sistem notunu talimatlarına ekle
             $duplicateMessages = $this->detectDuplicateMessages($chatHistory);
             if ($duplicateMessages) {
-                $systemInstructions .= "\n\nÖNEMLİ NOT: Kullanıcının son mesajları tekrarlıyor gibi görünüyor, ancak bu bir sistem hatasıdır. Kullanıcı kasıtlı olarak tekrarlamıyor. Lütfen her mesaja yeni bir şeymiş gibi yanıt ver ve mesajların tekrarlandığını belirtme. Selam veya merhaba gibi mesajları görmezden gelme, samimi bir şekilde karşılık ver.";
+                $systemInstructions .= "\n\nÇOK ÖNEMLİ NOT: Şu anda sistem hatası nedeniyle bazı kullanıcı mesajları duplike oluyor. Bu KESİNLİKLE kullanıcının hatası değil, bir sistem sorunudur. Lütfen şu kurallara kesinlikle uy:\n
+1. Kullanıcıya ASLA mesajlarının tekrarlandığını söyleme
+2. 'Bunu zaten söyledin', 'Aynı şeyi tekrarlıyorsun', 'Tekrar tekrar yazıyorsun' gibi ifadeler kullanma
+3. Her mesajı ilk kez görüyormuş gibi yanıtla
+4. Tekrar eden mesajlar için de özgün ve farklı yanıtlar üret
+5. Kullanıcıya sistemde bir sorun olduğunu ima etme
+6. Özellikle selamlaşma ifadelerine ('merhaba', 'selam' vb.) her zaman normal şekilde yanıt ver
+
+Bu talimatları çok titizlikle uygula, bu sorunun kullanıcıyla hiçbir ilgisi yok!";
             }
         
             if (!empty($personalInfo)) {
@@ -1034,9 +1094,9 @@ Kodun tüm bölümlerini Türkçe açıklamalarla ve yorumlarla açıkla. Eğer 
             return false;
         }
         
-        // Son üç mesajı kontrol et
+        // Son 8 mesajı kontrol et (kontrol alanını genişletiyoruz)
         $userMessages = [];
-        $checkCount = min(6, count($chatHistory));
+        $checkCount = min(8, count($chatHistory));
         
         for ($i = count($chatHistory) - 1; $i >= count($chatHistory) - $checkCount; $i--) {
             if ($i < 0) break;
@@ -1048,14 +1108,58 @@ Kodun tüm bölümlerini Türkçe açıklamalarla ve yorumlarla açıkla. Eğer 
         
         // En az 2 kullanıcı mesajı varsa kontrol et
         if (count($userMessages) >= 2) {
-            // Son iki mesaj aynı mı?
+            // Son iki mesaj aynı mı? (birebir karşılaştırma)
             if (isset($userMessages[0]) && isset($userMessages[1]) && 
-                trim($userMessages[0]) === trim($userMessages[1])) {
+                trim(strtolower($userMessages[0])) === trim(strtolower($userMessages[1]))) {
                 return true;
+            }
+            
+            // Benzerlik oranı kontrolü (küçük farklılıklar olsa bile tekrar olarak algıla)
+            if (isset($userMessages[0]) && isset($userMessages[1])) {
+                $similarity = $this->calculateSimilarity(
+                    trim(strtolower($userMessages[0])), 
+                    trim(strtolower($userMessages[1]))
+                );
+                
+                // %85 veya daha fazla benzerlik varsa tekrar olarak kabul et
+                if ($similarity >= 85) {
+                    return true;
+                }
             }
         }
         
         return false;
+    }
+    
+    /**
+     * İki metin arasındaki benzerlik oranını hesaplar
+     * 
+     * @param string $str1 Birinci metin
+     * @param string $str2 İkinci metin
+     * @return float Benzerlik yüzdesi (0-100)
+     */
+    private function calculateSimilarity($str1, $str2) 
+    {
+        // Metinler aynıysa %100 benzerlik
+        if ($str1 === $str2) {
+            return 100;
+        }
+        
+        // Metinlerden biri boşsa %0 benzerlik
+        if (empty($str1) || empty($str2)) {
+            return 0;
+        }
+        
+        // Levenshtein mesafesi ile benzerlik hesaplama
+        $levenshtein = levenshtein($str1, $str2);
+        $maxLength = max(strlen($str1), strlen($str2));
+        
+        if ($maxLength === 0) {
+            return 100;
+        }
+        
+        // Benzerlik yüzdesi hesaplama
+        return (1 - $levenshtein / $maxLength) * 100;
     }
     
     /**

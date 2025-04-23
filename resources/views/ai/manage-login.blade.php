@@ -32,7 +32,7 @@
             </div>
             
             <div class="text-center mt-3">
-                <a href="{{ route('chat') }}" class="btn btn-outline-secondary">
+                <a href="{{ route('ai.chat') }}" class="btn btn-outline-secondary">
                     <i class="bi bi-chat-dots me-1"></i> Sohbet Sayfasına Dön
                 </a>
             </div>

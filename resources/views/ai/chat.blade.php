@@ -790,10 +790,18 @@ input:checked + .toggle-slider:before {
   color: var(--text-light);
   font-size: 15px;
   outline: none;
+  width: auto !important;
+  min-width: 0;
 }
 
 .message-input::placeholder {
   color: var(--text-muted);
+}
+
+.input-buttons {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .send-button {
@@ -808,12 +816,68 @@ input:checked + .toggle-slider:before {
   justify-content: center;
   cursor: pointer;
   transition: all 0.3s;
+  flex-shrink: 0;
 }
 
 .send-button:hover {
   color: var(--text-light);
   background: var(--primary-color);
   transform: scale(1.1);
+}
+
+.voice-input-btn, .send-button {
+  min-width: 40px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin: 0 5px;
+}
+
+.voice-input-btn {
+  background: rgba(247, 217, 248, 0.23);
+  color: var(--primary-color);
+  border: 1px solid rgba(79, 70, 229, 0.3);
+  transition: all 0.3s;
+  font-size: 1.2rem;
+  box-shadow: 0 0 10px rgba(79, 70, 229, 0.2);
+  margin-left: 0;
+  margin-right: 30px;
+}
+
+.send-button {
+  background: rgba(247, 217, 248, 0.23);
+  color: var(--primary-color);
+  border: 1px solid rgba(79, 70, 229, 0.3);
+  box-shadow: 0 0 10px rgba(79, 70, 229, 0.2);
+  /* border: none; */
+  transition: all 0.3s;
+  margin-right: 0;
+  margin-left: 10px;
+}
+
+.voice-input-btn:hover {
+  color: white;
+  background: var(--primary-color);
+  transform: scale(1.1);
+  box-shadow: 0 0 15px rgba(79, 70, 229, 0.4);
+}
+
+.send-button:hover {
+  color: var(--text-light);
+  background: var(--primary-color);
+  transform: scale(1.1);
+}
+
+.voice-input-btn.recording {
+  color: white;
+  background: var(--error);
+  animation: pulse 1.5s infinite;
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.5);
 }
 
 /* Settings Panel */
@@ -1092,8 +1156,589 @@ button.gradient-btn:hover {
         max-height: 180px;
     }
 }
-</style>
 
+/* Sesli Sohbet Popup Stilleri */
+.voice-popup {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.9);
+  width: 90%;
+  max-width: 500px;
+  background: rgba(31, 41, 55, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  z-index: 1000;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  padding: 24px;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.voice-popup.active {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.voice-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(3px);
+  z-index: 999;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--transition-speed);
+}
+
+.voice-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.voice-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 10px;
+}
+
+.voice-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.voice-close {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 18px;
+  cursor: pointer;
+  transition: color 0.2s;
+  width: 35px;
+  height: 35px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.voice-close:hover {
+  color: var(--text-light);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.voice-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+
+.voice-visualizer {
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.2) 0%, rgba(236, 72, 153, 0.2) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  box-shadow: 0 0 30px rgba(79, 70, 229, 0.3);
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.voice-visualizer.recording {
+  background: linear-gradient(135deg, rgba(236, 72, 153, 0.3) 0%, rgba(79, 70, 229, 0.3) 100%);
+  box-shadow: 0 0 40px rgba(236, 72, 153, 0.4);
+}
+
+.voice-waves {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.voice-visualizer.recording .voice-waves {
+  opacity: 1;
+}
+
+.voice-waves span {
+  display: inline-block;
+  width: 5px;
+  margin: 0 2px;
+  background: rgba(255, 255, 255, 0.5);
+  height: 10px;
+  border-radius: 3px;
+  animation: waveform 1s infinite ease-in-out;
+}
+
+.voice-waves span:nth-child(2n) {
+  animation-delay: 0.2s;
+}
+
+.voice-waves span:nth-child(3n) {
+  animation-delay: 0.4s;
+}
+
+.voice-waves span:nth-child(4n) {
+  animation-delay: 0.6s;
+}
+
+.voice-waves span:nth-child(5n) {
+  animation-delay: 0.8s;
+}
+
+@keyframes waveform {
+  0%, 100% {
+    height: 10px;
+  }
+  50% {
+    height: 80px;
+  }
+}
+
+.voice-mic-btn {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: none;
+  background: var(--primary-color);
+  color: white;
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 20px rgba(79, 70, 229, 0.5);
+  position: relative;
+  z-index: 2;
+}
+
+.voice-mic-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 25px rgba(79, 70, 229, 0.7);
+}
+
+.voice-mic-btn:active {
+  transform: scale(0.98);
+}
+
+.voice-mic-btn.recording {
+  background: var(--error);
+  animation: pulse 1.5s infinite;
+  box-shadow: 0 4px 20px rgba(239, 68, 68, 0.5);
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5);
+  }
+  70% {
+    box-shadow: 0 0 0 15px rgba(239, 68, 68, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+.voice-status {
+  font-size: 16px;
+  color: var(--text-light);
+  text-align: center;
+  max-width: 300px;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.voice-input-btn {
+  position: absolute;
+  right: 60px;
+  background: rgba(79, 70, 229, 0.1);
+  color: var(--primary-color);
+  border: 1px solid rgba(79, 70, 229, 0.3);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-size: 1.2rem;
+  box-shadow: 0 0 10px rgba(79, 70, 229, 0.2);
+  z-index: 2;
+}
+
+.voice-input-btn:hover {
+  color: white;
+  background: var(--primary-color);
+  transform: scale(1.1);
+  box-shadow: 0 0 15px rgba(79, 70, 229, 0.4);
+}
+
+.voice-input-btn:active {
+  transform: scale(0.95);
+}
+
+.voice-input-btn.recording {
+  color: white;
+  background: var(--error);
+  animation: pulse 1.5s infinite;
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.5);
+}
+
+@media (max-width: 767px) {
+  .voice-popup {
+    width: 95%;
+    padding: 16px;
+  }
+  
+  .voice-visualizer {
+    width: 150px;
+    height: 150px;
+  }
+  
+  .voice-mic-btn {
+    width: 60px;
+    height: 60px;
+    font-size: 20px;
+  }
+}
+
+/* Sesli sohbet popup ek stilleri */
+.voice-conversation {
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  max-height: 120px;
+  overflow-y: auto;
+  display: none;
+}
+
+.voice-message {
+  font-size: 14px;
+  color: var(--text-light);
+  line-height: 1.4;
+  opacity: 0.9;
+}
+
+.voice-controls {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+  width: 100%;
+  justify-content: center;
+}
+
+.voice-control-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--text-light);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.voice-control-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-2px);
+}
+
+.voice-control-btn.active {
+  background: var(--primary-light);
+  border-color: var(--primary-light);
+  box-shadow: 0 0 10px rgba(79, 70, 229, 0.4);
+}
+
+.voice-control-btn i {
+  font-size: 14px;
+}
+
+/* Konuşma animasyonu */
+@keyframes pulseSpeaking {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.5);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 10px 5px rgba(99, 102, 241, 0.5);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.5);
+  }
+}
+
+.ai-speaking {
+  animation: pulseSpeaking 1.5s infinite;
+  background: linear-gradient(135deg, var(--primary-color) 0%, rgba(236, 72, 153, 0.8) 100%);
+}
+
+.voice-chat-mode {
+    height: 80vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.voice-chat-mode .voice-popup-content {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: auto;
+}
+
+#voice-visualizer.ai-speaking {
+    background: linear-gradient(90deg, #4776E6, #8E54E9);
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); opacity: 0.8; }
+    50% { transform: scale(1.05); opacity: 1; }
+    100% { transform: scale(1); opacity: 0.8; }
+}
+
+#voice-conversation {
+    flex: 1;
+    overflow-y: auto;
+    padding: 15px;
+    background-color: rgba(0,0,0,0.03);
+    border-radius: 10px;
+    margin-bottom: 15px;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+#voice-message {
+    max-height: 300px;
+}
+
+#voice-message strong {
+    color: #4776E6;
+}
+
+#voice-message strong:first-child {
+    color: #2E8B57;
+}
+
+.voice-chat-welcome {
+    text-align: center;
+    color: #666;
+    padding: 20px;
+    font-style: italic;
+}
+
+#voice-continuous-btn {
+    position: absolute;
+    top: 15px;
+    right: 60px;
+    background: #f5f5f5;
+    border: 1px solid #ddd;
+    border-radius: 50px;
+    padding: 5px 15px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+#voice-continuous-btn.active {
+    background: #4776E6;
+    color: white;
+    border-color: #4776E6;
+}
+
+.voice-footer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 0;
+}
+
+/* Sesli Sohbet Modu Stilleri */
+.voice-chat-mode .voice-chat-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.voice-chat-mode .voice-chat-header {
+    padding: 15px;
+    background: var(--background-color);
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.voice-chat-mode .voice-chat-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--font-color);
+}
+
+.voice-chat-mode .voice-chat-controls {
+    display: flex;
+    gap: 10px;
+}
+
+.voice-chat-mode .voice-chat-conversation {
+    flex: 1;
+    overflow-y: auto;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.voice-chat-mode .voice-message-item {
+    padding: 12px 15px;
+    border-radius: 12px;
+    max-width: 85%;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.voice-chat-mode .user-message {
+    background: #e1f5fe;
+    color: #0277bd;
+    align-self: flex-end;
+}
+
+.voice-chat-mode .ai-message {
+    background: #f5f5f5;
+    color: #424242;
+    align-self: flex-start;
+}
+
+.voice-chat-mode .voice-chat-controls-bottom {
+    padding: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--background-color);
+    border-top: 1px solid rgba(0,0,0,0.1);
+}
+
+.voice-chat-mode .voice-status {
+    font-size: 14px;
+    color: #666;
+}
+
+.voice-chat-mode .voice-controls {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.voice-chat-mode .voice-btn {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.voice-chat-mode .mic-btn {
+    background: var(--primary-color);
+    color: white;
+}
+
+.voice-chat-mode .mic-btn.recording {
+    background: #f44336;
+    animation: pulse 1.5s infinite;
+}
+
+.voice-chat-mode .control-btn {
+    background: #f5f5f5;
+    color: #333;
+    width: 40px;
+    height: 40px;
+}
+
+.voice-chat-mode .control-btn.active {
+    background: var(--primary-color);
+    color: white;
+}
+
+#voice-visualizer {
+    width: 250px;
+    height: 40px;
+    background: #f5f5f5;
+    border-radius: 20px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+}
+
+#voice-visualizer::before {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 2px;
+    background: #ccc;
+}
+
+#voice-visualizer.recording::before {
+    height: 100%;
+    background: linear-gradient(90deg, rgba(244,67,54,0) 0%, rgba(244,67,54,0.3) 50%, rgba(244,67,54,0) 100%);
+    animation: wave 1.5s ease-in-out infinite;
+}
+
+#voice-visualizer.ai-speaking::before {
+    height: 100%;
+    background: linear-gradient(90deg, rgba(33,150,243,0) 0%, rgba(33,150,243,0.3) 50%, rgba(33,150,243,0) 100%);
+    animation: wave 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+@keyframes wave {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+</style>
 @endsection
 
 @section('content')
@@ -1238,6 +1883,9 @@ button.gradient-btn:hover {
         <!-- Input Area -->
         <div class="input-container">
             <div class="input-wrapper">
+                <button id="voice-input-btn" class="voice-input-btn" type="button" title="Sesli Mesaj Gönder">
+                    <i class="fas fa-microphone"></i>
+                </button>
                 <input type="text" 
                     id="message-input" 
                     class="message-input"
@@ -1306,6 +1954,59 @@ button.gradient-btn:hover {
     </div>
     
     <div id="settings-overlay" class="settings-overlay"></div>
+
+    <!-- Sesli Sohbet Popup -->
+    <div id="voice-popup" class="voice-popup">
+        <div class="voice-header">
+            <div class="voice-title">Sesli Asistan</div>
+            <button id="close-voice" class="voice-close">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="voice-content">
+            <div id="voice-visualizer" class="voice-visualizer">
+                <div class="voice-waves">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+                <button id="voice-mic-btn" class="voice-mic-btn">
+                    <i class="fas fa-microphone"></i>
+                </button>
+            </div>
+            
+            <div id="voice-status" class="voice-status">
+                Mikrofona tıklayarak konuşmaya başlayabilirsiniz.
+            </div>
+            
+            <div id="voice-conversation" class="voice-conversation">
+                <div id="voice-message" class="voice-message">
+                    <!-- Burada sesli sohbet mesajları görünecek -->
+                </div>
+            </div>
+            
+            <div class="voice-controls">
+                <button id="voice-continuous-btn" class="voice-control-btn active">
+                    <i class="fas fa-infinity"></i> Sürekli Konuşma
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="voice-overlay" class="voice-overlay"></div>
 </div>
 @endsection
 
@@ -2216,6 +2917,1309 @@ button.gradient-btn:hover {
                 isFullScreen = false;
             }
         }
+
+        // Sesli sohbet elemanları
+        const voicePopup = document.getElementById('voice-popup');
+        const voiceOverlay = document.getElementById('voice-overlay');
+        const voiceInputBtn = document.getElementById('voice-input-btn');
+        const closeVoice = document.getElementById('close-voice');
+        const voiceMicBtn = document.getElementById('voice-mic-btn');
+        const voiceVisualizer = document.getElementById('voice-visualizer');
+        const voiceStatus = document.getElementById('voice-status');
+        
+        // Ses kayıt değişkenleri
+        let mediaRecorder;
+        let audioChunks = [];
+        let isRecording = false;
+        let stream;
+        
+        // Popup'ı görünür/gizli yap
+        function toggleVoicePopup() {
+            voicePopup.classList.toggle('active');
+            
+            // Overlay'i göster/gizle
+            voiceOverlay.classList.toggle('active');
+            
+            // Popup aktifse
+            if (voicePopup.classList.contains('active')) {
+                document.body.style.overflow = 'hidden';
+                voiceStatus.textContent = 'Mikrofona tıklayarak konuşmaya başlayabilirsiniz...';
+                
+                // Popup'ın başlığını değiştir
+                document.querySelector('.voice-title').textContent = 'Sesli Sohbet Modu';
+                
+                // Görsel arayüzü sesli sohbet moduna uyarla
+                voicePopup.classList.add('voice-chat-mode');
+                
+                // Sürekli konuşma modu düğmesini göster
+                if (voiceContinuousBtn) {
+                    voiceContinuousBtn.style.display = 'block';
+                }
+                
+                // Sohbet geçmişi alanını temizle ve görünür yap
+                if (voiceConversation) {
+                    voiceConversation.style.display = 'block';
+                    voiceMessage.innerHTML = '<div class="voice-chat-welcome">Mikrofon düğmesine tıklayarak konuşmaya başlayabilirsiniz</div>';
+                }
+                
+                // Mikrofona eriş
+                requestMicrophoneAccess();
+            } else {
+                document.body.style.overflow = 'auto';
+                
+                // Kayıtta ise durdur
+                if (isRecording) {
+                    stopRecording();
+                }
+                
+                // Sesli yanıtı durdur
+                stopAllAudio();
+                
+                // Popup'ın görsel ayarlarını sıfırla
+                voicePopup.classList.remove('voice-chat-mode');
+                
+                // Sürekli konuşma modu düğmesini gizle
+                if (voiceContinuousBtn) {
+                    voiceContinuousBtn.style.display = 'none';
+                }
+                
+                // Mikrofonu kapat - Pop-up kapalıyken mikrofon erişimini tamamen kapat
+                if (stream) {
+                    const tracks = stream.getTracks();
+                    tracks.forEach(track => track.stop());
+                    stream = null;
+                }
+                
+                // Kayıt değişkenlerini sıfırla
+                isRecording = false;
+                audioChunks = [];
+                mediaRecorder = null;
+            }
+        }
+        
+        // Mikrofon erişimi iste
+        async function requestMicrophoneAccess() {
+            try {
+                // Daha kapsamlı ses ayarları ile istek yap
+                stream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true,
+                        sampleRate: 48000
+                    }
+                });
+                voiceStatus.textContent = 'Mikrofona tıklayarak konuşmaya başlayabilirsiniz.';
+            } catch (err) {
+                console.error('Mikrofon erişim hatası:', err);
+                voiceStatus.textContent = 'Mikrofon erişimine izin verilmedi. Lütfen tarayıcı izinlerini kontrol edin.';
+            }
+        }
+        
+        // Kayıt başlat
+        function startRecording() {
+            if (!stream) {
+                requestMicrophoneAccess().then(() => {
+                    if (stream) startRecording();
+                });
+                return;
+            }
+            
+            try {
+                audioChunks = [];
+                
+                // Tarayıcı uyumluluğu için desteklenen MIME tiplerini kontrol et
+                let mimeType = 'audio/webm';
+                if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+                    mimeType = 'audio/webm;codecs=opus';
+                } else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
+                    mimeType = 'audio/ogg;codecs=opus';
+                } else if (MediaRecorder.isTypeSupported('audio/mp4;codecs=mp4a')) {
+                    mimeType = 'audio/mp4;codecs=mp4a';
+                }
+                
+                console.log('Kullanılan MIME tipi:', mimeType);
+                
+                // MediaRecorder ile kayıt başlat
+                mediaRecorder = new MediaRecorder(stream, {
+                    mimeType: mimeType,
+                    audioBitsPerSecond: 128000
+                });
+                
+                mediaRecorder.addEventListener('dataavailable', event => {
+                    if (event.data.size > 0) {
+                        audioChunks.push(event.data);
+                    }
+                });
+                
+                mediaRecorder.addEventListener('stop', processRecording);
+                mediaRecorder.addEventListener('error', (event) => {
+                    console.error('MediaRecorder hatası:', event.error);
+                    voiceStatus.textContent = 'Ses kaydı sırasında bir hata oluştu: ' + event.error.message;
+                    stopRecording();
+                });
+                
+                // Kayıt başlat (100ms zamanlayıcı ile veri topla)
+                mediaRecorder.start(100);
+                isRecording = true;
+                
+                // UI güncelle
+                voiceMicBtn.classList.add('recording');
+                voiceMicBtn.innerHTML = '<i class="fas fa-stop"></i>';
+                voiceVisualizer.classList.add('recording');
+                voiceStatus.textContent = 'Konuşuyorsunuz... Tamamlandığında durdurmak için tıklayın.';
+                voiceInputBtn.classList.add('recording');
+                
+                // 30 saniye sonra otomatik olarak durdur
+                setTimeout(() => {
+                    if (isRecording) {
+                        stopRecording();
+                        voiceStatus.textContent = 'Maksimum kayıt süresi aşıldı (30 saniye).';
+                    }
+                }, 30000);
+                
+            } catch (err) {
+                console.error('Kayıt başlatma hatası:', err);
+                voiceStatus.textContent = 'Kayıt başlatılamadı: ' + err.message;
+            }
+        }
+        
+        // Kayıt durdur
+        function stopRecording() {
+            try {
+                if (mediaRecorder && isRecording) {
+                    mediaRecorder.stop();
+                    isRecording = false;
+                    
+                    // UI güncelle
+                    voiceMicBtn.classList.remove('recording');
+                    voiceMicBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+                    voiceVisualizer.classList.remove('recording');
+                    voiceStatus.textContent = 'Ses işleniyor...';
+                    voiceInputBtn.classList.remove('recording');
+                }
+            } catch (err) {
+                console.error('Kayıt durdurma hatası:', err);
+                voiceStatus.textContent = 'Kayıt durdurulurken bir hata oluştu: ' + err.message;
+                
+                // İşlemi temizle
+                isRecording = false;
+                voiceMicBtn.classList.remove('recording');
+                voiceMicBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+                voiceVisualizer.classList.remove('recording');
+                voiceInputBtn.classList.remove('recording');
+            }
+        }
+        
+        // Ses kaydını işle
+        async function processRecording() {
+            if (audioChunks.length === 0) {
+                voiceStatus.textContent = 'Ses kaydedilemedi. Lütfen tekrar deneyin.';
+                return;
+            }
+            
+            try {
+                // Ses verilerini bir Blob nesnesi olarak birleştir (MIME türünü otomatik algıla)
+                const mimeType = mediaRecorder.mimeType || 'audio/webm';
+                const audioBlob = new Blob(audioChunks, { type: mimeType });
+                
+                console.log('Ses Blob oluşturuldu:', {
+                    size: audioBlob.size,
+                    type: audioBlob.type,
+                    chunks: audioChunks.length
+                });
+                
+                // Ses blobu çok küçükse uyarı ver
+                if (audioBlob.size < 1000) {
+                    voiceStatus.textContent = 'Ses kaydı çok kısa veya boş. Lütfen tekrar deneyin.';
+                    return;
+                }
+                
+                // Base64'e dönüştür
+                const reader = new FileReader();
+                reader.readAsDataURL(audioBlob);
+                
+                reader.onloadend = async function() {
+                    const base64Audio = reader.result;
+                    
+                    // Speech-to-Text API'sine gönder
+                    try {
+                        voiceStatus.textContent = 'Sesli mesaj işleniyor...';
+                        const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                        
+                        const response = await fetch('/api/speech/to-text', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': token
+                            },
+                            body: JSON.stringify({ audio: base64Audio })
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (data.success && data.text) {
+                            // Metni input alanına ekle
+                            messageInput.value = data.text;
+                            
+                            // Popup'ı kapat
+                            toggleVoicePopup();
+                            
+                            // Metinde bir şey var mı kontrol et
+                            if (data.text.trim().length > 0) {
+                                // AI'dan yanıt al ve yanıtı sesli okut
+                                sendMessage(data.text);
+                                
+                                // Focus input
+                                messageInput.focus();
+                            } else {
+                                // Boş metin
+                                voiceStatus.textContent = 'Tanınan metin boş. Lütfen tekrar deneyin.';
+                            }
+                        } else {
+                            // API yanıt hatası
+                            voiceStatus.textContent = 'Ses tanıma başarısız oldu: ' + (data.error || 'Bilinmeyen hata');
+                            
+                            // Detaylı hata bilgisini konsola yazdır
+                            console.error('Speech-to-Text API hatası:', data);
+                            
+                            // Ses verisini yedek olarak sunucuya kaydet
+                            saveAudioForAnalysis(base64Audio);
+                        }
+                    } catch (error) {
+                        console.error('Speech-to-Text API isteği hatası:', error);
+                        voiceStatus.textContent = 'Ses tanıma sırasında bir hata oluştu. Lütfen tekrar deneyin.';
+                        
+                        // Ses verisini yedek olarak sunucuya kaydet
+                        saveAudioForAnalysis(base64Audio);
+                    }
+                };
+                
+                reader.onerror = function(error) {
+                    console.error('Base64 dönüşüm hatası:', error);
+                    voiceStatus.textContent = 'Ses verisi işlenemedi. Lütfen tekrar deneyin.';
+                };
+            } catch (error) {
+                console.error('Ses işleme hatası:', error);
+                voiceStatus.textContent = 'Ses işlenirken bir hata oluştu: ' + error.message;
+            }
+        }
+        
+        // Sorun teşhisi için ses verisini kaydet
+        async function saveAudioForAnalysis(base64Audio) {
+            try {
+                const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                
+                await fetch('/api/speech/save-audio', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': token
+                    },
+                    body: JSON.stringify({ audio: base64Audio })
+                });
+                
+                console.log('Ses verisi analiz için kaydedildi');
+            } catch (error) {
+                console.error('Ses kaydetme hatası:', error);
+            }
+        }
+        
+        // AI yanıtını seslendir
+        async function speakAIResponse(text) {
+            try {
+                if (!text || text.trim().length === 0) {
+                    console.error('Seslendirilecek metin boş');
+                    return;
+                }
+                
+                // Tenor GIF URL'lerini temizle
+                text = text.replace(/https:\/\/media\.tenor\.com\/[^\s]+\.gif/g, '');
+                
+                // Eğer sesli sohbet modu aktif değilse normal şekilde devam et
+                if (!voicePopup.classList.contains('active')) {
+                    voiceStatus.textContent = 'AI yanıtı seslendiriliyor...';
+                    const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                    
+                    const response = await fetch('/api/speech/to-speech', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': token
+                        },
+                        body: JSON.stringify({ text: text })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success && data.audioContent) {
+                        // Base64 ses içeriğini çal
+                        try {
+                            const audio = new Audio(`data:audio/mp3;base64,${data.audioContent}`);
+                            
+                            // Ses çalma olaylarını izle
+                            audio.addEventListener('play', () => {
+                                console.log('Ses çalmaya başladı');
+                            });
+                            
+                            audio.addEventListener('ended', () => {
+                                console.log('Ses çalma tamamlandı');
+                            });
+                            
+                            audio.addEventListener('error', (e) => {
+                                console.error('Ses çalma hatası:', e);
+                            });
+                            
+                            await audio.play();
+                        } catch (playError) {
+                            console.error('Ses çalma hatası:', playError);
+                        }
+                    } else {
+                        console.error('Text-to-Speech API hatası:', data);
+                    }
+                }
+            } catch (error) {
+                console.error('Text-to-Speech hatası:', error);
+            }
+        }
+        
+        // Event listener'ları ekle
+        if (voiceInputBtn) {
+            voiceInputBtn.addEventListener('click', toggleVoicePopup);
+        }
+        
+        if (closeVoice) {
+            closeVoice.addEventListener('click', toggleVoicePopup);
+        }
+        
+        if (voiceOverlay) {
+            voiceOverlay.addEventListener('click', toggleVoicePopup);
+        }
+        
+        if (voiceMicBtn) {
+            voiceMicBtn.addEventListener('click', function() {
+                if (isRecording) {
+                    stopRecording();
+                } else {
+                    startRecording();
+                }
+            });
+        }
+        
+        // Orijinal sendMessage fonksiyonunu genişlet
+        const originalSendMessage = sendMessage;
+        sendMessage = async function(message, isFirstMessage = false) {
+            if (!message.trim()) return;
+            
+            // Eğer sesli sohbet modu aktifse, varsayılan davranışı engelle
+            if (voicePopup.classList.contains('active') && voicePopup.classList.contains('voice-chat-mode')) {
+                // Sesli sohbet modunda işlem zaten voice modüllerinde hallediliyor
+                // Bu durumda normal sohbet akışını işleme ve sadece sesli yanıt döndür
+                return;
+            }
+            
+            // Normal sohbet akışı
+            // Kullanıcı mesajını ekle
+            addMessage(message, 'user');
+            messageInput.value = '';
+            
+            // Kullanıcı mesajını geçmişe ekle
+            addToChatHistory(message, 'user');
+            
+            // Yanıt bekleniyor
+            showThinking();
+            
+            try {
+                // CSRF token
+                const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                
+                // Chat ID
+                const chatId = localStorage.getItem('current_chat_id') || null;
+                
+                // Dil seçimi (mobil veya masaüstü)
+                const language = codeLanguage ? codeLanguage.value : 
+                               (mobileCodeLanguage ? mobileCodeLanguage.value : 'javascript');
+                
+                // İstek verisi
+                const requestData = {
+                    message: message.trim(),
+                    chat_id: chatId,
+                    creative_mode: isCreativeMode,
+                    coding_mode: isCodingMode,
+                    preferred_language: language,
+                    model: selectedModel,
+                    is_first_message: isFirstMessage,
+                    chat_history: chatHistory, // Sohbet geçmişini API'ye gönder
+                    visitor_name: visitorName // Kullanıcı adını da gönder
+                };
+                
+                // API isteği gönder
+                const response = await fetch('/api/ai/process', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': token
+                    },
+                    body: JSON.stringify(requestData)
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // Thinking animasyonunu kaldır
+                    hideThinking();
+                    
+                    // İsim kaydedildiyse, input placeholder'ı güncelle ve localStorage'a kaydet
+                    if (data.name_saved) {
+                        messageInput.placeholder = "Mesajınızı yazın...";
+                        messageInput.focus();
+                        visitorName = message.trim();
+                        localStorage.setItem('visitor_name', visitorName);
+                    }
+                    
+                    // Chat ID'yi kaydet
+                    if (data.chat_id) {
+                        localStorage.setItem('current_chat_id', data.chat_id);
+                    }
+                    
+                    // Yanıtı işle
+                    let finalResponse = data.response;
+                    
+                    // Kod yanıtı kontrolü
+                    if (data.is_code_response) {
+                        // Mesajı göster
+                        addMessage(finalResponse, 'ai', data.code, data.language);
+                        // AI yanıtını geçmişe ekle
+                        addToChatHistory(finalResponse, 'ai');
+                    } else {
+                        // Normal yanıt
+                        addMessage(finalResponse, 'ai');
+                        // AI yanıtını geçmişe ekle
+                        addToChatHistory(finalResponse, 'ai');
+                    }
+                    
+                    // Mesajlar alanına otomatik kaydır
+                    scrollToBottom();
+                    
+                } else {
+                    hideThinking();
+                    const errorData = await response.json();
+                    const errorMessage = errorData.error || "Yanıt alınamadı. Lütfen tekrar deneyin.";
+                    addMessage(errorMessage, 'ai');
+                }
+            } catch (error) {
+                console.error('Hata:', error);
+                hideThinking();
+                addMessage("Üzgünüm, bir hata oluştu. Lütfen tekrar deneyin.", 'ai');
+            }
+        };
+        
+        // Klavye kısayolu: 'M' tuşu
+        document.addEventListener('keydown', function(e) {
+            // Alt+M veya Ctrl+M tuşuna basıldığında sesli asistanı aç/kapat
+            if ((e.altKey || e.ctrlKey) && e.key === 'm') {
+                e.preventDefault();
+                toggleVoicePopup();
+            }
+            
+            // ESC tuşuna basıldığında sesli asistanı kapat
+            if (e.key === 'Escape' && voicePopup.classList.contains('active')) {
+                toggleVoicePopup();
+            }
+        });
+
+        // Sesli sohbet ekran elemanları
+        const voiceConversation = document.getElementById('voice-conversation');
+        const voiceMessage = document.getElementById('voice-message');
+        const voiceContinuousBtn = document.getElementById('voice-continuous-btn');
+        
+        // Sesli sohbet ayarları
+        let isContinuousMode = true; // Sürekli konuşma modu varsayılan olarak açık
+        let isAISpeaking = false; // AI'ın konuşma durumu
+        let conversationTimeout; // Konuşma aralığı için zamanlayıcı
+        
+        // AI yanıtını seslendirmeyi bekleyen fonksiyon
+        let waitingForAIResponse = false;
+        
+        // Sürekli konuşma modu düğmesini ayarla
+        if (voiceContinuousBtn) {
+            voiceContinuousBtn.addEventListener('click', function() {
+                isContinuousMode = !isContinuousMode;
+                this.classList.toggle('active', isContinuousMode);
+                
+                if (isContinuousMode) {
+                    voiceStatus.textContent = 'Sürekli konuşma modu açık. Mikrofona tıklayarak başlayın.';
+                } else {
+                    voiceStatus.textContent = 'Mikrofona tıklayarak tek seferlik konuşabilirsiniz.';
+                }
+            });
+        }
+        
+        // Mikrofon erişimi iste
+        async function requestMicrophoneAccess() {
+            try {
+                // Daha kapsamlı ses ayarları ile istek yap
+                stream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true,
+                        sampleRate: 48000
+                    }
+                });
+                voiceStatus.textContent = 'Mikrofona tıklayarak konuşmaya başlayabilirsiniz.';
+            } catch (err) {
+                console.error('Mikrofon erişim hatası:', err);
+                voiceStatus.textContent = 'Mikrofon erişimine izin verilmedi. Lütfen tarayıcı izinlerini kontrol edin.';
+            }
+        }
+        
+        // Kayıt başlat
+        function startRecording() {
+            if (!stream) {
+                requestMicrophoneAccess().then(() => {
+                    if (stream) startRecording();
+                });
+                return;
+            }
+            
+            try {
+                // AI konuşuyorsa durdur
+                if (isAISpeaking) {
+                    stopAllAudio();
+                }
+                
+                audioChunks = [];
+                
+                // Tarayıcı uyumluluğu için desteklenen MIME tiplerini kontrol et
+                let mimeType = 'audio/webm';
+                if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+                    mimeType = 'audio/webm;codecs=opus';
+                } else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
+                    mimeType = 'audio/ogg;codecs=opus';
+                } else if (MediaRecorder.isTypeSupported('audio/mp4;codecs=mp4a')) {
+                    mimeType = 'audio/mp4;codecs=mp4a';
+                }
+                
+                console.log('Kullanılan MIME tipi:', mimeType);
+                
+                // MediaRecorder ile kayıt başlat
+                mediaRecorder = new MediaRecorder(stream, {
+                    mimeType: mimeType,
+                    audioBitsPerSecond: 128000
+                });
+                
+                mediaRecorder.addEventListener('dataavailable', event => {
+                    if (event.data.size > 0) {
+                        audioChunks.push(event.data);
+                    }
+                });
+                
+                mediaRecorder.addEventListener('stop', processVoiceChatRecording);
+                mediaRecorder.addEventListener('error', (event) => {
+                    console.error('MediaRecorder hatası:', event.error);
+                    voiceStatus.textContent = 'Ses kaydı sırasında bir hata oluştu: ' + event.error.message;
+                    stopRecording();
+                });
+                
+                // Kayıt başlat (100ms zamanlayıcı ile veri topla)
+                mediaRecorder.start(100);
+                isRecording = true;
+                
+                // UI güncelle
+                voiceMicBtn.classList.add('recording');
+                voiceMicBtn.innerHTML = '<i class="fas fa-stop"></i>';
+                voiceVisualizer.classList.add('recording');
+                voiceStatus.textContent = 'Konuşuyorsunuz... Tamamlandığında durdurmak için tıklayın.';
+                voiceInputBtn.classList.add('recording');
+                
+                // Uzun sessizlikte otomatik durdurma (7 saniye)
+                conversationTimeout = setTimeout(() => {
+                    if (isRecording) {
+                        stopRecording();
+                        voiceStatus.textContent = 'Sessiz kaldınız. Yanıtlanıyor...';
+                    }
+                }, 7000);
+                
+                // 30 saniye sonra otomatik olarak durdur
+                setTimeout(() => {
+                    if (isRecording) {
+                        stopRecording();
+                        voiceStatus.textContent = 'Maksimum kayıt süresi aşıldı (30 saniye).';
+                    }
+                }, 30000);
+                
+            } catch (err) {
+                console.error('Kayıt başlatma hatası:', err);
+                voiceStatus.textContent = 'Kayıt başlatılamadı: ' + err.message;
+            }
+        }
+        
+        // Tüm ses çalmalarını durdur
+        function stopAllAudio() {
+            // AI sesini durdur ve konuşma durumunu sıfırla
+            isAISpeaking = false;
+            
+            // Mevcut tüm audio elementlerini durdur
+            document.querySelectorAll('audio').forEach(audio => {
+                audio.pause();
+                audio.currentTime = 0;
+            });
+            
+            // Görsel efektleri kaldır
+            voiceVisualizer.classList.remove('ai-speaking');
+        }
+        
+        // Ses kaydını işle (Sesli sohbet için)
+        async function processVoiceChatRecording() {
+            // Sessizlik zamanlayıcısını iptal et
+            clearTimeout(conversationTimeout);
+            
+            if (audioChunks.length === 0) {
+                voiceStatus.textContent = 'Ses kaydedilemedi. Lütfen tekrar deneyin.';
+                return;
+            }
+            
+            try {
+                // Ses verilerini bir Blob nesnesi olarak birleştir (MIME türünü otomatik algıla)
+                const mimeType = mediaRecorder.mimeType || 'audio/webm';
+                const audioBlob = new Blob(audioChunks, { type: mimeType });
+                
+                console.log('Ses Blob oluşturuldu:', {
+                    size: audioBlob.size,
+                    type: audioBlob.type,
+                    chunks: audioChunks.length
+                });
+                
+                // Ses blobu çok küçükse uyarı ver
+                if (audioBlob.size < 1000) {
+                    voiceStatus.textContent = 'Ses kaydı çok kısa veya boş. Lütfen tekrar deneyin.';
+                    return;
+                }
+                
+                // Base64'e dönüştür
+                const reader = new FileReader();
+                reader.readAsDataURL(audioBlob);
+                
+                reader.onloadend = async function() {
+                    const base64Audio = reader.result;
+                    
+                    // Speech-to-Text API'sine gönder
+                    try {
+                        voiceStatus.textContent = 'Mesajınız işleniyor...';
+                        const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                        
+                        const response = await fetch('/api/speech/to-text', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': token
+                            },
+                            body: JSON.stringify({ audio: base64Audio })
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (data.success && data.text) {
+                            // Metinde bir şey var mı kontrol et
+                            if (data.text.trim().length > 0) {
+                                // Kullanıcının konuşmasını popup mesaj alanında göster (opsiyonel)
+                                voiceConversation.style.display = 'block';
+                                voiceMessage.innerHTML = '<strong>Siz:</strong> ' + data.text + '<br>';
+                                
+                                // AI yanıt vermeden önce bekleme durumuna geç
+                                waitingForAIResponse = true;
+                                voiceStatus.textContent = 'SoneAI yanıtlıyor...';
+                                
+                                // AI'dan yanıt al ve seslendirerek yanıtla
+                                getVoiceChatResponse(data.text);
+                            } else {
+                                // Boş metin
+                                voiceStatus.textContent = 'Konuşmanız anlaşılamadı. Lütfen tekrar deneyin.';
+                                
+                                // Sürekli konuşma modunda yeni kayda otomatik başla
+                                if (isContinuousMode) {
+                                    setTimeout(() => {
+                                        if (!isRecording && !isAISpeaking) {
+                                            startRecording();
+                                        }
+                                    }, 1000);
+                                }
+                            }
+                        } else {
+                            // API yanıt hatası
+                            voiceStatus.textContent = 'Ses tanıma başarısız oldu: ' + (data.error || 'Bilinmeyen hata');
+                            
+                            // Detaylı hata bilgisini konsola yazdır
+                            console.error('Speech-to-Text API hatası:', data);
+                            
+                            // Ses verisini yedek olarak sunucuya kaydet
+                            saveAudioForAnalysis(base64Audio);
+                            
+                            // Sürekli konuşma modunda yeni kayda otomatik başla
+                            if (isContinuousMode) {
+                                setTimeout(() => {
+                                    if (!isRecording && !isAISpeaking) {
+                                        startRecording();
+                                    }
+                                }, 2000);
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Speech-to-Text API isteği hatası:', error);
+                        voiceStatus.textContent = 'Ses tanıma sırasında bir hata oluştu. Lütfen tekrar deneyin.';
+                        
+                        // Ses verisini yedek olarak sunucuya kaydet
+                        saveAudioForAnalysis(base64Audio);
+                        
+                        // Sürekli konuşma modunda yeni kayda otomatik başla
+                        if (isContinuousMode) {
+                            setTimeout(() => {
+                                if (!isRecording && !isAISpeaking) {
+                                    startRecording();
+                                }
+                            }, 2000);
+                        }
+                    }
+                };
+            } catch (error) {
+                console.error('Ses işleme hatası:', error);
+                voiceStatus.textContent = 'Ses işlenirken bir hata oluştu: ' + error.message;
+                
+                // Sürekli konuşma modunda yeni kayda otomatik başla
+                if (isContinuousMode) {
+                    setTimeout(() => {
+                        if (!isRecording && !isAISpeaking) {
+                            startRecording();
+                        }
+                    }, 2000);
+                }
+            }
+        }
+        
+        // AI yanıtını sesli sohbet için al
+        async function getVoiceChatResponse(text) {
+            try {
+                // CSRF token
+                const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                
+                // Chat ID
+                const chatId = localStorage.getItem('current_chat_id') || null;
+                
+                // İstek verisi
+                const requestData = {
+                    message: text.trim(),
+                    chat_id: chatId,
+                    creative_mode: isCreativeMode,
+                    coding_mode: isCodingMode,
+                    model: selectedModel,
+                    is_first_message: false,
+                    chat_history: chatHistory,
+                    visitor_name: visitorName
+                };
+                
+                // API isteği gönder
+                const response = await fetch('/api/ai/process', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': token
+                    },
+                    body: JSON.stringify(requestData)
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // Chat ID'yi kaydet
+                    if (data.chat_id) {
+                        localStorage.setItem('current_chat_id', data.chat_id);
+                    }
+                    
+                    // Yanıtı işle
+                    let finalResponse = data.response;
+                    
+                    // AI yanıtını geçmişe ekle
+                    addToChatHistory(text, 'user');
+                    addToChatHistory(finalResponse, 'ai');
+                    
+                    // Kod yanıtı değilse seslendir
+                    if (!data.is_code_response) {
+                        // AI'nin yanıtını popup mesaj alanında göster
+                        voiceConversation.style.display = 'block';
+                        voiceMessage.innerHTML += '<strong>SoneAI:</strong> ' + finalResponse + '<br>';
+                        
+                        // AI konuşmaya başlıyor - görsel efekt
+                        voiceVisualizer.classList.add('ai-speaking');
+                        isAISpeaking = true;
+                        
+                        // Tenor GIF URL'lerini temizle
+                        const cleanedResponse = finalResponse.replace(/https:\/\/media\.tenor\.com\/[^\s]+\.gif/g, '');
+                        
+                        // AI yanıtını seslendir
+                        await speakVoiceChatResponse(cleanedResponse);
+                    } else {
+                        // Kod yanıtı için özel mesaj
+                        voiceConversation.style.display = 'block';
+                        voiceMessage.innerHTML += '<strong>SoneAI:</strong> Kod yanıtı oluşturdum. Görüntülemek için popup\'ı kapatın.<br>';
+                        voiceStatus.textContent = 'Kod yanıtı oluşturuldu. Görmek için popup\'ı kapatabilirsiniz.';
+                        
+                        // Ana sohbet ekranına kod yanıtını ekle
+                        addMessage(finalResponse, 'ai', data.code, data.language);
+                        
+                        // Sürekli konuşma modunda yeni kayda otomatik başla
+                        if (isContinuousMode) {
+                            setTimeout(() => {
+                                if (!isRecording && !isAISpeaking) {
+                                    startRecording();
+                                }
+                            }, 2000);
+                        }
+                    }
+                } else {
+                    const errorData = await response.json();
+                    const errorMessage = errorData.error || "Yanıt alınamadı. Lütfen tekrar deneyin.";
+                    
+                    voiceStatus.textContent = 'AI yanıt hatası: ' + errorMessage;
+                    
+                    // Sürekli konuşma modunda yeni kayda otomatik başla
+                    if (isContinuousMode) {
+                        setTimeout(() => {
+                            if (!isRecording && !isAISpeaking) {
+                                startRecording();
+                            }
+                        }, 2000);
+                    }
+                }
+            } catch (error) {
+                console.error('AI yanıt hatası:', error);
+                voiceStatus.textContent = 'AI yanıt hatası: ' + error.message;
+                
+                // Sürekli konuşma modunda yeni kayda otomatik başla
+                if (isContinuousMode) {
+                    setTimeout(() => {
+                        if (!isRecording && !isAISpeaking) {
+                            startRecording();
+                        }
+                    }, 2000);
+                }
+            } finally {
+                waitingForAIResponse = false;
+            }
+        }
+        
+        // AI yanıtını seslendir (Sesli sohbet için)
+        async function speakVoiceChatResponse(text) {
+            try {
+                if (!text || text.trim().length === 0) {
+                    console.error('Seslendirilecek metin boş');
+                    isAISpeaking = false;
+                    voiceVisualizer.classList.remove('ai-speaking');
+                    
+                    // Sürekli konuşma modunda yeni kayda otomatik başla
+                    if (isContinuousMode) {
+                        setTimeout(() => {
+                            if (!isRecording && !isAISpeaking) {
+                                startRecording();
+                            }
+                        }, 1000);
+                    }
+                    return;
+                }
+                
+                voiceStatus.textContent = 'SoneAI konuşuyor...';
+                const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                
+                const response = await fetch('/api/speech/to-speech', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': token
+                    },
+                    body: JSON.stringify({ text: text })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.audioContent) {
+                    // Base64 ses içeriğini çal
+                    try {
+                        const audio = new Audio(`data:audio/mp3;base64,${data.audioContent}`);
+                        
+                        // Ses çalma olaylarını izle
+                        audio.addEventListener('play', () => {
+                            console.log('Ses çalmaya başladı');
+                            isAISpeaking = true;
+                            voiceVisualizer.classList.add('ai-speaking');
+                        });
+                        
+                        audio.addEventListener('ended', () => {
+                            console.log('Ses çalma tamamlandı');
+                            isAISpeaking = false;
+                            voiceVisualizer.classList.remove('ai-speaking');
+                            
+                            // Sürekli konuşma modunda yeni kayda otomatik başla
+                            if (isContinuousMode) {
+                                setTimeout(() => {
+                                    if (!isRecording && !isAISpeaking) {
+                                        startRecording();
+                                        voiceStatus.textContent = 'Konuşuyorsunuz...';
+                                    }
+                                }, 1000);
+                            } else {
+                                voiceStatus.textContent = 'Mikrofona tıklayarak yeni bir soru sorabilirsiniz.';
+                            }
+                        });
+                        
+                        audio.addEventListener('error', (e) => {
+                            console.error('Ses çalma hatası:', e);
+                            isAISpeaking = false;
+                            voiceVisualizer.classList.remove('ai-speaking');
+                            
+                            // Sürekli konuşma modunda yeni kayda otomatik başla
+                            if (isContinuousMode) {
+                                setTimeout(() => {
+                                    if (!isRecording && !isAISpeaking) {
+                                        startRecording();
+                                    }
+                                }, 1000);
+                            }
+                        });
+                        
+                        await audio.play();
+                    } catch (playError) {
+                        console.error('Ses çalma hatası:', playError);
+                        isAISpeaking = false;
+                        voiceVisualizer.classList.remove('ai-speaking');
+                        
+                        // Sürekli konuşma modunda yeni kayda otomatik başla
+                        if (isContinuousMode) {
+                            setTimeout(() => {
+                                if (!isRecording && !isAISpeaking) {
+                                    startRecording();
+                                }
+                            }, 1000);
+                        }
+                    }
+                } else {
+                    console.error('Text-to-Speech API hatası:', data);
+                    isAISpeaking = false;
+                    voiceVisualizer.classList.remove('ai-speaking');
+                    
+                    // Sürekli konuşma modunda yeni kayda otomatik başla
+                    if (isContinuousMode) {
+                        setTimeout(() => {
+                            if (!isRecording && !isAISpeaking) {
+                                startRecording();
+                            }
+                        }, 1000);
+                    }
+                }
+            } catch (error) {
+                console.error('Text-to-Speech hatası:', error);
+                isAISpeaking = false;
+                voiceVisualizer.classList.remove('ai-speaking');
+                
+                // Sürekli konuşma modunda yeni kayda otomatik başla
+                if (isContinuousMode) {
+                    setTimeout(() => {
+                        if (!isRecording && !isAISpeaking) {
+                            startRecording();
+                        }
+                    }, 1000);
+                }
+            }
+        }
+        
+        // Sessizlik algılamak için ses kayıt işlemi
+        function setupVoiceActivity() {
+            if (!stream) return;
+            
+            try {
+                // AudioContext oluştur
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const analyser = audioContext.createAnalyser();
+                const microphone = audioContext.createMediaStreamSource(stream);
+                const javascriptNode = audioContext.createScriptProcessor(2048, 1, 1);
+                
+                analyser.smoothingTimeConstant = 0.8;
+                analyser.fftSize = 1024;
+                
+                microphone.connect(analyser);
+                analyser.connect(javascriptNode);
+                javascriptNode.connect(audioContext.destination);
+                
+                javascriptNode.onaudioprocess = function() {
+                    const array = new Uint8Array(analyser.frequencyBinCount);
+                    analyser.getByteFrequencyData(array);
+                    let values = 0;
+                    
+                    for (let i = 0; i < array.length; i++) {
+                        values += (array[i]);
+                    }
+                    
+                    const average = values / array.length;
+                    console.log('Audio level:', average);
+                    
+                    // 5 saniye sessiz kalırsa kayıt otomatik durdurulsun
+                    if (average < 5 && isRecording) {
+                        silenceCounter++;
+                        if (silenceCounter > 50) { // ~5 saniye
+                            stopRecording();
+                            voiceStatus.textContent = 'Sessizlik algılandı. Yanıtlanıyor...';
+                        }
+                    } else {
+                        silenceCounter = 0;
+                    }
+                };
+            } catch (e) {
+                console.error('Ses analiz hatası:', e);
+            }
+        }
+        
+        // Sesli sohbet popup'ını aç/kapat
+        function toggleVoicePopup() {
+            voicePopup.classList.toggle('active');
+            voiceOverlay.classList.toggle('active');
+            
+            if (voicePopup.classList.contains('active')) {
+                // Mikrofon erişimi iste
+                requestMicrophoneAccess().then(() => {
+                    // Konuşma alanını temizle
+                    voiceConversation.style.display = 'none';
+                    voiceMessage.innerHTML = '';
+                    
+                    // Sürekli konuşma modu aktifse otomatik başlat
+                    if (isContinuousMode) {
+                        setTimeout(() => {
+                            startRecording();
+                        }, 1000);
+                    }
+                });
+            } else {
+                // Sesi durdur
+                if (isRecording) {
+                    stopRecording();
+                }
+                
+                // AI konuşuyorsa durdur
+                if (isAISpeaking) {
+                    stopAllAudio();
+                }
+                
+                // Stream'i kapat
+                if (stream) {
+                    try {
+                        stream.getTracks().forEach(track => track.stop());
+                        stream = null;
+                    } catch (error) {
+                        console.error('Stream kapatma hatası:', error);
+                    }
+                }
+            }
+        }
+
+        function processVoiceResponse(text) {
+            // Sohbet geçmişine AI yanıtını ekle
+            if (voiceConversation && voiceMessage) {
+                // Eğer bu ilk mesaj değilse, yeni mesaj ekle
+                if (voiceMessage.innerHTML.indexOf('voice-chat-welcome') === -1) {
+                    voiceMessage.innerHTML += '<div class="voice-message-item ai-message"><strong>AI:</strong> ' + text + '</div>';
+                } else {
+                    // İlk mesajsa, hoş geldin mesajını değiştir
+                    voiceMessage.innerHTML = '<div class="voice-message-item ai-message"><strong>AI:</strong> ' + text + '</div>';
+                }
+                
+                // Otomatik kaydırma
+                voiceConversation.scrollTop = voiceConversation.scrollHeight;
+            }
+            
+            // Sesli sohbet modunda sesli yanıt ver
+            speakAIResponseInChatMode(text);
+        }
+
+        // Sesli sohbet modunda AI yanıtını seslendir
+        async function speakAIResponseInChatMode(text) {
+            try {
+                if (!text || text.trim().length === 0) return;
+                
+                // Tenor GIF URL'lerini temizle
+                text = text.replace(/https:\/\/media\.tenor\.com\/[^\s]+\.gif/g, '');
+                
+                voiceStatus.textContent = 'AI yanıtlanıyor...';
+                
+                // Vizualizasyonu yanıt verme moduna geçir
+                const visualizer = document.getElementById('voice-visualizer');
+                if (visualizer) {
+                    visualizer.classList.add('ai-speaking');
+                }
+                
+                const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                
+                const response = await fetch('/api/speech/to-speech', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': token
+                    },
+                    body: JSON.stringify({ text: text })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.audioContent) {
+                    // Tüm mevcut ses oynatmalarını durdur
+                    stopAllAudio();
+                    
+                    // Base64 ses içeriğini çal
+                    try {
+                        currentAudio = new Audio(`data:audio/mp3;base64,${data.audioContent}`);
+                        
+                        // Ses çalma olaylarını izle
+                        currentAudio.addEventListener('play', () => {
+                            console.log('AI konuşuyor...');
+                            voiceStatus.textContent = 'AI konuşuyor...';
+                        });
+                        
+                        currentAudio.addEventListener('ended', () => {
+                            console.log('AI konuşması tamamlandı');
+                            voiceStatus.textContent = 'Konuşmak için mikrofona tıklayın';
+                            
+                            // AI konuşması bitince vizualizasyonu normal hale getir
+                            if (visualizer) {
+                                visualizer.classList.remove('ai-speaking');
+                            }
+                            
+                            // Sürekli konuşma modundaysa otomatik kayda başla
+                            if (isContinuousMode) {
+                                setTimeout(() => {
+                                    // Kaydedilmiyor ve mikrofon açıksa kayda başla
+                                    if (!isRecording && stream) {
+                                        startRecording();
+                                    }
+                                }, 1000); // 1 saniye sonra kayda başla
+                            }
+                        });
+                        
+                        currentAudio.addEventListener('error', (e) => {
+                            console.error('Ses çalma hatası:', e);
+                            voiceStatus.textContent = 'Ses çalma hatası. Tekrar deneyin.';
+                            
+                            if (visualizer) {
+                                visualizer.classList.remove('ai-speaking');
+                            }
+                        });
+                        
+                        await currentAudio.play();
+                    } catch (playError) {
+                        console.error('Ses çalma hatası:', playError);
+                        voiceStatus.textContent = 'Ses çalma hatası. Tekrar deneyin.';
+                        
+                        if (visualizer) {
+                            visualizer.classList.remove('ai-speaking');
+                        }
+                    }
+                } else {
+                    console.error('Text-to-Speech API hatası:', data);
+                    voiceStatus.textContent = 'Ses oluşturma hatası. Tekrar deneyin.';
+                    
+                    if (visualizer) {
+                        visualizer.classList.remove('ai-speaking');
+                    }
+                }
+            } catch (error) {
+                console.error('Text-to-Speech hatası:', error);
+                voiceStatus.textContent = 'Ses oluşturma hatası. Tekrar deneyin.';
+                
+                if (visualizer) {
+                    visualizer.classList.remove('ai-speaking');
+                }
+            }
+        }
+
+        // Tüm ses oynatmalarını durdur
+        function stopAllAudio() {
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio.currentTime = 0;
+                currentAudio = null;
+            }
+        }
+
+        // ... existing code ...
+
+        // Orijinal getAIResponse fonksiyonunu değiştir
+        async function getAIResponse(text, userContext = '') {
+            try {
+                loading = true;
+                stopAllAudio(); // Önceki sesleri durdur
+                
+                // Sesli sohbet modundaysa mesajı görsel olarak ekle
+                if (voicePopup.classList.contains('active') && voicePopup.classList.contains('voice-chat-mode')) {
+                    if (voiceMessage) {
+                        // Eğer hoş geldin mesajı varsa onu kaldır
+                        if (voiceMessage.innerHTML.indexOf('voice-chat-welcome') !== -1) {
+                            voiceMessage.innerHTML = '';
+                        }
+                        
+                        // Kullanıcı mesajını ekle
+                        voiceMessage.innerHTML += '<div class="voice-message-item user-message"><strong>Siz:</strong> ' + text + '</div>';
+                        
+                        // Otomatik kaydırma
+                        if (voiceConversation) {
+                            voiceConversation.scrollTop = voiceConversation.scrollHeight;
+                        }
+                    }
+                    
+                    voiceStatus.textContent = 'AI yanıt hazırlanıyor...';
+                }
+                
+                // ... existing code ...
+
+                // Eğer sesli sohbet modundaysa, sadece yanıtı seslendir
+                if (voicePopup.classList.contains('active') && voicePopup.classList.contains('voice-chat-mode')) {
+                    processVoiceResponse(assistantMessage);
+                } else {
+                    // Normal sohbet akışı
+                    // ... existing code ...
+                }
+                
+            } catch (error) {
+                console.error('AI yanıtı alınamadı:', error);
+                
+                // Sesli sohbet modunda hata mesajı ver
+                if (voicePopup.classList.contains('active') && voicePopup.classList.contains('voice-chat-mode')) {
+                    voiceStatus.textContent = 'Hata oluştu. Tekrar deneyin.';
+                }
+                
+                // ... existing code ...
+            } finally {
+                loading = false;
+            }
+        }
+
+        // ... existing code ...
+
+        // Speech-to-Text sonuçlarını işle
+        async function processSTTResult(result) {
+            if (result && result.transcript) {
+                const transcript = result.transcript;
+                
+                // Sesli chat modunda
+                if (voicePopup.classList.contains('active') && voicePopup.classList.contains('voice-chat-mode')) {
+                    voiceStatus.textContent = 'Yanıt bekleniyor...';
+                    await getAIResponse(transcript);
+                } else {
+                    // Sesli girişi metin kutusuna doldur
+                    messageInput.value = transcript;
+                    
+                    // Otomatik gönder
+                    document.querySelector('.ai-submit-btn').click();
+                }
+            }
+        }
+
+        // ... existing code ...
     });
 </script>
 @endsection 

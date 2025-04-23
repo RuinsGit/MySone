@@ -253,3 +253,10 @@ Route::prefix('ai')->group(function () {
     Route::get('/active-users', [AIController::class, 'getActiveUsers'])->name('ai.active-users');
     Route::get('/active-users-admin', [AIController::class, 'showActiveUsersAdmin'])->name('ai.active-users-admin');
 });
+
+// Speech-to-Text ve Text-to-Speech API Rotaları
+Route::prefix('api/speech')->group(function () {
+    Route::post('/to-text', [App\Http\Controllers\SpeechController::class, 'convertSpeechToText']);
+    Route::post('/to-speech', [App\Http\Controllers\SpeechController::class, 'convertTextToSpeech']);
+    Route::post('/save-audio', [App\Http\Controllers\SpeechController::class, 'saveRecordedAudio']);
+});

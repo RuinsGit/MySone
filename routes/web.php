@@ -24,9 +24,9 @@ use App\Http\Controllers\Admin\MessageHistoryController;
 
 Route::get('/', function () {
     if (auth()->guard('admin')->check()) {
-            return redirect()->route('back.pages.index');
-        }
-        return redirect()->route('admin.login');
+        return redirect()->route('back.pages.index');
+    }
+    return redirect()->route('ai.welcome');
 });
 
 Route::prefix('admin')->group(function () {
@@ -97,7 +97,12 @@ Route::prefix('admin')->group(function () {
     });
 });
 
-Route::get('/', [ChatController::class, 'index'])->name('chat');
+Route::get('/', function () {
+    if (auth()->guard('admin')->check()) {
+        return redirect()->route('back.pages.index');
+    }
+    return redirect()->route('ai.welcome');
+});
 
 // Yönetim Paneli Routes
 Route::prefix('manage')->name('manage.')->group(function () {
@@ -146,6 +151,9 @@ Route::prefix('api/ai')->group(function () {
     Route::get('/chat/{chat_id}', [AIController::class, 'getChatHistory']);
     Route::get('/chats', [AIController::class, 'getUserChats']);
 });
+
+// Kullanıcı adını kaydetme route'u
+Route::post('/save-username', [ChatController::class, 'saveUsername'])->name('save.username');
 
 // APIController için API route
 Route::post('/api/ai/process', [ChatController::class, 'sendMessage']);
@@ -239,7 +247,8 @@ Route::prefix('api/ai/code-consciousness')->group(function () {
 
 // AI rotaları
 Route::prefix('ai')->group(function () {
-    Route::get('/chat', [AIController::class, 'chat'])->name('ai.chat');
+    Route::get('/chat', [ChatController::class, 'chat'])->name('ai.chat');
+    Route::get('/welcome', [ChatController::class, 'index'])->name('ai.welcome');
     Route::post('/active-user', [AIController::class, 'updateActiveUser'])->name('ai.active-user');
     Route::get('/active-users', [AIController::class, 'getActiveUsers'])->name('ai.active-users');
     Route::get('/active-users-admin', [AIController::class, 'showActiveUsersAdmin'])->name('ai.active-users-admin');

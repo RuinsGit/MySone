@@ -3,15 +3,15 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Services\GeminiApiService;
+use App\Services\RecordVisit;
+use App\Helpers\DeviceHelper;
 use App\AI\core\Brain;
 use App\AI\core\WordRelations;
 use Illuminate\Support\Facades\Log;
 use App\Models\ChatMessage;
 use App\Models\Chat;
 use Illuminate\Support\Facades\Http;
-use App\Services\GeminiApiService;
-use App\Helpers\DeviceHelper;
-use App\Services\RecordVisit;
 
 class ChatController extends Controller
 {
@@ -36,6 +36,11 @@ class ChatController extends Controller
     
     public function index()
     {
+        return view('ai.welcome');
+    }
+    
+    public function chat()
+    {
         // Ziyaretçi ID'sini kontrol et veya oluştur
         if (!session()->has('visitor_id')) {
             session(['visitor_id' => uniqid('visitor_', true)]);
@@ -53,24 +58,30 @@ class ChatController extends Controller
                         'visitor_id' => $visitorId,
                         'name' => $visitorInfo->name
                     ]);
+                } else {
+                    // Eğer kullanıcı adı yoksa, ana sayfaya yönlendir
+                    return redirect()->route('ai.welcome');
                 }
             } catch (\Exception $e) {
                 \Log::error('Ziyaretçi adı kontrolü hatası: ' . $e->getMessage());
+                // Hata durumunda da welcome sayfasına yönlendir
+                return redirect()->route('ai.welcome');
             }
         }
         
         // Kullanıcı bilgilerini kaydet
         $this->recordUserVisit();
         
-        // Kullanıcının adını kontrol et
+        // Kullanıcının adını kontrol et - artık isim sorma gerekmiyor çünkü welcome sayfasında alıyoruz
         $visitorName = session('visitor_name');
-        $needsName = !$visitorName;
+        $needsName = false; // Artık her zaman false olacak
         
         $initialState = [
             'emotional_state' => $this->brain->getEmotionalState(),
             'memory_usage' => $this->brain->getMemoryUsage(),
             'learning_progress' => $this->brain->getLearningProgress(),
-            'needs_name' => $needsName
+            'needs_name' => $needsName,
+            'visitor_name' => $visitorName // Kullanıcı adını doğrudan gönder
         ];
         
         return view('ai.chat', compact('initialState'));
@@ -4500,6 +4511,66 @@ class ChatController extends Controller
             
         } catch (\Exception $e) {
             Log::error('Kullanıcı ziyareti kaydedilirken hata: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Kullanıcı adını kaydet
+     */
+    public function saveUsername(Request $request)
+    {
+        $username = $request->input('username');
+        
+        if (empty($username)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Username is required'
+            ], 400);
+        }
+        
+        // Kullanıcı adını session'a kaydet
+        session(['visitor_name' => $username]);
+        
+        // Kullanıcı adını veritabanına kaydet
+        try {
+            $deviceInfo = DeviceHelper::getUserDeviceInfo();
+            $visitorId = session('visitor_id', uniqid('visitor_', true));
+            
+            // Visitor ID'yi session'a kaydet (eğer yoksa)
+            if (!session()->has('visitor_id')) {
+                session(['visitor_id' => $visitorId]);
+            }
+            
+            // Visitor_names tablosuna kaydet
+            \DB::table('visitor_names')->updateOrInsert(
+                ['visitor_id' => $visitorId],
+                [
+                    'name' => $username,
+                    'ip_address' => $deviceInfo['ip_address'],
+                    'device_info' => $deviceInfo['device_info'],
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ]
+            );
+            
+            \Log::info('Kullanıcı adı kaydedildi', [
+                'visitor_id' => $visitorId,
+                'name' => $username,
+                'ip' => $deviceInfo['ip_address']
+            ]);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Username saved successfully'
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Kullanıcı adı kayıt hatası: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Error saving username'
+            ], 500);
         }
     }
 } 

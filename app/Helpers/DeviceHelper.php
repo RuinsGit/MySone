@@ -5,26 +5,21 @@ namespace App\Helpers;
 class DeviceHelper
 {
     /**
-     * Kullanıcının cihaz bilgilerini alma
+     * Kullanıcının cihaz bilgilerini al
      * 
      * @return array
      */
     public static function getUserDeviceInfo()
     {
         $userAgent = request()->header('User-Agent');
-        $ip = self::getRealIpAddress();
+        $ipAddress = request()->ip();
         
-        // Cihaz bilgilerini json formatında sakla
-        $deviceInfo = [
-            'user_agent' => $userAgent,
-            'browser' => self::getBrowser($userAgent),
-            'os' => self::getOS($userAgent),
-            'device_type' => self::getDeviceType($userAgent)
-        ];
+        // Tarayıcı ve işletim sistemi bilgilerini çıkart
+        $deviceInfo = self::parseUserAgent($userAgent);
         
         return [
-            'ip_address' => $ip,
-            'device_info' => $deviceInfo
+            'ip_address' => $ipAddress,
+            'device_info' => json_encode($deviceInfo)
         ];
     }
     
@@ -68,51 +63,72 @@ class DeviceHelper
     }
     
     /**
-     * Tarayıcı bilgisini çıkarma
+     * User Agent bilgisinden tarayıcı ve işletim sistemi bilgilerini çıkart
+     * 
+     * @param string $userAgent
+     * @return array
      */
-    private static function getBrowser($userAgent)
+    private static function parseUserAgent($userAgent)
     {
-        $browser = "Bilinmeyen Tarayıcı";
+        $browser = 'Unknown Browser';
+        $platform = 'Unknown Platform';
+        $version = '';
         
-        if (preg_match('/MSIE|Trident/i', $userAgent)) {
+        // İşletim sistemi tespiti
+        if (preg_match('/windows|win32/i', $userAgent)) {
+            $platform = 'Windows';
+        } elseif (preg_match('/macintosh|mac os x/i', $userAgent)) {
+            $platform = 'Mac';
+        } elseif (preg_match('/android/i', $userAgent)) {
+            $platform = 'Android';
+        } elseif (preg_match('/iphone/i', $userAgent)) {
+            $platform = 'iPhone';
+        } elseif (preg_match('/ipad/i', $userAgent)) {
+            $platform = 'iPad';
+        } elseif (preg_match('/linux/i', $userAgent)) {
+            $platform = 'Linux';
+        }
+        
+        // Tarayıcı tespiti
+        if (preg_match('/MSIE/i', $userAgent) || preg_match('/Trident/i', $userAgent)) {
             $browser = 'Internet Explorer';
+            if (preg_match('/MSIE\s([0-9]+\.[0-9]+)/i', $userAgent, $matches)) {
+                $version = $matches[1];
+            } elseif (preg_match('/rv:([0-9]+\.[0-9]+)/i', $userAgent, $matches)) {
+                $version = $matches[1];
+            }
         } elseif (preg_match('/Edge/i', $userAgent)) {
-            $browser = 'Microsoft Edge (Legacy)';
-        } elseif (preg_match('/Edg/i', $userAgent)) {
             $browser = 'Microsoft Edge';
+            preg_match('/Edge\/([0-9]+\.[0-9]+)/i', $userAgent, $matches);
+            if (isset($matches[1])) $version = $matches[1];
+        } elseif (preg_match('/Edg/i', $userAgent)) {
+            $browser = 'Microsoft Edge (Chromium)';
+            preg_match('/Edg\/([0-9]+\.[0-9]+)/i', $userAgent, $matches);
+            if (isset($matches[1])) $version = $matches[1];
         } elseif (preg_match('/Firefox/i', $userAgent)) {
             $browser = 'Mozilla Firefox';
-        } elseif (preg_match('/OPR|Opera/i', $userAgent)) {
-            $browser = 'Opera';
-        } elseif (preg_match('/Chrome/i', $userAgent) && !preg_match('/Chromium/i', $userAgent)) {
+            preg_match('/Firefox\/([0-9]+\.[0-9]+)/i', $userAgent, $matches);
+            if (isset($matches[1])) $version = $matches[1];
+        } elseif (preg_match('/Chrome/i', $userAgent)) {
             $browser = 'Google Chrome';
-        } elseif (preg_match('/Safari/i', $userAgent) && !preg_match('/Chrome/i', $userAgent)) {
+            preg_match('/Chrome\/([0-9]+\.[0-9]+)/i', $userAgent, $matches);
+            if (isset($matches[1])) $version = $matches[1];
+        } elseif (preg_match('/Safari/i', $userAgent)) {
             $browser = 'Safari';
+            preg_match('/Version\/([0-9]+\.[0-9]+)/i', $userAgent, $matches);
+            if (isset($matches[1])) $version = $matches[1];
+        } elseif (preg_match('/Opera/i', $userAgent)) {
+            $browser = 'Opera';
+            preg_match('/Version\/([0-9]+\.[0-9]+)/i', $userAgent, $matches);
+            if (isset($matches[1])) $version = $matches[1];
         }
         
-        return $browser;
-    }
-    
-    /**
-     * İşletim sistemi bilgisini çıkarma
-     */
-    private static function getOS($userAgent)
-    {
-        $os = "Bilinmeyen OS";
-        
-        if (preg_match('/windows|win32|win64/i', $userAgent)) {
-            $os = 'Windows';
-        } elseif (preg_match('/macintosh|mac os x/i', $userAgent)) {
-            $os = 'Mac OS';
-        } elseif (preg_match('/android/i', $userAgent)) {
-            $os = 'Android';
-        } elseif (preg_match('/iphone|ipad|ipod/i', $userAgent)) {
-            $os = 'iOS';
-        } elseif (preg_match('/linux/i', $userAgent)) {
-            $os = 'Linux';
-        }
-        
-        return $os;
+        return [
+            'browser' => $browser,
+            'browser_version' => $version,
+            'platform' => $platform,
+            'user_agent' => $userAgent
+        ];
     }
     
     /**

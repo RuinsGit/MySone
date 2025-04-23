@@ -1207,6 +1207,7 @@ button.gradient-btn:hover {
                    !important;
                    ">
                 </div>
+                <div class="message-sender-name">SoneAI</div>
                 <div class="message-content">
                     <p>Merhaba! Ben SoneAI. Size nasıl yardımcı olabilirim?</p>
                 </div>
@@ -1417,7 +1418,12 @@ button.gradient-btn:hover {
         const mobileModelSelector = document.getElementById('mobile-model-selector');
         
         // Kullanıcı adını localStorage'a kaydet
-        let visitorName = localStorage.getItem('visitor_name') || '';
+        let visitorName = '{{ session('visitor_name') }}' || localStorage.getItem('visitor_name') || '';
+        
+        // Eğer session'da isim varsa, localStorage'a da kaydedelim
+        if ('{{ session('visitor_name') }}') {
+            localStorage.setItem('visitor_name', '{{ session('visitor_name') }}');
+        }
         
         // Kullanıcı adı kontrolü
         const needsName = {{ $initialState['needs_name'] ? 'true' : 'false' }};
@@ -1698,7 +1704,7 @@ button.gradient-btn:hover {
             // Kullanıcı adı veya AI adı ekleyerek görüntüle
             const nameEl = document.createElement('div');
             nameEl.className = 'message-sender-name';
-            nameEl.textContent = sender === 'ai' ? 'SoneAI' : (visitorName || 'Misafir');
+            nameEl.textContent = sender === 'ai' ? 'SoneAI' : (visitorName || '{{ session('visitor_name') }}');
             messageEl.appendChild(nameEl);
             
             // Mesaj içeriği

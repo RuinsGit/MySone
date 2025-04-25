@@ -413,6 +413,7 @@ class SpeechController extends Controller
             '🤷' => '',
             '🤷‍♂️' => '',
             '🤷‍♀️' => ''
+            
         ];
         
         return str_replace(array_keys($replacements), array_values($replacements), $text);

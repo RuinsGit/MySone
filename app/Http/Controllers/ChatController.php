@@ -39,28 +39,51 @@ class ChatController extends Controller
         return view('ai.welcome');
     }
     
+    /**
+     * Chat sayfasını göster
+     */
     public function chat()
     {
         // Ziyaretçi ID'sini kontrol et veya oluştur
         if (!session()->has('visitor_id')) {
             session(['visitor_id' => uniqid('visitor_', true)]);
+            
+            // Uzun süreli cookie olarak da sakla
+            cookie()->queue('visitor_id', session('visitor_id'), 525600); // 1 yıl
+        }
+        
+        // Önce cookie'den visitor_id kontrolü yap
+        $cookieVisitorId = cookie('visitor_id');
+        if (!empty($cookieVisitorId) && $cookieVisitorId != session('visitor_id')) {
+            session(['visitor_id' => $cookieVisitorId]);
+            \Log::info('Cookie\'den visitor_id yüklendi', ['visitor_id' => $cookieVisitorId]);
         }
         
         // Ziyaretçi adını kontrol et (önceden kaydedilmiş mi?)
         if (!session()->has('visitor_name')) {
             try {
-                $visitorId = session('visitor_id');
-                $visitorInfo = \DB::table('visitor_names')->where('visitor_id', $visitorId)->first();
-                
-                if ($visitorInfo && !empty($visitorInfo->name)) {
-                    session(['visitor_name' => $visitorInfo->name]);
-                    \Log::info('Kayıtlı ziyaretçi adı bulundu', [
-                        'visitor_id' => $visitorId,
-                        'name' => $visitorInfo->name
-                    ]);
+                // Önce cookie'den kontrol et
+                $cookieVisitorName = cookie('visitor_name');
+                if (!empty($cookieVisitorName)) {
+                    session(['visitor_name' => $cookieVisitorName]);
+                    \Log::info('Cookie\'den ziyaretçi adı yüklendi', ['name' => $cookieVisitorName]);
                 } else {
-                    // Eğer kullanıcı adı yoksa, ana sayfaya yönlendir
-                    return redirect()->route('ai.welcome');
+                    // Cookie'de yoksa veritabanından kontrol et
+                    $visitorId = session('visitor_id');
+                    $visitorInfo = \DB::table('visitor_names')->where('visitor_id', $visitorId)->first();
+                    
+                    if ($visitorInfo && !empty($visitorInfo->name)) {
+                        session(['visitor_name' => $visitorInfo->name]);
+                        // Uzun süreli cookie olarak da sakla
+                        cookie()->queue('visitor_name', $visitorInfo->name, 525600); // 1 yıl
+                        \Log::info('Kayıtlı ziyaretçi adı bulundu', [
+                            'visitor_id' => $visitorId,
+                            'name' => $visitorInfo->name
+                        ]);
+                    } else {
+                        // Eğer kullanıcı adı yoksa, ana sayfaya yönlendir
+                        return redirect()->route('ai.welcome');
+                    }
                 }
             } catch (\Exception $e) {
                 \Log::error('Ziyaretçi adı kontrolü hatası: ' . $e->getMessage());
@@ -4531,6 +4554,9 @@ class ChatController extends Controller
         // Kullanıcı adını session'a kaydet
         session(['visitor_name' => $username]);
         
+        // Uzun süreli cookie olarak da sakla (1 yıl)
+        cookie()->queue('visitor_name', $username, 525600);
+        
         // Kullanıcı adını veritabanına kaydet
         try {
             $deviceInfo = DeviceHelper::getUserDeviceInfo();
@@ -4539,6 +4565,8 @@ class ChatController extends Controller
             // Visitor ID'yi session'a kaydet (eğer yoksa)
             if (!session()->has('visitor_id')) {
                 session(['visitor_id' => $visitorId]);
+                // Visitor ID'yi de cookie'ye kaydet
+                cookie()->queue('visitor_id', $visitorId, 525600); // 1 yıl
             }
             
             // Visitor_names tablosuna kaydet

@@ -4,6 +4,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AIController;
 use App\Http\Controllers\ChatController;
+use App\Http\Controllers\GeminiApiController;
+use App\Http\Controllers\AICodeLearningController;
+use App\Http\Controllers\AICodeConsciousnessController;
 
 /*
 |--------------------------------------------------------------------------
@@ -37,26 +40,33 @@ Route::prefix('chat')->group(function () {
     Route::delete('/delete/{chatId}', [ChatController::class, 'deleteChat']);
 });
 
+// Lizz API Rotaları
+Route::prefix('lizz')->group(function () {
+    Route::post('/generate', [GeminiApiController::class, 'generateContent']);
+    Route::post('/generate-code', [GeminiApiController::class, 'generateCode']);
+    Route::post('/generate-response', [GeminiApiController::class, 'generateResponse']);
+});
+
 // AI Kod Öğrenme API Rotaları
 Route::group(['prefix' => 'ai/code-learning'], function () {
-    Route::get('/status', 'App\Http\Controllers\AICodeLearningController@getStatus');
-    Route::post('/start', 'App\Http\Controllers\AICodeLearningController@startLearning');
-    Route::post('/stop', 'App\Http\Controllers\AICodeLearningController@stopLearning');
-    Route::post('/settings', 'App\Http\Controllers\AICodeLearningController@updateSettings');
-    Route::post('/add-code', 'App\Http\Controllers\AICodeLearningController@addCode');
-    Route::get('/codes', 'App\Http\Controllers\AICodeLearningController@listCodes');
-    Route::get('/activities', 'App\Http\Controllers\AICodeLearningController@listActivities');
-    Route::get('/example', 'App\Http\Controllers\AICodeLearningController@getCodeExample');
-    Route::get('/search', 'App\Http\Controllers\AICodeLearningController@searchCode');
-    Route::post('/reset-cache', 'App\Http\Controllers\AICodeLearningController@resetCache');
+    Route::get('/status', [AICodeLearningController::class, 'getStatus']);
+    Route::post('/start', [AICodeLearningController::class, 'startLearning']);
+    Route::post('/stop', [AICodeLearningController::class, 'stopLearning']);
+    Route::post('/settings', [AICodeLearningController::class, 'updateSettings']);
+    Route::post('/add-code', [AICodeLearningController::class, 'addCode']);
+    Route::get('/codes', [AICodeLearningController::class, 'listCodes']);
+    Route::get('/activities', [AICodeLearningController::class, 'listActivities']);
+    Route::get('/example', [AICodeLearningController::class, 'getCodeExample']);
+    Route::get('/search', [AICodeLearningController::class, 'searchCode']);
+    Route::post('/reset-cache', [AICodeLearningController::class, 'resetCache']);
     
     // Yeni eklenen HTML/CSS rotaları
-    Route::get('/html-css-examples', 'App\Http\Controllers\AICodeLearningController@getHtmlCssExamples');
-    Route::post('/add-html-css', 'App\Http\Controllers\AICodeLearningController@addHtmlCssCode');
-    Route::post('/use-code', 'App\Http\Controllers\AICodeLearningController@useCode');
-    Route::get('/usage-stats', 'App\Http\Controllers\AICodeLearningController@getUsageStats');
-    Route::post('/similar-codes', 'App\Http\Controllers\AICodeLearningController@findSimilarCodes');
-    Route::get('/featured-codes', 'App\Http\Controllers\AICodeLearningController@getFeaturedCodes');
+    Route::get('/html-css-examples', [AICodeLearningController::class, 'getHtmlCssExamples']);
+    Route::post('/add-html-css', [AICodeLearningController::class, 'addHtmlCssCode']);
+    Route::post('/use-code', [AICodeLearningController::class, 'useCode']);
+    Route::get('/usage-stats', [AICodeLearningController::class, 'getUsageStats']);
+    Route::post('/similar-codes', [AICodeLearningController::class, 'findSimilarCodes']);
+    Route::get('/featured-codes', [AICodeLearningController::class, 'getFeaturedCodes']);
 });
 
 /*
@@ -72,30 +82,30 @@ Route::group(['prefix' => 'ai/code-learning'], function () {
 // Kod Bilinç Sistemi
 Route::prefix('ai/code-consciousness')->group(function () {
     // Sistem durumu
-    Route::get('/status', 'AICodeConsciousnessController@status');
+    Route::get('/status', [AICodeConsciousnessController::class, 'status']);
     
     // Sistem kontrolü
-    Route::post('/activate', 'AICodeConsciousnessController@activate');
-    Route::post('/deactivate', 'AICodeConsciousnessController@deactivate');
-    Route::post('/think', 'AICodeConsciousnessController@think');
+    Route::post('/activate', [AICodeConsciousnessController::class, 'activate']);
+    Route::post('/deactivate', [AICodeConsciousnessController::class, 'deactivate']);
+    Route::post('/think', [AICodeConsciousnessController::class, 'think']);
     
     // Kod analizi
-    Route::post('/analyze-relations', 'AICodeConsciousnessController@analyzeRelations');
-    Route::post('/categorize', 'AICodeConsciousnessController@categorize');
-    Route::post('/analyze-effectiveness', 'AICodeConsciousnessController@analyzeEffectiveness');
+    Route::post('/analyze-relations', [AICodeConsciousnessController::class, 'analyzeRelations']);
+    Route::post('/categorize', [AICodeConsciousnessController::class, 'categorize']);
+    Route::post('/analyze-effectiveness', [AICodeConsciousnessController::class, 'analyzeEffectiveness']);
     
     // Kod önerileri
-    Route::get('/suggest-codes', 'AICodeConsciousnessController@suggestCodes');
-    Route::get('/suggest-code-flow', 'AICodeConsciousnessController@suggestCodeFlow');
+    Route::get('/suggest-codes', [AICodeConsciousnessController::class, 'suggestCodes']);
+    Route::get('/suggest-code-flow', [AICodeConsciousnessController::class, 'suggestCodeFlow']);
     
     // Kod ilişkileri
-    Route::post('/analyze-relationship', 'AICodeConsciousnessController@analyzeCodeRelationship');
-    Route::post('/detect-category', 'AICodeConsciousnessController@detectCategory');
+    Route::post('/analyze-relationship', [AICodeConsciousnessController::class, 'analyzeCodeRelationship']);
+    Route::post('/detect-category', [AICodeConsciousnessController::class, 'detectCategory']);
     
     // Kod kullanımı ve birleştirme
-    Route::post('/record-usage', 'AICodeConsciousnessController@recordCodeUsage');
-    Route::post('/combine-codes', 'AICodeConsciousnessController@combineCodes');
+    Route::post('/record-usage', [AICodeConsciousnessController::class, 'recordCodeUsage']);
+    Route::post('/combine-codes', [AICodeConsciousnessController::class, 'combineCodes']);
     
     // Bildirimler
-    Route::get('/notifications', 'AICodeConsciousnessController@getNotifications');
+    Route::get('/notifications', [AICodeConsciousnessController::class, 'getNotifications']);
 });

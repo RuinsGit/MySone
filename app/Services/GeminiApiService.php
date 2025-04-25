@@ -1296,13 +1296,34 @@ Bu talimatları çok titizlikle uygula, bu sorunun kullanıcıyla hiçbir ilgisi
         $giphyRegexes = [
             '/https:\/\/media[0-9]?\.giphy\.com\/[^\s]+\.gif/i',  // Normal URL
             '/https:\/\/giphy\.com\/[^\s]+/i',                     // Kısa URL 
-            '/https:\/\/i\.giphy\.com\/[^\s]+/i'                   // Alternatif URL
+            '/https:\/\/i\.giphy\.com\/[^\s]+/i',                  // Alternatif URL
+            '/giphy\.gif/i',                                       // Sadece dosya adı
+            '/giphy[0-9]+\.gif/i',                                // Numaralı dosya adı
+            '/tenor\.gif/i',                                      // Tenor dosya adı
+            '/tenor[0-9]+\.gif/i'                                 // Numaralı tenor dosya adı
         ];
         
         // Her bir regex için metni temizle
         foreach ($giphyRegexes as $regex) {
             $text = preg_replace($regex, '', $text);
         }
+        
+        // Tenor ve media.tenor URL'lerini temizle
+        $tenorRegexes = [
+            '/https:\/\/media[0-9]?\.tenor\.com\/[^\s]+\.gif/i',  // Normal Tenor URL
+            '/https:\/\/tenor\.com\/[^\s]+/i',                    // Kısa Tenor URL
+            '/https:\/\/c\.tenor\.com\/[^\s]+/i',                 // Alternatif Tenor URL
+            '/https:\/\/media1\.tenor\.com\/[^\s]+/i',            // Tenor media1 URL
+            '/https:\/\/media\.tenor\.com\/[^\s]+/i'              // Tenor media URL
+        ];
+        
+        foreach ($tenorRegexes as $regex) {
+            $text = preg_replace($regex, '', $text);
+        }
+        
+        // GIF/Tenor ifadelerini içeren açıklama cümlelerini temizle
+        $text = preg_replace('/\b(işte|burada|al(, | |)|bak(, | |))(sana |size |senin |sizin |bir |birkaç |bu |şu |)[a-zğüşıöç\s]+(gif|tenor)[a-zğüşıöç\s]*/ui', '', $text);
+        $text = preg_replace('/\b[a-zğüşıöç\s]+(gif|tenor)[a-zğüşıöç\s]*(gönderiyorum|atıyorum|paylaşıyorum|gösteriyorum)\b/ui', '', $text);
         
         // Ardışık boşlukları ve gereksiz satır sonlarını temizle
         $text = preg_replace('/\n\s*\n(\s*\n)+/', "\n\n", $text);
@@ -1323,25 +1344,25 @@ Bu talimatları çok titizlikle uygula, bu sorunun kullanıcıyla hiçbir ilgisi
         $emotionDetectors = [
             // Pozitif duygular
             'happy' => [
-                'keywords' => ['mutlu', 'sevinç', 'harika', 'güzel', 'muhteşem', 'süper', 'iyi'],
+                'keywords' => ['mutlu', 'sevinç', 'harika', 'güzel', 'muhteşem', 'süper', 'iyi', 'neşeli', 'keyifli'],
                 'ai_indicators' => ['HAHAHA', 'OHAAA', 'YEEEY', 'VAYY', 'OOO', 'WOWW'],
                 'threshold' => 2, // Duygusal yoğunluk eşiği
                 'chance_multiplier' => 2.0, // GIF gösterme olasılığı çarpanı
             ],
             'excited' => [
-                'keywords' => ['heyecan', 'coşku', 'inanılmaz', 'müthiş', 'çok heyecanlı', 'heyecanlı'],
+                'keywords' => ['heyecan', 'coşku', 'inanılmaz', 'müthiş', 'çok heyecanlı', 'heyecanlı', 'vay canına'],
                 'ai_indicators' => ['WOWW', 'VAYY CANINA', 'EVETTT', 'OHAA', 'SÜPERR'],
                 'threshold' => 1,
                 'chance_multiplier' => 1.8,
             ],
             'love' => [
-                'keywords' => ['sevgi', 'aşk', 'seviyorum', 'sevimli', 'tatlı', 'çok sevdim'],
+                'keywords' => ['sevgi', 'aşk', 'seviyorum', 'sevimli', 'tatlı', 'çok sevdim', 'harika'],
                 'ai_indicators' => ['AWWW', 'KALP', '❤️', 'SEVDİM', 'CANIM'],
                 'threshold' => 2,
                 'chance_multiplier' => 1.7,
             ],
             'cool' => [
-                'keywords' => ['havalı', 'tarz', 'mükemmel', 'çok iyi', 'şahane'],
+                'keywords' => ['havalı', 'tarz', 'mükemmel', 'çok iyi', 'şahane', 'cool', 'süper'],
                 'ai_indicators' => ['COOL', 'B)', 'HAVALIYIM', 'ŞAHANEE'],
                 'threshold' => 2,
                 'chance_multiplier' => 1.5,
@@ -1349,19 +1370,19 @@ Bu talimatları çok titizlikle uygula, bu sorunun kullanıcıyla hiçbir ilgisi
             
             // Negatif duygular
             'angry' => [
-                'keywords' => ['kızgın', 'öfkeli', 'sinirli', 'kızdım', 'sinirlendim'],
+                'keywords' => ['kızgın', 'öfkeli', 'sinirli', 'kızdım', 'sinirlendim', 'kızgınım', 'sinir'],
                 'ai_indicators' => ['ARGH', 'YA YETER', 'SAÇMALIK', 'GRR', 'OFF'],
                 'threshold' => 2,
                 'chance_multiplier' => 1.7,
             ],
             'sad' => [
-                'keywords' => ['üzgün', 'üzüldüm', 'mutsuz', 'hüzünlü', 'kederli'],
+                'keywords' => ['üzgün', 'üzüldüm', 'mutsuz', 'hüzünlü', 'kederli', 'üzücü', 'maalesef'],
                 'ai_indicators' => ['AHHHH', 'ÜZGÜNÜM', ':(', 'OFF', 'KIYAMAM'],
                 'threshold' => 2,
                 'chance_multiplier' => 1.8,
             ],
             'confused' => [
-                'keywords' => ['kafam karıştı', 'anlamadım', 'garip', 'tuhaf', 'kafam karışık'],
+                'keywords' => ['kafam karıştı', 'anlamadım', 'garip', 'tuhaf', 'kafam karışık', 'şaşırdım'],
                 'ai_indicators' => ['HMMMM', 'ANLAMADIM', 'NE?', '???', 'KAFAM KARIŞTI'],
                 'threshold' => 2,
                 'chance_multiplier' => 1.6,
@@ -1369,37 +1390,37 @@ Bu talimatları çok titizlikle uygula, bu sorunun kullanıcıyla hiçbir ilgisi
             
             // Diğer durumlar
             'surprised' => [
-                'keywords' => ['şaşırdım', 'hayret', 'inanılmaz', 'vay canına', 'şaşkınım'],
+                'keywords' => ['şaşırdım', 'hayret', 'inanılmaz', 'vay canına', 'şaşkınım', 'şok'],
                 'ai_indicators' => ['VAY CANINA', 'HAYRET', 'İNANILMAZ', 'ŞAŞIRDIM', 'OLAMAZ'],
                 'threshold' => 2,
                 'chance_multiplier' => 1.8,
             ],
             'lol' => [
-                'keywords' => ['komik', 'gülmek', 'kahkaha', 'esprili', 'komiklik'],
+                'keywords' => ['komik', 'gülmek', 'kahkaha', 'esprili', 'komiklik', 'haha', 'gülümsedim'],
                 'ai_indicators' => ['HAHAHA', 'LOL', 'XDDD', ':D', 'GÜLÜYORUM'],
                 'threshold' => 1,
                 'chance_multiplier' => 2.0,
             ],
             'facepalm' => [
-                'keywords' => ['saçmalık', 'olmaz', 'inanamıyorum', 'imkansız', 'ah be'],
+                'keywords' => ['saçmalık', 'olmaz', 'inanamıyorum', 'imkansız', 'ah be', 'of ya'],
                 'ai_indicators' => ['FACEPALM', 'OF YA', 'AH BE', 'HAYIR YA', 'İNANAMIYORUM'],
                 'threshold' => 2,
                 'chance_multiplier' => 1.7,
             ],
             'crying' => [
-                'keywords' => ['ağlıyorum', 'hüngür', 'gözyaşı', 'duygulandım', 'duygulandırıcı'],
+                'keywords' => ['ağlıyorum', 'hüngür', 'gözyaşı', 'duygulandım', 'duygulandırıcı', 'ağlamaklı'],
                 'ai_indicators' => ['AĞLIYORUM', '😭', 'HÜNGÜÜR', 'GÖZ YAŞLARIM'],
                 'threshold' => 2,
                 'chance_multiplier' => 1.8,
             ],
             'shrug' => [
-                'keywords' => ['bilmem', 'belki', 'olabilir', 'kim bilir', 'bilemiyorum'],
+                'keywords' => ['bilmem', 'belki', 'olabilir', 'kim bilir', 'bilemiyorum', 'emin değilim'],
                 'ai_indicators' => ['¯\\_(ツ)_/¯', 'BİLMEM Kİ', 'KİM BİLİR', 'BELKI'],
                 'threshold' => 2,
                 'chance_multiplier' => 1.3,
             ],
             'wink' => [
-                'keywords' => ['göz kırpma', 'anladın mı', 'biliyor musun', 'gizli', 'ima'],
+                'keywords' => ['göz kırpma', 'anladın mı', 'biliyor musun', 'gizli', 'ima', 'sır'],
                 'ai_indicators' => [';)', 'GÖZ KIRPTI', 'ANLARSIN YA', 'EHE'],
                 'threshold' => 2,
                 'chance_multiplier' => 1.4,
@@ -1444,9 +1465,9 @@ Bu talimatları çok titizlikle uygula, bu sorunun kullanıcıyla hiçbir ilgisi
         $topEmotion = key($emotionScores);
         $emotionData = $emotionScores[$topEmotion];
         
-        // GIF gösterme olasılığını hesapla
-        $baseChance = 30; // Temel %30 şans
-        $calculatedChance = min(60, $baseChance * $emotionData['chance_multiplier']); // En fazla %60 olacak şekilde
+        // GIF gösterme olasılığını hesapla (artırılmış olasılık)
+        $baseChance = 40; // Temel %35 şans (kullanıcının isteğine göre ayarlandı)
+        $calculatedChance = min(70, $baseChance * $emotionData['chance_multiplier']); // En fazla %60 olacak şekilde
         
         // Hesaplanan olasılığa göre GIF gösterilip gösterilmeyeceğine karar ver
         $shouldShowGif = (mt_rand(1, 100) <= $calculatedChance);

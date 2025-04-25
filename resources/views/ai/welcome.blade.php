@@ -231,161 +231,165 @@
     <div class="welcome-container">
         <div class="welcome-title">WELCOME TO SONE AI</div>
         
-        @if(session()->has('visitor_name'))
-            <div class="welcome-subtitle">HOŞ GELDİN, {{ strtoupper(session('visitor_name')) }}!</div>
-            
-            <div id="loading-section">
-                <div class="loading-container">
-                    <div class="loading-circle"></div>
-                    <div class="loading-circle loading-circle-2"></div>
-                    <div class="loading-circle loading-circle-3"></div>
-                    <div class="glow-effect"></div>
-                </div>
+        <div id="welcome-content">
+            <!-- İçerik JavaScript ile doldurulacak -->
+        </div>
+        
+        <script>
+            // Sayfa yüklendiğinde çalışacak fonksiyon
+            document.addEventListener('DOMContentLoaded', function() {
+                // Önce cookie'den kullanıcı adını kontrol et
+                let username = getCookie('visitor_name');
                 
-                <div class="loading-bar-container">
-                    <div class="loading-bar" id="loading-bar"></div>
-                </div>
-                <div class="percentage" id="percentage">0%</div>
-            </div>
-            
-            <script>
-                // Sayfa yüklendiğinde otomatik yükleme başlat
-                document.addEventListener('DOMContentLoaded', function() {
-                    startLoadingAnimation();
-                });
-                
-                // Yükleme animasyonu fonksiyonu
-                function startLoadingAnimation() {
-                    const loadingBar = document.getElementById('loading-bar');
-                    const percentageElement = document.getElementById('percentage');
-                    
-                    let currentPercentage = 0;
-                    const duration = 4900; // 5 saniyeden biraz az (yönlendirme için)
-                    const interval = 30; // Her 30ms'de bir güncelleme
-                    const steps = duration / interval;
-                    const increment = 100 / steps;
-                    
-                    const loadingInterval = setInterval(() => {
-                        currentPercentage += increment;
-                        
-                        if (currentPercentage >= 100) {
-                            currentPercentage = 100;
-                            clearInterval(loadingInterval);
-                            
-                            // Chat sayfasına yönlendir
-                            setTimeout(() => {
-                                window.location.href = "{{ route('ai.chat') }}";
-                            }, 500);
-                        }
-                        
-                        const displayPercentage = Math.floor(currentPercentage);
-                        loadingBar.style.width = `${currentPercentage}%`;
-                        percentageElement.textContent = `${displayPercentage}%`;
-                        
-                    }, interval);
+                if (username) {
+                    // Kullanıcı adı varsa hoş geldin ekranını göster
+                    showWelcomeScreen(username);
+                } else if ('{{ session()->has('visitor_name') }}' === '1') {
+                    // Session'da isim varsa onu kullan
+                    showWelcomeScreen('{{ session('visitor_name') }}');
+                } else {
+                    // Kullanıcı adı yoksa giriş formunu göster
+                    showLoginForm();
                 }
-            </script>
-        @else
-            <div class="welcome-subtitle">ENTER YOUR NAME TO START</div>
+            });
             
-            <div class="username-container">
-                <form id="usernameForm">
-                    <input type="text" id="username" class="username-input" placeholder="Type your name here..." autocomplete="off" required>
-                    <button type="submit" class="username-button">START</button>
-                </form>
-            </div>
+            // Cookie'den değer okuma fonksiyonu
+            function getCookie(name) {
+                const value = `; ${document.cookie}`;
+                const parts = value.split(`; ${name}=`);
+                if (parts.length === 2) return parts.pop().split(';').shift();
+                return null;
+            }
             
-            <div id="loading-section" class="hidden">
-                <div class="loading-container">
-                    <div class="loading-circle"></div>
-                    <div class="loading-circle loading-circle-2"></div>
-                    <div class="loading-circle loading-circle-3"></div>
-                    <div class="glow-effect"></div>
-                </div>
+            // Hoş geldin ekranını gösterme fonksiyonu
+            function showWelcomeScreen(username) {
+                const welcomeContent = document.getElementById('welcome-content');
                 
-                <div class="loading-bar-container">
-                    <div class="loading-bar" id="loading-bar"></div>
-                </div>
-                <div class="percentage" id="percentage">0%</div>
-            </div>
+                welcomeContent.innerHTML = `
+                    <div class="welcome-subtitle">HOŞ GELDİN, ${username.toUpperCase()}!</div>
+                    
+                    <div id="loading-section">
+                        <div class="loading-container">
+                            <div class="loading-circle"></div>
+                            <div class="loading-circle loading-circle-2"></div>
+                            <div class="loading-circle loading-circle-3"></div>
+                            <div class="glow-effect"></div>
+                        </div>
+                        
+                        <div class="loading-bar-container">
+                            <div class="loading-bar" id="loading-bar"></div>
+                        </div>
+                        <div class="percentage" id="percentage">0%</div>
+                    </div>
+                `;
+                
+                // Yükleme animasyonunu başlat
+                startLoadingAnimation();
+            }
             
-            <script>
-                document.addEventListener('DOMContentLoaded', function() {
-                    const usernameForm = document.getElementById('usernameForm');
-                    const usernameContainer = document.querySelector('.username-container');
-                    const loadingSection = document.getElementById('loading-section');
+            // Giriş formunu gösterme fonksiyonu
+            function showLoginForm() {
+                const welcomeContent = document.getElementById('welcome-content');
+                
+                welcomeContent.innerHTML = `
+                    <div class="welcome-subtitle">ENTER YOUR NAME TO START</div>
                     
-                    // Form gönderimi
-                    usernameForm.addEventListener('submit', function(e) {
-                        e.preventDefault();
-                        
-                        const username = document.getElementById('username').value.trim();
-                        
-                        if (username) {
-                            // Kullanıcı adını kaydet - AJAX ile
-                            saveUsername(username);
-                            
-                            // Form gizlensin, yükleme gösterilsin
-                            usernameContainer.classList.add('hidden');
-                            loadingSection.classList.remove('hidden');
-                            
-                            // Yükleme çubuğunu başlat
-                            startLoadingAnimation();
-                        }
-                    });
+                    <div class="username-container">
+                        <form id="usernameForm">
+                            <input type="text" id="username" class="username-input" placeholder="Type your name here..." autocomplete="off" required>
+                            <button type="submit" class="username-button">START</button>
+                        </form>
+                    </div>
                     
-                    // Kullanıcı adını kaydet
-                    function saveUsername(username) {
-                        fetch('{{ route("save.username") }}', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                            },
-                            body: JSON.stringify({ username: username })
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            console.log('Username saved:', data);
-                        })
-                        .catch(error => {
-                            console.error('Error saving username:', error);
-                        });
-                    }
+                    <div id="loading-section" class="hidden">
+                        <div class="loading-container">
+                            <div class="loading-circle"></div>
+                            <div class="loading-circle loading-circle-2"></div>
+                            <div class="loading-circle loading-circle-3"></div>
+                            <div class="glow-effect"></div>
+                        </div>
+                        
+                        <div class="loading-bar-container">
+                            <div class="loading-bar" id="loading-bar"></div>
+                        </div>
+                        <div class="percentage" id="percentage">0%</div>
+                    </div>
+                `;
+                
+                // Form gönderim olayını ekle
+                const usernameForm = document.getElementById('usernameForm');
+                
+                usernameForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
                     
-                    // Yükleme animasyonu
-                    function startLoadingAnimation() {
-                        const loadingBar = document.getElementById('loading-bar');
-                        const percentageElement = document.getElementById('percentage');
+                    const username = document.getElementById('username').value.trim();
+                    
+                    if (username) {
+                        // Kullanıcı adını kaydet - AJAX ile
+                        saveUsername(username);
                         
-                        let currentPercentage = 0;
-                        const duration = 4900; // 5 saniyeden biraz az (yönlendirme için)
-                        const interval = 30; // Her 30ms'de bir güncelleme
-                        const steps = duration / interval;
-                        const increment = 100 / steps;
+                        // Form gizlensin, yükleme gösterilsin
+                        document.querySelector('.username-container').classList.add('hidden');
+                        document.getElementById('loading-section').classList.remove('hidden');
                         
-                        const loadingInterval = setInterval(() => {
-                            currentPercentage += increment;
-                            
-                            if (currentPercentage >= 100) {
-                                currentPercentage = 100;
-                                clearInterval(loadingInterval);
-                                
-                                // Chat sayfasına yönlendir
-                                setTimeout(() => {
-                                    window.location.href = "{{ route('ai.chat') }}";
-                                }, 500);
-                            }
-                            
-                            const displayPercentage = Math.floor(currentPercentage);
-                            loadingBar.style.width = `${currentPercentage}%`;
-                            percentageElement.textContent = `${displayPercentage}%`;
-                            
-                        }, interval);
+                        // Yükleme çubuğunu başlat
+                        startLoadingAnimation();
                     }
                 });
-            </script>
-        @endif
+            }
+            
+            // Kullanıcı adını kaydet
+            function saveUsername(username) {
+                fetch('{{ route("save.username") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({ username: username })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Username saved:', data);
+                    // Kullanıcı adını cookie'ye de kaydet (1 yıl)
+                    document.cookie = `visitor_name=${username}; max-age=${60*60*24*365}; path=/`;
+                })
+                .catch(error => {
+                    console.error('Error saving username:', error);
+                });
+            }
+            
+            // Yükleme animasyonu fonksiyonu
+            function startLoadingAnimation() {
+                const loadingBar = document.getElementById('loading-bar');
+                const percentageElement = document.getElementById('percentage');
+                
+                let currentPercentage = 0;
+                const duration = 4900; // 5 saniyeden biraz az (yönlendirme için)
+                const interval = 30; // Her 30ms'de bir güncelleme
+                const steps = duration / interval;
+                const increment = 100 / steps;
+                
+                const loadingInterval = setInterval(() => {
+                    currentPercentage += increment;
+                    
+                    if (currentPercentage >= 100) {
+                        currentPercentage = 100;
+                        clearInterval(loadingInterval);
+                        
+                        // Chat sayfasına yönlendir
+                        setTimeout(() => {
+                            window.location.href = "{{ route('ai.chat') }}";
+                        }, 500);
+                    }
+                    
+                    const displayPercentage = Math.floor(currentPercentage);
+                    loadingBar.style.width = `${currentPercentage}%`;
+                    percentageElement.textContent = `${displayPercentage}%`;
+                    
+                }, interval);
+            }
+        </script>
     </div>
     
     <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>

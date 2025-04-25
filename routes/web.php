@@ -11,6 +11,7 @@ use App\Http\Controllers\SearchController;
 use App\Http\Controllers\AIController;
 use App\Http\Controllers\ConsciousnessController;
 use App\Http\Controllers\Admin\MessageHistoryController;
+use App\Http\Controllers\ApiTestController;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -259,4 +260,12 @@ Route::prefix('api/speech')->group(function () {
     Route::post('/to-text', [App\Http\Controllers\SpeechController::class, 'convertSpeechToText']);
     Route::post('/to-speech', [App\Http\Controllers\SpeechController::class, 'convertTextToSpeech']);
     Route::post('/save-audio', [App\Http\Controllers\SpeechController::class, 'saveRecordedAudio']);
+});
+
+// API Test Routes
+Route::prefix('api-test')->group(function () {
+    Route::get('/', [ApiTestController::class, 'testPage']);
+    Route::post('/lizz', [ApiTestController::class, 'testGeminiApi']);
+    Route::post('/generate-code', [ApiTestController::class, 'testCodeGeneration']);
+    Route::post('/chat-response', [ApiTestController::class, 'testChatResponse']);
 });

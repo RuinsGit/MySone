@@ -850,7 +850,7 @@ input:checked + .toggle-slider:before {
 }
 
 .send-button {
-  background: rgba(247, 217, 248, 0.23);
+  background: rgba(16, 20, 223, 0.23);
   color: var(--primary-color);
   border: 1px solid rgba(79, 70, 229, 0.3);
   box-shadow: 0 0 10px rgba(79, 70, 229, 0.2);

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WELCOME</title>
+    <title>SONE AI - Hoşgeldiniz</title>
     <style>
         body {
             margin: 0;
@@ -23,7 +23,7 @@
             position: relative;
             z-index: 1;
             width: 100%;
-            max-width: 500px;
+            max-width: 600px;
             padding: 0 20px;
         }
         
@@ -47,14 +47,79 @@
             color: #9ca3af;
         }
         
-        .username-container {
+        .auth-tabs {
+            display: flex;
+            margin-bottom: 2rem;
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeIn 1s ease-out 0.5s forwards;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.2);
+            width: 300px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .auth-tab {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            background: rgba(30, 41, 59, 0.7);
+            color: #d1d5db;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .auth-tab.active {
+            background: linear-gradient(45deg, #8b5cf6, #6366f1);
+            color: white;
+        }
+        
+        .form-container {
             margin-bottom: 2.5rem;
             opacity: 0;
             transform: translateY(20px);
             animation: fadeIn 1s ease-out 0.8s forwards;
         }
         
-        .username-input {
+        .auth-form {
+            display: none;
+        }
+        
+        .auth-form.active {
+            display: block;
+        }
+        
+        .google-login {
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .google-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 10px 20px;
+            border-radius: 8px;
+            background-color: white;
+            color: #4285F4;
+            border: 2px solid rgba(66, 133, 244, 0.3);
+            font-weight: 500;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            width: 300px;
+            margin: 0 auto;
+        }
+        
+        .google-button:hover {
+            box-shadow: 0 0 20px rgba(66, 133, 244, 0.4);
+            transform: translateY(-2px);
+        }
+        
+        .form-input {
             width: 100%;
             max-width: 300px;
             padding: 12px 20px;
@@ -67,18 +132,19 @@
             transition: all 0.3s ease;
             text-align: center;
             box-shadow: 0 0 15px rgba(99, 102, 241, 0.2);
+            margin-bottom: 15px;
         }
         
-        .username-input:focus {
+        .form-input:focus {
             border-color: #a855f7;
             box-shadow: 0 0 20px rgba(168, 85, 247, 0.4);
         }
         
-        .username-input::placeholder {
+        .form-input::placeholder {
             color: #9ca3af;
         }
         
-        .username-button {
+        .form-button {
             margin-top: 10px;
             padding: 12px 30px;
             font-size: 16px;
@@ -90,12 +156,51 @@
             cursor: pointer;
             transition: all 0.3s ease;
             box-shadow: 0 0 15px rgba(99, 102, 241, 0.3);
+            width: 300px;
         }
         
-        .username-button:hover {
+        .form-button:hover {
             background: linear-gradient(45deg, #a855f7, #818cf8);
             transform: translateY(-2px);
             box-shadow: 0 0 20px rgba(168, 85, 247, 0.5);
+        }
+        
+        .form-link {
+            margin-top: 15px;
+            color: #a855f7;
+            font-size: 14px;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        
+        .divider {
+            display: flex;
+            align-items: center;
+            margin: 20px 0;
+            color: #9ca3af;
+            max-width: 300px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .divider::before, .divider::after {
+            content: "";
+            flex: 1;
+            border-bottom: 1px solid rgba(99, 102, 241, 0.3);
+        }
+        
+        .divider::before {
+            margin-right: 10px;
+        }
+        
+        .divider::after {
+            margin-left: 10px;
+        }
+
+        .error-message {
+            color: #ef4444;
+            font-size: 14px;
+            margin: 10px 0;
         }
         
         .loading-container {
@@ -229,7 +334,7 @@
     <div id="particles-js"></div>
     
     <div class="welcome-container">
-        <div class="welcome-title">WELCOME TO SONE AI</div>
+        <div class="welcome-title">SONE AI</div>
         
         <div id="welcome-content">
             <!-- İçerik JavaScript ile doldurulacak -->
@@ -238,28 +343,21 @@
         <script>
             // Sayfa yüklendiğinde çalışacak fonksiyon
             document.addEventListener('DOMContentLoaded', function() {
-                // Önce cookie'den kullanıcı adını kontrol et
-                let username = getCookie('visitor_name');
+                // Giriş yapmış kullanıcı var mı kontrol et
+                const isLoggedIn = {{ auth()->check() ? 'true' : 'false' }};
                 
-                if (username) {
-                    // Kullanıcı adı varsa hoş geldin ekranını göster
-                    showWelcomeScreen(username);
-                } else if ('{{ session()->has('visitor_name') }}' === '1') {
-                    // Session'da isim varsa onu kullan
-                    showWelcomeScreen('{{ session('visitor_name') }}');
-                } else {
-                    // Kullanıcı adı yoksa giriş formunu göster
-                    showLoginForm();
+                if (isLoggedIn) {
+                    const userName = "{{ auth()->user() ? auth()->user()->name : 'Kullanıcı' }}";
+                    showWelcomeScreen(userName);
+                    return;
                 }
+                
+                // Hata mesajlarını kontrol et
+                const errorMessage = "{{ session('error') ?? '' }}";
+                
+                // Login/Register formlarını göster
+                showAuthForms(errorMessage);
             });
-            
-            // Cookie'den değer okuma fonksiyonu
-            function getCookie(name) {
-                const value = `; ${document.cookie}`;
-                const parts = value.split(`; ${name}=`);
-                if (parts.length === 2) return parts.pop().split(';').shift();
-                return null;
-            }
             
             // Hoş geldin ekranını gösterme fonksiyonu
             function showWelcomeScreen(username) {
@@ -287,75 +385,119 @@
                 startLoadingAnimation();
             }
             
-            // Giriş formunu gösterme fonksiyonu
-            function showLoginForm() {
+            // Auth formları gösterme fonksiyonu
+            function showAuthForms(errorMessage = '') {
                 const welcomeContent = document.getElementById('welcome-content');
                 
                 welcomeContent.innerHTML = `
-                    <div class="welcome-subtitle">ENTER YOUR NAME TO START</div>
+                    <div class="welcome-subtitle">YAPAY ZEKA ASISTANIMIZA HOŞGELDİNİZ</div>
                     
-                    <div class="username-container">
-                        <form id="usernameForm">
-                            <input type="text" id="username" class="username-input" placeholder="Type your name here..." autocomplete="off" required>
-                            <button type="submit" class="username-button">START</button>
-                        </form>
+                    @if (session('error'))
+                    <div class="error-message" style="margin-bottom: 15px; background-color: rgba(239, 68, 68, 0.1); padding: 10px; border-radius: 5px; border-left: 3px solid #ef4444;">
+                        {{ session('error') }}
+                    </div>
+                    @endif
+                    
+                    <div class="auth-tabs">
+                        <div class="auth-tab active" id="login-tab">Giriş</div>
+                        <div class="auth-tab" id="register-tab">Kayıt</div>
                     </div>
                     
-                    <div id="loading-section" class="hidden">
-                        <div class="loading-container">
-                            <div class="loading-circle"></div>
-                            <div class="loading-circle loading-circle-2"></div>
-                            <div class="loading-circle loading-circle-3"></div>
-                            <div class="glow-effect"></div>
+                    <div class="form-container">
+                        ${errorMessage ? `<div class="error-message">${errorMessage}</div>` : ''}
+                        
+                        <!-- Google ile Giriş -->
+                        <div class="google-login">
+                            <a href="{{ route('google.login') }}" class="google-button">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 48 48">
+                                    <path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z"/>
+                                    <path fill="#34A853" d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7C7.96 41.07 15.4 46 24 46z"/>
+                                    <path fill="#FBBC05" d="M11.69 28.18C11.25 26.86 11 25.45 11 24s.25-2.86.69-4.18v-5.7H4.34C2.85 17.09 2 20.45 2 24c0 3.55.85 6.91 2.34 9.88l7.35-5.7z"/>
+                                    <path fill="#EA4335" d="M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2 15.4 2 7.96 6.93 4.34 14.12l7.35 5.7c1.73-5.2 6.58-9.07 12.31-9.07z"/>
+                                </svg>
+                                Google ile devam et
+                            </a>
                         </div>
                         
-                        <div class="loading-bar-container">
-                            <div class="loading-bar" id="loading-bar"></div>
+                        <div class="divider">veya</div>
+                        
+                        <!-- Giriş Formu -->
+                        <div class="auth-form active" id="login-form">
+                            <form method="POST" action="{{ route('login') }}">
+                                @csrf
+                                <input type="email" name="email" class="form-input" placeholder="E-posta Adresi" required value="{{ old('email') }}">
+                                @error('email')
+                                <div class="error-message">{{ $message }}</div>
+                                @enderror
+                                
+                                <input type="password" name="password" class="form-input" placeholder="Şifre" required>
+                                @error('password')
+                                <div class="error-message">{{ $message }}</div>
+                                @enderror
+                                
+                                <div style="margin: 15px 0;">
+                                    <label style="color: #9ca3af; font-size: 14px;">
+                                        <input type="checkbox" name="remember" id="remember" {{ old('remember') ? 'checked' : '' }}>
+                                        Beni Hatırla
+                                    </label>
+                                </div>
+                                
+                                <button type="submit" class="form-button">Giriş Yap</button>
+                            </form>
+                            
+                            <div class="form-link" id="show-register">Hesabınız yok mu? Kayıt olun</div>
                         </div>
-                        <div class="percentage" id="percentage">0%</div>
+                        
+                        <!-- Kayıt Formu -->
+                        <div class="auth-form" id="register-form">
+                            <form method="POST" action="{{ route('register') }}">
+                                @csrf
+                                <input type="text" name="name" class="form-input" placeholder="İsim" required value="{{ old('name') }}">
+                                @error('name')
+                                <div class="error-message">{{ $message }}</div>
+                                @enderror
+                                
+                                <input type="email" name="email" class="form-input" placeholder="E-posta Adresi" required value="{{ old('email') }}">
+                                @error('email')
+                                <div class="error-message">{{ $message }}</div>
+                                @enderror
+                                
+                                <input type="password" name="password" class="form-input" placeholder="Şifre" required>
+                                @error('password')
+                                <div class="error-message">{{ $message }}</div>
+                                @enderror
+                                
+                                <input type="password" name="password_confirmation" class="form-input" placeholder="Şifre Tekrarı" required>
+                                
+                                <button type="submit" class="form-button">Kayıt Ol</button>
+                            </form>
+                            
+                            <div class="form-link" id="show-login">Zaten hesabınız var mı? Giriş yapın</div>
+                        </div>
                     </div>
                 `;
                 
-                // Form gönderim olayını ekle
-                const usernameForm = document.getElementById('usernameForm');
-                
-                usernameForm.addEventListener('submit', function(e) {
-                    e.preventDefault();
-                    
-                    const username = document.getElementById('username').value.trim();
-                    
-                    if (username) {
-                        // Kullanıcı adını kaydet - AJAX ile
-                        saveUsername(username);
-                        
-                        // Form gizlensin, yükleme gösterilsin
-                        document.querySelector('.username-container').classList.add('hidden');
-                        document.getElementById('loading-section').classList.remove('hidden');
-                        
-                        // Yükleme çubuğunu başlat
-                        startLoadingAnimation();
-                    }
+                // Tab değişimi eventleri
+                document.getElementById('login-tab').addEventListener('click', function() {
+                    document.getElementById('login-tab').classList.add('active');
+                    document.getElementById('register-tab').classList.remove('active');
+                    document.getElementById('login-form').classList.add('active');
+                    document.getElementById('register-form').classList.remove('active');
                 });
-            }
-            
-            // Kullanıcı adını kaydet
-            function saveUsername(username) {
-                fetch('{{ route("save.username") }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                    },
-                    body: JSON.stringify({ username: username })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    console.log('Username saved:', data);
-                    // Kullanıcı adını cookie'ye de kaydet (1 yıl)
-                    document.cookie = `visitor_name=${username}; max-age=${60*60*24*365}; path=/`;
-                })
-                .catch(error => {
-                    console.error('Error saving username:', error);
+                
+                document.getElementById('register-tab').addEventListener('click', function() {
+                    document.getElementById('register-tab').classList.add('active');
+                    document.getElementById('login-tab').classList.remove('active');
+                    document.getElementById('register-form').classList.add('active');
+                    document.getElementById('login-form').classList.remove('active');
+                });
+                
+                document.getElementById('show-register').addEventListener('click', function() {
+                    document.getElementById('register-tab').click();
+                });
+                
+                document.getElementById('show-login').addEventListener('click', function() {
+                    document.getElementById('login-tab').click();
                 });
             }
             

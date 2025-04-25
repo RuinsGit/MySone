@@ -236,6 +236,90 @@ input:checked + .toggle-slider:before {
   -webkit-text-fill-color: transparent;
 }
 
+.user-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.user-dropdown-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.user-dropdown-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.user-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  color: white;
+  font-size: 14px;
+}
+
+.user-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
+  background: var(--bg-medium);
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  min-width: 160px;
+  z-index: 1000;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(-10px);
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.user-dropdown-menu.show {
+  opacity: 1;
+  transform: translateY(0);
+  visibility: visible;
+}
+
+.user-dropdown-item {
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-light);
+  font-size: 14px;
+  transition: all 0.2s;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.user-dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.user-dropdown-item.logout {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--error);
+}
+
+.user-dropdown-item i {
+  font-size: 16px;
+  opacity: 0.8;
+}
+
 .chat-logo {
   display: flex;
   align-items: center;
@@ -1811,28 +1895,40 @@ button.gradient-btn:hover {
         <!-- Header -->
         <header class="chat-header">
             <div class="chat-header-title">
-                <div class="chat-logo" style="width: 35px; height: 35px;">
-                   <img src="{{ asset('images/sone.png') }}" alt="SoneAI Logo" 
-                   style="background-size:cover;
-                   background-position: center;
-                   background-repeat: no-repeat;
-                   border-radius: 50%;
-                   width: 35px;
-                   height: 35px;
-                   !important;
-                   ">
+                <div class="chat-logo">
+                    <img src="{{ asset('images/sone.png') }}" alt="SoneAI Logo" width="32" height="32">
                 </div>
-                <h1>SoneAI</h1>
-                <div class="ml-4 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
-                    <span id="model-name">SoneAI Turbo</span>
-                </div>
+                <h1 id="chat-title">SoneAI Asistan</h1>
             </div>
+            
             <div class="chat-controls">
-                <button id="fullscreen-toggle" class="p-2 rounded-full hover:bg-gray-100 mr-2" aria-label="Tam Ekran">
-                    <i class="fas fa-expand"></i>
-                </button>
-                <button id="toggle-settings" class="p-2 rounded-full hover:bg-gray-100" aria-label="Ayarlar">
-                    <i class="fas fa-cog"></i>
+                @auth
+                <div class="user-dropdown">
+                    <div class="user-dropdown-toggle" id="userDropdownToggle">
+                        <div class="user-avatar">
+                            @if(auth()->user()->avatar)
+                                <img src="{{ auth()->user()->avatar }}" alt="{{ auth()->user()->name }}" width="28" height="28">
+                            @else
+                                {{ substr(auth()->user()->name, 0, 1) }}
+                            @endif
+                        </div>
+                        <span>{{ auth()->user()->name }}</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="user-dropdown-menu" id="userDropdownMenu">
+                        <form method="POST" action="{{ route('logout') }}">
+                            @csrf
+                            <button type="submit" class="user-dropdown-item logout">
+                                <i class="fas fa-sign-out-alt"></i>
+                                Çıkış Yap
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                @endauth
+                
+                <button id="menu-toggle" class="d-lg-none">
+                    <i class="fas fa-bars"></i>
                 </button>
             </div>
         </header>
@@ -4220,6 +4316,25 @@ button.gradient-btn:hover {
         }
 
         // ... existing code ...
+    });
+
+    // User dropdown toggle
+    document.addEventListener('DOMContentLoaded', function() {
+        const userDropdownToggle = document.getElementById('userDropdownToggle');
+        const userDropdownMenu = document.getElementById('userDropdownMenu');
+        
+        if (userDropdownToggle && userDropdownMenu) {
+            userDropdownToggle.addEventListener('click', function(e) {
+                userDropdownMenu.classList.toggle('show');
+                e.stopPropagation();
+            });
+            
+            document.addEventListener('click', function(e) {
+                if (!userDropdownToggle.contains(e.target) && !userDropdownMenu.contains(e.target)) {
+                    userDropdownMenu.classList.remove('show');
+                }
+            });
+        }
     });
 </script>
 @endsection 

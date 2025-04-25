@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Log;
 use App\Models\ChatMessage;
 use App\Models\Chat;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Auth;
 
 class ChatController extends Controller
 {
@@ -153,91 +154,66 @@ class ChatController extends Controller
     public function sendMessage(Request $request)
     {
         try {
-            // Gelen mesaj ve chat ID'sini al
+            // ChatId verilmişse var olan sohbeti kullan, yoksa yeni oluştur
+            $chatId = $request->input('chat_id');
+            
+            // Mesaj içeriği
             $message = $request->input('message');
             
-            // Mesaj boş mu kontrol et
-            if (empty($message)) {
-                return response()->json([
-                    'success' => true,
-                    'response' => 'Lütfen bir mesaj yazın.'
-                ]);
-            }
+            // Kullanıcı adı kontrolü
+            $visitorName = '';
             
-            // Kullanıcı adını kontrol et ve kaydet (eğer bu ilk mesajsa ve henüz bir ad yoksa)
-            if (!session('visitor_name') && $request->input('is_first_message', false)) {
-                $visitorName = $message;
-                session(['visitor_name' => $visitorName]);
+            // Auth kontrolü - giriş yapmış kullanıcı varsa
+            if (Auth::check()) {
+                $visitorName = Auth::user()->name;
+            } else {
+                // Sohbet öncesi ziyaretçiden ad istedik mi?
+                $shouldAskName = !session('visitor_name') && !$request->input('visitor_name');
+                $isFirstMessage = $request->input('is_first_message', false);
                 
-                // Kullanıcı adını veritabanına kaydet
-                try {
-                    $deviceInfo = DeviceHelper::getUserDeviceInfo();
-                    $visitorId = session('visitor_id');
+                if ($shouldAskName && $isFirstMessage) {
+                    // İlk mesajı kullanıcı adı olarak kaydet
+                    $visitorName = $message;
+                    session(['visitor_name' => $visitorName]);
                     
-                    // Visitor_names tablosuna kaydet
-                    \DB::table('visitor_names')->updateOrInsert(
-                        ['visitor_id' => $visitorId],
-                        [
-                            'name' => $visitorName,
-                            'ip_address' => $deviceInfo['ip_address'],
-                            'device_info' => $deviceInfo['device_info'],
-                            'created_at' => now(),
-                            'updated_at' => now()
-                        ]
-                    );
+                    // Kullanıcı adını kaydet
+                    $response = [
+                        'success' => true,
+                        'response' => "Merhaba $visitorName! Size nasıl yardımcı olabilirim?",
+                        'name_saved' => true,
+                    ];
                     
-                    \Log::info('Yeni kullanıcı adı kaydedildi', [
-                        'visitor_id' => $visitorId,
-                        'name' => $visitorName,
-                        'ip' => $deviceInfo['ip_address']
+                    // Sohbet oluştur
+                    $chat = Chat::create([
+                        'title' => "Sohbet - $visitorName",
+                        'visitor_id' => session('visitor_id'),
                     ]);
-                } catch (\Exception $e) {
-                    \Log::error('Kullanıcı adı kayıt hatası: ' . $e->getMessage());
-                }
-                
-                // Sadece ad kaydedildi, kullanıcıya hoş geldin mesajı gönder
-                return response()->json([
-                    'success' => true,
-                    'response' => "Merhaba {$visitorName}! Size nasıl yardımcı olabilirim?",
-                    'name_saved' => true
-                ]);
-            }
-            
-            // Frontend'den gelen visitor_name varsa, session ve veritabanında güncelle
-            $visitorName = $request->input('visitor_name');
-            if (!empty($visitorName) && $visitorName != session('visitor_name')) {
-                session(['visitor_name' => $visitorName]);
-                
-                // Veritabanında da güncelle
-                try {
-                    $deviceInfo = DeviceHelper::getUserDeviceInfo();
-                    $visitorId = session('visitor_id');
                     
-                    // Visitor_names tablosuna kaydet
-                    \DB::table('visitor_names')->updateOrInsert(
-                        ['visitor_id' => $visitorId],
-                        [
-                            'name' => $visitorName,
-                            'ip_address' => $deviceInfo['ip_address'],
-                            'device_info' => $deviceInfo['device_info'],
-                            'updated_at' => now()
-                        ]
-                    );
+                    // Mesajları kaydet
+                    $this->saveMessages($message, $response['response'], $chat->id, $visitorName);
                     
-                    \Log::info('Kullanıcı adı güncellendi', [
-                        'visitor_id' => $visitorId,
-                        'name' => $visitorName
-                    ]);
-                } catch (\Exception $e) {
-                    \Log::error('Kullanıcı adı güncelleme hatası: ' . $e->getMessage());
+                    // Chat ID döndür
+                    $response['chat_id'] = $chat->id;
+                    
+                    return response()->json($response);
+                } else {
+                    // Session'dan veya requestten al
+                    $visitorName = session('visitor_name') ?: $request->input('visitor_name', 'Kullanıcı');
                 }
             }
             
-            $chatId = $request->input('chat_id');
+            // Yaratıcı mod ve kodlama modu seçenekleri
             $creativeMode = $request->input('creative_mode', false);
             $codingMode = $request->input('coding_mode', false);
-            $selectedModel = $request->input('model', 'gemini'); // Varsayılan olarak Gemini
-            $chatHistory = $request->input('chat_history', []); // Sohbet geçmişini al
+            
+            // Tercih edilen dil
+            $preferredLanguage = $request->input('preferred_language', 'javascript');
+            
+            // Model seçimi
+            $selectedModel = $request->input('model', 'gemini');
+            
+            // Sohbet geçmişini al
+            $chatHistory = $request->input('chat_history', []);
             
             // Mesaj işleme
             try {
@@ -246,8 +222,9 @@ class ChatController extends Controller
                     'coding_mode' => $codingMode,
                     'selected_model' => $selectedModel,
                     'chat_id' => $chatId,
-                    'chat_history' => $chatHistory, // Sohbet geçmişini ekle
-                    'visitor_name' => $visitorName // Kullanıcı adını ekle
+                    'chat_history' => $chatHistory,
+                    'visitor_name' => $visitorName,
+                    'preferred_language' => $preferredLanguage
                 ]);
                 
                 // Eğer dönen değer bir array ise (kod yanıtı) onu doğrudan kullan
@@ -3120,197 +3097,79 @@ class ChatController extends Controller
     private function saveMessages($userMessage, $aiResponse, $chatId = null, $visitorName = '')
     {
         try {
-            // Hata ayıklama: Fonksiyon başlangıcı
-            Log::info('saveMessages fonksiyonu çağrıldı', [
-                'chat_id' => $chatId,
-                'visitor_name' => $visitorName,
-                'user_message_length' => mb_strlen($userMessage),
-                'ai_response_length' => mb_strlen($aiResponse)
-            ]);
-            
-            // Visitor ID kontrol et
-            $visitorId = session('visitor_id');
-            if (empty($visitorId)) {
-                // Visitor ID yoksa oluştur
-                $visitorId = uniqid('visitor_', true);
-                session(['visitor_id' => $visitorId]);
+            // Eğer auth varsa kullanıcı bilgilerini buradan al
+            if (Auth::check()) {
+                $userId = Auth::id();
+                $visitorName = Auth::user()->name;
                 
-                Log::info('Yeni ziyaretçi ID oluşturuldu', ['visitor_id' => $visitorId]);
-            }
-            
-            // Kullanıcı adını kontrol et
-            if (empty($visitorName)) {
-                $visitorName = session('visitor_name', 'Misafir');
-            }
-            
-            // Chat ID yoksa yeni chat oluştur
-            if (empty($chatId)) {
-                try {
-                    Log::info('Yeni chat oluşturuluyor...');
-                    
-                    // Yeni bir chat oluştur
+                // Eğer chatId yoksa ve auth varsa, kullanıcıya ait bir chat oluştur
+                if (empty($chatId)) {
                     $chat = Chat::create([
-                        'user_id' => auth()->check() ? auth()->id() : null,
                         'title' => $this->generateChatTitle($userMessage),
-                        'status' => 'active',
-                        'context' => [
-                            'emotional_state' => $this->getEmotionalState(),
-                            'first_message' => $userMessage,
-                            'visitor_id' => $visitorId,
-                            'visitor_name' => $visitorName,
-                            'created_at' => now()->toDateTimeString(),
-                            'browser_info' => request()->header('User-Agent')
-                        ]
+                        'visitor_id' => session('visitor_id'),
+                        'user_id' => $userId // Kullanıcı id'sini de ekle
                     ]);
-                    
                     $chatId = $chat->id;
-                    Log::info('Yeni chat oluşturuldu', ['chat_id' => $chatId]);
-                } catch (\Exception $e) {
-                    Log::error('Chat oluşturma hatası: ' . $e->getMessage(), [
-                        'file' => $e->getFile(),
-                        'line' => $e->getLine(),
-                        'trace' => $e->getTraceAsString()
+                }
+            } else {
+                // Ziyaretçi bilgisini kullan
+                $userId = null;
+                $visitorName = $visitorName ?: session('visitor_name', 'Ziyaretçi');
+                
+                // chatId yoksa oluştur
+                if (empty($chatId)) {
+                    $chat = Chat::create([
+                        'title' => $this->generateChatTitle($userMessage),
+                        'visitor_id' => session('visitor_id')
                     ]);
-                    
-                    // Chat oluşturulamazsa yine de mesajları kaydetmeye çalışalım
-                    // Geçici bir chat ID oluştur
-                    if (empty($chatId)) {
-                        $chatId = 'temp_' . uniqid();
-                        Log::warning('Geçici chat ID oluşturuldu', ['temp_chat_id' => $chatId]);
-                    }
+                    $chatId = $chat->id;
                 }
             }
             
-            // Mevcut chat'i kontrol et ve bulunamazsa yeni oluştur
-            try {
-                $chat = Chat::find($chatId);
-                Log::info('Chat arama sonucu', ['chat_id' => $chatId, 'found' => !is_null($chat)]);
-                
-                if (!$chat && is_numeric($chatId)) {
-                    Log::warning('Chat bulunamadı, yeni oluşturuluyor', ['chat_id' => $chatId]);
-                    
-                    // Chat bulunamadıysa yeni bir tane oluştur
-                    $chat = Chat::create([
-                        'user_id' => auth()->check() ? auth()->id() : null,
-                        'title' => $this->generateChatTitle($userMessage),
-                        'status' => 'active',
-                        'context' => [
-                            'emotional_state' => $this->getEmotionalState(),
-                            'first_message' => $userMessage,
-                            'visitor_id' => $visitorId,
-                            'visitor_name' => $visitorName,
-                            'recovered' => true,
-                            'original_chat_id' => $chatId,
-                            'created_at' => now()->toDateTimeString()
-                        ]
-                    ]);
-                    
-                    $chatId = $chat->id;
-                    Log::info('Kayıp chat yerine yenisi oluşturuldu', [
-                        'old_chat_id' => $chatId, 
-                        'new_chat_id' => $chat->id
-                    ]);
-                }
-            } catch (\Exception $e) {
-                Log::error('Chat arama/oluşturma hatası: ' . $e->getMessage(), [
-                    'chat_id' => $chatId,
-                    'file' => $e->getFile(),
-                    'line' => $e->getLine()
-                ]);
-            }
-
-            // Kullanıcı cihaz bilgilerini al
-            $deviceInfo = DeviceHelper::getUserDeviceInfo();
-            
-            // Metadata bilgilerini hazırla
-            $metadata = [
-                'visitor_id' => $visitorId,
-                'visitor_name' => $visitorName,
-                'session_id' => session()->getId(),
-                'timestamp' => now()->timestamp,
-                'user_agent' => request()->header('User-Agent'),
-                'browser' => $deviceInfo['browser'] ?? 'unknown',
-                'device_type' => $deviceInfo['device_type'] ?? 'unknown'
+            // Ziyaretçi meta verisi
+            $visitorMeta = [
+                'visitor_id' => session('visitor_id'),
+                'ip' => request()->ip(),
+                'user_agent' => request()->userAgent(),
+                'session_id' => session()->getId()
             ];
             
-            Log::info('Mesaj kaydı başlıyor', [
+            // Kullanıcı mesajını kaydet
+            $userMessageModel = ChatMessage::create([
                 'chat_id' => $chatId,
+                'user_id' => $userId,
+                'visitor_name' => $visitorName,
+                'content' => $userMessage,
                 'sender' => 'user',
-                'metadata' => $metadata
+                'metadata' => json_encode($visitorMeta)
             ]);
             
-            try {
-                // Kullanıcı mesajını kaydet
-                $userChatMessage = ChatMessage::saveMessage($chatId, $userMessage, 'user', [
-                    'ip_address' => $deviceInfo['ip_address'],
-                    'device_info' => $deviceInfo['device_info'],
-                    'metadata' => $metadata
-                ]);
-                
-                Log::info('Kullanıcı mesajı kaydedildi', ['message_id' => $userChatMessage->id]);
-                
-                // AI yanıtını kaydet
-                $aiChatMessage = ChatMessage::saveMessage($chatId, $aiResponse, 'ai', [
-                    'ip_address' => $deviceInfo['ip_address'],
-                    'device_info' => $deviceInfo['device_info'],
-                    'metadata' => $metadata
-                ]);
-                
-                Log::info('AI yanıtı kaydedildi', ['message_id' => $aiChatMessage->id]);
-                
-                Log::info('Mesajlar başarıyla kaydedildi', [
-                    'chat_id' => $chatId,
-                    'ip' => $deviceInfo['ip_address'],
-                    'visitor_id' => $visitorId,
-                    'user_message_id' => $userChatMessage->id,
-                    'ai_message_id' => $aiChatMessage->id
-                ]);
-            } catch (\Exception $e) {
-                Log::error('Mesaj kaydetme hatası (Create): ' . $e->getMessage(), [
-                    'file' => $e->getFile(),
-                    'line' => $e->getLine(),
-                    'chat_id' => $chatId,
-                    'trace' => $e->getTraceAsString()
-                ]);
-            }
+            // AI yanıtını kaydet
+            $aiMessageModel = ChatMessage::create([
+                'chat_id' => $chatId,
+                'user_id' => $userId,
+                'visitor_name' => $visitorName,
+                'content' => $aiResponse,
+                'sender' => 'ai',
+                'metadata' => json_encode(['reference_message_id' => $userMessageModel->id])
+            ]);
             
-            // VisitorName modelini güncelle veya oluştur
-            try {
-                if (!empty($visitorName) && $visitorName !== 'Misafir') {
-                    // DeviceInfo diziyse JSON string'e dönüştür
-                    $deviceInfoString = is_array($deviceInfo['device_info']) ? 
-                        json_encode($deviceInfo['device_info']) : 
-                        $deviceInfo['device_info'];
-                        
-                    \App\Models\VisitorName::saveVisitorName(
-                        $visitorId,
-                        $visitorName,
-                        $deviceInfo['ip_address'],
-                        $deviceInfoString
-                    );
-                    
-                    Log::info('Ziyaretçi adı kaydedildi/güncellendi', [
-                        'visitor_id' => $visitorId,
-                        'name' => $visitorName
-                    ]);
-                }
-            } catch (\Exception $e) {
-                Log::error('Ziyaretçi adı kaydetme hatası: ' . $e->getMessage(), [
-                    'file' => $e->getFile(),
-                    'line' => $e->getLine()
-                ]);
-            }
-            
-            return $chatId;
-            
+            return [
+                'chat_id' => $chatId,
+                'user_message_id' => $userMessageModel->id,
+                'ai_message_id' => $aiMessageModel->id
+            ];
         } catch (\Exception $e) {
-            Log::error('saveMessages genel hatası: ' . $e->getMessage(), [
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString()
+            Log::error('Mesaj kaydetme hatası: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'chatId' => $chatId,
+                'userMessage' => substr($userMessage, 0, 100) . '...'
             ]);
             
-            return $chatId ?? null;
+            return [
+                'chat_id' => $chatId,
+                'error' => $e->getMessage()
+            ];
         }
     }
 

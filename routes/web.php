@@ -12,6 +12,9 @@ use App\Http\Controllers\AIController;
 use App\Http\Controllers\ConsciousnessController;
 use App\Http\Controllers\Admin\MessageHistoryController;
 use App\Http\Controllers\ApiTestController;
+use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\Auth\GoogleController;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -155,6 +158,17 @@ Route::prefix('api/ai')->group(function () {
 
 // Kullanıcı adını kaydetme route'u
 Route::post('/save-username', [ChatController::class, 'saveUsername'])->name('save.username');
+
+// Kimlik doğrulama rotaları
+Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
+Route::post('/login', [LoginController::class, 'login']);
+Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
+Route::get('/register', [RegisterController::class, 'showRegistrationForm'])->name('register');
+Route::post('/register', [RegisterController::class, 'register']);
+
+// Google login rotaları
+Route::get('/auth/google', [App\Http\Controllers\Auth\GoogleController::class, 'redirectToGoogle'])->name('google.login');
+Route::get('/auth/google/callback', [App\Http\Controllers\Auth\GoogleController::class, 'handleGoogleCallback']);
 
 // APIController için API route
 Route::post('/api/ai/process', [ChatController::class, 'sendMessage']);

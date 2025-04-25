@@ -1907,7 +1907,7 @@ button.gradient-btn:hover {
                     <div class="user-dropdown-toggle" id="userDropdownToggle">
                         <div class="user-avatar">
                             @if(auth()->user()->avatar)
-                                <img src="{{ auth()->user()->avatar }}" alt="{{ auth()->user()->name }}" width="28" height="28">
+                                <img src="{{ auth()->user()->avatar }}" alt="{{ auth()->user()->name }}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">
                             @else
                                 {{ substr(auth()->user()->name, 0, 1) }}
                             @endif
@@ -2481,7 +2481,7 @@ button.gradient-btn:hover {
             const avatarEl = document.createElement('div');
             avatarEl.className = 'message-avatar';
 
-            // AI mesajları için SoneAI logosu, kullanıcı mesajları için kullanıcı ikonu
+            // AI mesajları için SoneAI logosu, kullanıcı mesajları için kullanıcı avatarı
             if (sender === 'ai') {
                 avatarEl.innerHTML = `<img src="{{ asset('images/sone.png') }}" alt="SoneAI Logo" 
                         style="background-size:cover;
@@ -2493,7 +2493,24 @@ button.gradient-btn:hover {
                         !important;
                         ">`;
             } else {
+                // Kullanıcı avatarı - Google'dan gelen avatar varsa kullan, yoksa baş harfini göster
+                @auth
+                if ("{{ auth()->user()->avatar }}") {
+                    avatarEl.innerHTML = `<img src="{{ auth()->user()->avatar }}" alt="{{ auth()->user()->name }}" 
+                        style="background-size:cover;
+                        background-position: center;
+                        background-repeat: no-repeat;
+                        border-radius: 50%;
+                        width: 28px;
+                        height: 28px;
+                        !important;">`;
+                } else {
+                    avatarEl.innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;">
+                        {{ substr(auth()->user()->name, 0, 1) }}</div>`;
+                }
+                @else
                 avatarEl.innerHTML = `<i class="fas fa-user"></i>`;
+                @endauth
             }
 
             messageEl.appendChild(avatarEl);
@@ -2501,7 +2518,7 @@ button.gradient-btn:hover {
             // Kullanıcı adı veya AI adı ekleyerek görüntüle
             const nameEl = document.createElement('div');
             nameEl.className = 'message-sender-name';
-            nameEl.textContent = sender === 'ai' ? 'SoneAI' : (visitorName || '{{ session('visitor_name') }}');
+            nameEl.textContent = sender === 'ai' ? 'SoneAI' : (visitorName || '{{ session('visitor_name') }}' || '{{ auth()->user()->name ?? "Kullanıcı" }}');
             messageEl.appendChild(nameEl);
             
             // Mesaj içeriği
@@ -4640,7 +4657,21 @@ button.gradient-btn:hover {
                 const modalUserEmail = document.querySelector('#userProfileModal p');
                 
                 // Bilgileri doldur
-                if (modalAvatar) modalAvatar.textContent = avatarText;
+                if (modalAvatar) {
+                    @auth
+                    if ("{{ auth()->user()->avatar }}") {
+                        // Google avatarı varsa
+                        modalAvatar.innerHTML = `<img src="{{ auth()->user()->avatar }}" alt="{{ auth()->user()->name }}" 
+                            style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+                    } else {
+                        // Avatar yoksa baş harf
+                        modalAvatar.textContent = avatarText;
+                    }
+                    @else
+                    modalAvatar.textContent = avatarText;
+                    @endauth
+                }
+                
                 if (modalUserName) modalUserName.textContent = userName;
                 
                 // Email ve diğer bilgileri ekle

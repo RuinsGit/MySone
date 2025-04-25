@@ -4,269 +4,279 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\ChatMessage;
-use App\Models\Chat;
 use Illuminate\Support\Facades\DB;
+use App\Models\VisitorName;
+use App\Models\Chat;
+use App\Models\ChatMessage;
+use Illuminate\Support\Facades\Http;
+use App\Models\User;
 
 class UserStatsController extends Controller
 {
     /**
-     * Kullanıcı istatistikleri ana sayfası
+     * Kullanıcı istatistiklerini göster
      */
     public function index()
     {
-        // Tüm IP adreslerini ve mesaj sayılarını al
-        $ipStats = \DB::table('chat_messages')
-            ->select('ip_address', \DB::raw('count(*) as message_count'))
-            ->whereNotNull('ip_address')
-            ->groupBy('ip_address')
-            ->orderBy('message_count', 'desc')
-            ->limit(50)
-            ->get();
-        
-        // visitor_id'ye göre mesaj sayılarını al
-        $visitorStats = \DB::table('chat_messages')
-            ->select(
-                \DB::raw('JSON_EXTRACT(metadata, "$.visitor_id") as visitor_id'),
-                \DB::raw('MIN(ip_address) as ip_address'),
-                \DB::raw('COUNT(*) as message_count')
-            )
-            ->whereRaw('JSON_EXTRACT(metadata, "$.visitor_id") IS NOT NULL')
-            ->groupBy('visitor_id')
-            ->orderBy('message_count', 'desc')
-            ->limit(50)
-            ->get();
-        
-        // JSON_EXTRACT bulunmazsa, LIKE ile dene
-        if ($visitorStats->isEmpty()) {
-            \Log::info('JSON_EXTRACT ile visitor_id bulunamadı, LIKE ile deneniyor');
+        // Tüm ziyaretçi kayıtlarını al
+        $visitors = DB::table('visitor_names')
+            ->select('id', 'visitor_id', 'name', 'ip_address', 'device_info', 'created_at', 'updated_at')
+            ->orderBy('created_at', 'desc')
+            ->paginate(20);
+
+        // Her ziyaretçi için istatistikleri topla
+        foreach ($visitors as $visitor) {
+            // Device info JSON verilerini çöz
+            $visitor->device_info_decoded = json_decode($visitor->device_info, true);
             
-            $visitorStats = \DB::table('chat_messages')
-                ->select(
-                    \DB::raw('SUBSTRING_INDEX(SUBSTRING_INDEX(metadata, \'"visitor_id":"\', -1), \'"\', 1) as visitor_id'),
-                    \DB::raw('MIN(ip_address) as ip_address'),
-                    \DB::raw('COUNT(*) as message_count')
-                )
-                ->where('metadata', 'LIKE', '%"visitor_id"%')
-                ->groupBy('visitor_id')
-                ->orderBy('message_count', 'desc')
-                ->limit(50)
-                ->get();
+            // Her ziyaretçinin mesaj sayısını al
+            $visitor->message_count = DB::table('chat_messages')
+                ->whereRaw('JSON_CONTAINS(metadata, ?, "$.visitor_id")', [$visitor->visitor_id])
+                ->orWhereRaw('metadata LIKE ?', ['%"visitor_id":"' . $visitor->visitor_id . '"%'])
+                ->count();
+                
+            // Son aktif olduğu zamanı al
+            $lastMessage = DB::table('chat_messages')
+                ->whereRaw('JSON_CONTAINS(metadata, ?, "$.visitor_id")', [$visitor->visitor_id])
+                ->orWhereRaw('metadata LIKE ?', ['%"visitor_id":"' . $visitor->visitor_id . '"%'])
+                ->orderBy('created_at', 'desc')
+                ->first();
+                
+            $visitor->last_active = $lastMessage ? $lastMessage->created_at : $visitor->updated_at;
+            
+            // IP adresi bilgilerini göster
+            $visitor->ip_location = $this->getIpDetails($visitor->ip_address);
         }
         
-        // Ziyaretçi adlarını çek
-        $visitorIds = $visitorStats->pluck('visitor_id')->map(function($id) {
-            return str_replace('"', '', $id);
-        })->toArray();
-        
-        $visitorNames = \DB::table('visitor_names')
-            ->whereIn('visitor_id', $visitorIds)
-            ->pluck('name', 'visitor_id')
-            ->toArray();
-        
-        \Log::info('Ziyaretçi istatistikleri alındı', [
-            'visitor_count' => $visitorStats->count(),
-            'ip_count' => $ipStats->count(),
-            'visitor_names_count' => count($visitorNames)
-        ]);
-        
-        // Gün başına mesaj sayısı
-        $dailyMessageStats = \App\Models\ChatMessage::select(
-                \DB::raw('DATE(created_at) as date'), 
-                \DB::raw('COUNT(*) as message_count')
-            )
-            ->groupBy('date')
-            ->orderBy('date', 'desc')
-            ->limit(30)
-            ->get();
-            
-        // Cihaz bilgilerine göre istatistikler (tarayıcı, işletim sistemi vs)
-        $deviceStats = $this->generateDeviceStats();
-            
-        return view('admin.user_stats.index', compact('ipStats', 'visitorStats', 'dailyMessageStats', 'deviceStats', 'visitorNames'));
+        return view('admin.user_stats.index', compact('visitors'));
     }
     
     /**
-     * Belirli bir IP adresine ait mesajları görüntüle
+     * IP detaylarını göster
      */
     public function showIpDetails($ip)
     {
-        // IP adresine ait tüm mesajları al
-        $messages = ChatMessage::where('ip_address', $ip)
-            ->orderBy('created_at', 'desc')
-            ->paginate(50);
-            
-        // IP adresine ait benzersiz ziyaretçi ID'lerini bul
-        $visitorIds = ChatMessage::where('ip_address', $ip)
-            ->select(DB::raw('JSON_EXTRACT(metadata, "$.visitor_id") as visitor_id'))
-            ->whereNotNull('metadata->visitor_id')
-            ->distinct()
-            ->pluck('visitor_id')
-            ->toArray();
-            
-        // IP adresine ait istatistikler
-        $stats = [
-            'total_messages' => ChatMessage::where('ip_address', $ip)->count(),
-            'first_message' => ChatMessage::where('ip_address', $ip)->orderBy('created_at', 'asc')->first(),
-            'last_message' => ChatMessage::where('ip_address', $ip)->orderBy('created_at', 'desc')->first(),
-            'user_messages' => ChatMessage::where('ip_address', $ip)->where('sender', 'user')->count(),
-            'ai_messages' => ChatMessage::where('ip_address', $ip)->where('sender', 'ai')->count(),
-            'unique_visitors' => count($visitorIds)
-        ];
+        // IP adresi hakkında detaylı bilgi al
+        $ipDetails = $this->getIpDetails($ip);
         
-        // Cihaz bilgisi
-        $deviceInfo = null;
-        $latestMessage = ChatMessage::where('ip_address', $ip)
-            ->whereNotNull('device_info')
-            ->orderBy('created_at', 'desc')
-            ->first();
+        // Bu IP adresini kullanan tüm ziyaretçileri bul
+        $visitors = DB::table('visitor_names')
+            ->where('ip_address', $ip)
+            ->get();
             
-        if ($latestMessage && !empty($latestMessage->device_info)) {
-            $deviceInfo = json_decode($latestMessage->device_info, true);
-        }
-        
-        return view('admin.user_stats.ip_details', compact('messages', 'ip', 'stats', 'deviceInfo', 'visitorIds'));
+        // Bu IP'den gelen tüm mesajları al
+        $messages = DB::table('chat_messages')
+            ->where('ip_address', $ip)
+            ->orderBy('created_at', 'desc')
+            ->paginate(20);
+            
+        return view('admin.user_stats.ip_details', compact('ip', 'ipDetails', 'visitors', 'messages'));
     }
     
     /**
-     * Belirli bir ziyaretçi ID'sine ait mesajları görüntüle
+     * Visitor ID'sini temizler (çerez formatı ve tırnak işaretlerini kaldırır)
+     * 
+     * @param string $visitorId
+     * @return string
+     */
+    private function cleanVisitorId($visitorId) 
+    {
+        // Özel karakterleri temizle
+        $cleanId = preg_replace('/[; ].*$/', '', $visitorId);
+        
+        // Tırnak işaretlerini temizle
+        $cleanId = str_replace('"', '', $cleanId);
+        $cleanId = str_replace("'", "", $cleanId);
+        
+        // Boşlukları temizle
+        $cleanId = trim($cleanId);
+        
+        return $cleanId;
+    }
+    
+    /**
+     * Display visitor details
+     *
+     * @param string $visitorId
+     * @return \Illuminate\View\View
      */
     public function showVisitorDetails($visitorId)
     {
-        // Temiz ziyaretçi ID'si oluştur
-        $cleanVisitorId = str_replace('"', '', $visitorId);
-        
-        // Sorgu metodu belirle (JSON_EXTRACT, JSON_CONTAINS veya LIKE)
-        $queryMethod = 'JSON_EXTRACT';
-        $quotedVisitorId = '"' . $cleanVisitorId . '"';
-
-        // Ziyaretçiye ait mesajları, tırnakları temizleyerek sorgula
-        if ($queryMethod === 'JSON_EXTRACT') {
-            $messagesQuery = ChatMessage::whereRaw('JSON_EXTRACT(metadata, "$.visitor_id") = ?', [$quotedVisitorId]);
-            $messagesQuery1 = clone $messagesQuery;
-            $messages = $messagesQuery->orderBy('created_at', 'desc')->paginate(50);
-        } elseif ($queryMethod === 'JSON_CONTAINS') {
-            $messagesQuery = ChatMessage::whereRaw('JSON_CONTAINS(metadata, ?, "$.visitor_id")', [$quotedVisitorId]);
-            $messagesQuery1 = clone $messagesQuery;
-            $messages = $messagesQuery->orderBy('created_at', 'desc')->paginate(50);
-        } else {
-            $messagesQuery = ChatMessage::where('metadata', 'LIKE', '%"visitor_id":"' . $cleanVisitorId . '"%');
-            $messagesQuery1 = clone $messagesQuery;
-            $messages = $messagesQuery->orderBy('created_at', 'desc')->paginate(50);
-        }
-        
-        // Ziyaretçinin bilgilerini çek
-        $visitorInfo = DB::table('visitor_names')->where('visitor_id', $cleanVisitorId)->first();
-        
-        // Kullanılan IP adreslerini bul
-        if ($queryMethod === 'JSON_EXTRACT') {
-            $ipAddresses = ChatMessage::whereRaw('JSON_EXTRACT(metadata, "$.visitor_id") = ?', [$quotedVisitorId])
-                ->select('ip_address')
-                ->distinct()
-                ->pluck('ip_address')
-                ->toArray();
-        } elseif ($queryMethod === 'JSON_CONTAINS') {
-            $ipAddresses = ChatMessage::whereRaw('JSON_CONTAINS(metadata, ?, "$.visitor_id")', [$quotedVisitorId])
-                ->select('ip_address')
-                ->distinct()
-                ->pluck('ip_address')
-                ->toArray();
-        } else {
-            $ipAddresses = ChatMessage::where('metadata', 'LIKE', '%"visitor_id":"' . $cleanVisitorId . '"%')
-                ->select('ip_address')
-                ->distinct()
-                ->pluck('ip_address')
-                ->toArray();
-        }
+        try {
+            \Log::info("Ziyaretçi detayları görüntüleniyor: " . $visitorId);
             
-        // Ziyaretçi istatistikleri
-        $stats = [
-            'total_messages' => $messages->total(),
-            'first_message' => $messagesQuery1->orderBy('created_at', 'asc')->first(),
-            'last_message' => $messagesQuery1->orderBy('created_at', 'desc')->first(),
-            'user_messages' => $messagesQuery1->where('sender', 'user')->count(),
-            'ai_messages' => $messagesQuery1->where('sender', 'ai')->count(),
-            'ip_count' => count($ipAddresses),
-            'visitor_name' => $visitorInfo->name ?? null
-        ];
-        
-        // Cihaz bilgisi
-        $deviceInfo = null;
-        $latestMessage = $messagesQuery1->whereNotNull('device_info')
-            ->orderBy('created_at', 'desc')
-            ->first();
+            // Ziyaretçi ID'sini temizle
+            $cleanedVisitorId = $this->cleanVisitorId($visitorId);
             
-        if ($latestMessage && !empty($latestMessage->device_info)) {
-            $deviceInfo = json_decode($latestMessage->device_info, true);
+            // "deleted" içeren ID'leri google_common_id'ye yönlendir
+            if ($cleanedVisitorId === 'deleted' || 
+                strpos($cleanedVisitorId, 'deleted') !== false ||
+                strpos($cleanedVisitorId, 'visitor_id=deleted') !== false) {
+                \Log::info("Silinmiş visitor_id tespit edildi, Google ortak kimliğine yönlendiriliyor");
+                return redirect()->route('admin.user-stats.visitor-details', 'google_common_id');
+            }
+            
+            // Google kullanıcılarının ortak ziyaretçi ID'si kontrolü
+            if ($cleanedVisitorId === 'google_common_id') {
+                \Log::info("Google kullanıcıları için detaylar görüntüleniyor");
+                
+                // Google hesabıyla giriş yapmış tüm kullanıcıları getir
+                $googleUsers = User::whereNotNull('google_id')->get();
+                
+                // Bu kullanıcıların tüm mesajlarını bul - deleted ID'lerdekileri de dahil et
+                $messages = DB::table('chat_messages')
+                    ->where(function($query) {
+                        $query->where('visitor_id', 'google_common_id')
+                              ->orWhere('visitor_id', 'like', 'google_%')
+                              ->orWhere('visitor_id', 'deleted')
+                              ->orWhere('visitor_id', 'like', '%deleted%');
+                    })
+                    ->orderBy('created_at', 'desc')
+                    ->get();
+                
+                // Bu kullanıcıların sohbetlerini bul - deleted ID'lerdekileri de dahil et
+                $chats = DB::table('chats')
+                    ->where(function($query) {
+                        $query->where('visitor_id', 'google_common_id')
+                              ->orWhere('visitor_id', 'like', 'google_%')
+                              ->orWhere('visitor_id', 'deleted')
+                              ->orWhere('visitor_id', 'like', '%deleted%');
+                    })
+                    ->orderBy('updated_at', 'desc')
+                    ->get();
+                
+                // Google visitor kaydını da göster
+                $visitor = DB::table('visitor_names')
+                    ->where('visitor_id', 'google_common_id')
+                    ->first();
+                
+                // Google visitor kaydı yoksa oluştur
+                if (!$visitor && count($googleUsers) > 0) {
+                    // İlk Google kullanıcısının bilgilerini kullan
+                    $firstUser = $googleUsers->first();
+                    $visitor = DB::table('visitor_names')->insert([
+                        'visitor_id' => 'google_common_id',
+                        'name' => 'Google Kullanıcıları',
+                        'avatar' => $firstUser->avatar,
+                        'ip_address' => request()->ip(),
+                        'user_id' => $firstUser->id,
+                        'created_at' => now(),
+                        'updated_at' => now()
+                    ]);
+                    
+                    // Yeni oluşturulan kaydı al
+                    $visitor = DB::table('visitor_names')
+                        ->where('visitor_id', 'google_common_id')
+                        ->first();
+                }
+                
+                return view('admin.user_stats.visitor_details', [
+                    'isGoogleUser' => true,
+                    'googleUsers' => $googleUsers,
+                    'messages' => $messages,
+                    'chats' => $chats,
+                    'visitor' => $visitor
+                ]);
+            } else {
+                // Normal ziyaretçi (Google kullanıcısı olmayan)
+                $visitor = DB::table('visitor_names')
+                    ->where('visitor_id', $cleanedVisitorId)
+                    ->first();
+                
+                if (!$visitor) {
+                    \Log::warning("Ziyaretçi bulunamadı: " . $cleanedVisitorId);
+                    return redirect()->route('admin.user-stats.index')->with('error', 'Ziyaretçi bulunamadı.');
+                }
+                
+                // Ziyaretçinin mesajlarını bul
+                $messages = DB::table('chat_messages')
+                    ->where('visitor_id', $cleanedVisitorId)
+                    ->orderBy('created_at', 'desc')
+                    ->get();
+                
+                // Ziyaretçinin sohbetlerini bul
+                $chats = DB::table('chats')
+                    ->where('visitor_id', $cleanedVisitorId)
+                    ->orderBy('updated_at', 'desc')
+                    ->get();
+                
+                return view('admin.user_stats.visitor_details', [
+                    'visitor' => $visitor,
+                    'messages' => $messages,
+                    'chats' => $chats
+                ]);
+            }
+        } catch (\Exception $e) {
+            \Log::error('Ziyaretçi detayları görüntülenirken hata: ' . $e->getMessage());
+            return redirect()->route('admin.user-stats.index')->with('error', 'Ziyaretçi detayları görüntülenirken bir hata oluştu: ' . $e->getMessage());
         }
-        
-        \Log::info('Cihaz bilgisi kontrol ediliyor', [
-            'visitor_id' => $visitorId,
-            'device_info_found' => !is_null($deviceInfo),
-            'latest_message_found' => !is_null($latestMessage),
-            'visitor_name' => $visitorInfo->name ?? 'Bulunamadı'
-        ]);
-        
-        return view('admin.user_stats.visitor_details', compact('messages', 'visitorId', 'stats', 'deviceInfo', 'ipAddresses'));
     }
     
     /**
-     * Cihaz istatistiklerini oluştur
+     * IP adresi hakkında ayrıntılı bilgi al
      */
-    private function generateDeviceStats()
+    private function getIpDetails($ip)
     {
-        $stats = [
-            'browsers' => [],
-            'operating_systems' => [],
-            'device_types' => []
-        ];
-        
-        // Benzersiz IP adresleri için son mesajları al
-        $latestMessages = DB::table('chat_messages')
-            ->select('ip_address', DB::raw('MAX(id) as id'))
-            ->whereNotNull('ip_address')
-            ->whereNotNull('device_info')
-            ->groupBy('ip_address')
-            ->get();
-            
-        $messageIds = $latestMessages->pluck('id')->toArray();
-        
-        if (empty($messageIds)) {
-            return $stats;
-        }
-        
-        $messages = ChatMessage::whereIn('id', $messageIds)->get();
-        
-        foreach ($messages as $message) {
-            if (empty($message->device_info)) continue;
-            
-            try {
-                $deviceInfo = json_decode($message->device_info, true);
-                
-                if (isset($deviceInfo['browser'])) {
-                    $browser = $deviceInfo['browser'];
-                    $stats['browsers'][$browser] = ($stats['browsers'][$browser] ?? 0) + 1;
-                }
-                
-                if (isset($deviceInfo['os'])) {
-                    $os = $deviceInfo['os'];
-                    $stats['operating_systems'][$os] = ($stats['operating_systems'][$os] ?? 0) + 1;
-                }
-                
-                if (isset($deviceInfo['device_type'])) {
-                    $deviceType = $deviceInfo['device_type'];
-                    $stats['device_types'][$deviceType] = ($stats['device_types'][$deviceType] ?? 0) + 1;
-                }
-            } catch (\Exception $e) {
-                continue;
+        try {
+            // Eğer localhost veya özel IP ise boş sonuç döndür
+            if (in_array($ip, ['127.0.0.1', 'localhost', '::1']) || 
+                strpos($ip, '192.168.') === 0 || 
+                strpos($ip, '10.') === 0) {
+                return [
+                    'country' => 'Yerel IP',
+                    'region' => 'Yerel Ağ',
+                    'city' => 'Yerel',
+                    'isp' => 'Yerel Bağlantı',
+                    'org' => 'Yerel Organizasyon',
+                    'isVpn' => false,
+                    'isProxy' => false,
+                    'isHosting' => false
+                ];
             }
+            
+            // IP-API kullanarak detayları al (ücretsiz servis)
+            $response = Http::get("http://ip-api.com/json/{$ip}?fields=status,message,country,regionName,city,isp,org,mobile,proxy,hosting");
+            
+            if ($response->successful() && $response['status'] === 'success') {
+                $data = $response->json();
+                
+                return [
+                    'country' => $data['country'] ?? 'Bilinmiyor',
+                    'region' => $data['regionName'] ?? 'Bilinmiyor',
+                    'city' => $data['city'] ?? 'Bilinmiyor',
+                    'isp' => $data['isp'] ?? 'Bilinmiyor',
+                    'org' => $data['org'] ?? 'Bilinmiyor',
+                    'isVpn' => $data['proxy'] ?? false,
+                    'isProxy' => $data['proxy'] ?? false,
+                    'isHosting' => $data['hosting'] ?? false,
+                    'isMobile' => $data['mobile'] ?? false
+                ];
+            }
+            
+            return [
+                'country' => 'Bilgi Yok',
+                'region' => 'Bilgi Yok',
+                'city' => 'Bilgi Yok',
+                'isp' => 'Bilgi Yok',
+                'org' => 'Bilgi Yok',
+                'isVpn' => false,
+                'isProxy' => false,
+                'isHosting' => false
+            ];
+        } catch (\Exception $e) {
+            \Log::error('IP detayları alınırken hata: ' . $e->getMessage());
+            
+            return [
+                'country' => 'Hata',
+                'region' => 'Hata',
+                'city' => 'Hata',
+                'isp' => 'Hata',
+                'org' => 'Hata',
+                'isVpn' => false,
+                'isProxy' => false,
+                'isHosting' => false,
+                'error' => $e->getMessage()
+            ];
         }
-        
-        // Her kategoriyi sırala
-        arsort($stats['browsers']);
-        arsort($stats['operating_systems']);
-        arsort($stats['device_types']);
-        
-        return $stats;
     }
-} 
+}

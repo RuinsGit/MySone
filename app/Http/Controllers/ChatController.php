@@ -80,7 +80,7 @@ class ChatController extends Controller
                     [
                         'name' => $visitorName,
                         'ip_address' => $deviceInfo['ip_address'],
-                        'device_info' => $deviceInfo['device_info'],
+                        'device_info' => json_encode($deviceInfo['device_info']),
                         'user_id' => auth()->id(),
                         'updated_at' => now()
                     ]
@@ -164,8 +164,15 @@ class ChatController extends Controller
                 ]);
             }
             
+            // Kullanıcı adını al
+            // Önceliği Google girişine veriyoruz
+            $visitorName = session('visitor_name');
+            
+            // Eğer kullanıcı Google ile giriş yapmışsa, adını değiştirmesine izin vermiyoruz
+            $googleUser = auth()->check() && auth()->user()->google_id;
+            
             // Kullanıcı adını kontrol et ve kaydet (eğer bu ilk mesajsa ve henüz bir ad yoksa)
-            if (!session('visitor_name') && $request->input('is_first_message', false)) {
+            if (!$visitorName && $request->input('is_first_message', false) && !$googleUser) {
                 $visitorName = $message;
                 session(['visitor_name' => $visitorName]);
                 
@@ -203,9 +210,10 @@ class ChatController extends Controller
                 ]);
             }
             
-            // Frontend'den gelen visitor_name varsa, session ve veritabanında güncelle
-            $visitorName = $request->input('visitor_name');
-            if (!empty($visitorName) && $visitorName != session('visitor_name')) {
+            // Frontend'den gelen visitor_name varsa, Google ile giriş yapmamış kullanıcılar için güncelle
+            $requestVisitorName = $request->input('visitor_name');
+            if (!$googleUser && !empty($requestVisitorName) && $requestVisitorName != $visitorName) {
+                $visitorName = $requestVisitorName;
                 session(['visitor_name' => $visitorName]);
                 
                 // Veritabanında da güncelle
@@ -4533,11 +4541,53 @@ class ChatController extends Controller
                     }
                 }
                 
+                // Kullanıcı adını belirle
+                $userName = $visitorName;
+                
+                // Eğer kullanıcı giriş yapmışsa ve Google ile giriş yapmışsa, Google'dan gelen ismi kullan
+                if(auth()->check() && auth()->user()->google_id) {
+                    $userName = auth()->user()->name;
+                    Log::info("Google hesabı ile giriş yapmış kullanıcı", [
+                        'name' => $userName,
+                        'google_id' => auth()->user()->google_id,
+                        'has_avatar' => !empty(auth()->user()->avatar)
+                    ]);
+                    
+                    // Google'dan gelen ismi session ve veritabanına kaydet
+                    session(['visitor_name' => $userName]);
+                    
+                    try {
+                        $deviceInfo = DeviceHelper::getUserDeviceInfo();
+                        $visitorId = session('visitor_id');
+                        
+                        // Visitor_names tablosuna kaydet
+                        \DB::table('visitor_names')->updateOrInsert(
+                            ['visitor_id' => $visitorId],
+                            [
+                                'name' => $userName,
+                                'avatar' => auth()->user()->avatar,
+                                'ip_address' => $deviceInfo['ip_address'],
+                                'device_info' => $deviceInfo['device_info'],
+                                'user_id' => auth()->id(),
+                                'updated_at' => now()
+                            ]
+                        );
+                        
+                        \Log::info('Google kullanıcı adı kaydedildi', [
+                            'visitor_id' => $visitorId,
+                            'name' => $userName,
+                            'google_id' => auth()->user()->google_id
+                        ]);
+                    } catch (\Exception $e) {
+                        \Log::error('Google kullanıcı adı kayıt hatası: ' . $e->getMessage());
+                    }
+                }
+                
                 // Kullanıcı adı varsa kişiselleştirilmiş bir mesaj oluştur
                 $enhancedMessage = $message;
-                if (!empty($visitorName) && count($chatHistory) <= 2) {
+                if (!empty($userName) && count($chatHistory) <= 2) {
                     // İlk birkaç mesajda kullanıcı adını vurgula
-                    $enhancedMessage = "Bu kullanıcının adı {$visitorName}. Yanıtlarını kişiselleştir ve adıyla hitap et. Mesaj: {$message}";
+                    $enhancedMessage = "Bu kullanıcının adı {$userName}. Yanıtlarını kişiselleştir ve adıyla hitap et. Mesaj: {$message}";
                 }
                 
                 // Gemini API'den yanıt al

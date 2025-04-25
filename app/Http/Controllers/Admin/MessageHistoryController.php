@@ -18,19 +18,45 @@ class MessageHistoryController extends Controller
         $search = $request->input('search', '');
         $filterBy = $request->input('filter_by', 'all');
         $visitorId = $request->input('visitor_id', '');
+        $userName = $request->input('user_name', '');
         
         \Log::info("Mesaj geçmişi sayfası açılıyor", [
             'search' => $search,
             'filter_by' => $filterBy,
-            'visitor_id' => $visitorId
+            'visitor_id' => $visitorId,
+            'user_name' => $userName
         ]);
         
-        // Visitor_names tablosundan tüm ziyaretçileri al
-        $visitors = DB::table('visitor_names')
+        // Önce veritabanından tüm ziyaretçileri al
+        $allVisitors = DB::table('visitor_names')
             ->select('visitor_id', 'name', 'ip_address')
             ->orderBy('name')
             ->get();
             
+        // İsme göre gruplamak için boş bir dizi oluştur
+        $groupedVisitors = [];
+        
+        // Her ziyaretçiyi ismine göre grupla
+        foreach ($allVisitors as $visitor) {
+            $name = $visitor->name ?? 'İsimsiz Ziyaretçi';
+            
+            if (!isset($groupedVisitors[$name])) {
+                // Eğer isim ilk kez görüldüyse, yeni bir grup oluştur
+                $groupedVisitors[$name] = [
+                    'name' => $name,
+                    'first_visitor' => $visitor,  // İlk ziyaretçiyi sakla
+                    'visitors' => [$visitor],     // Tüm ziyaretçileri sakla
+                    'count' => 1,                 // Ziyaretçi sayısını tut
+                    'visitor_ids' => [$visitor->visitor_id]  // Tüm visitor ID'leri sakla
+                ];
+            } else {
+                // Aynı isimli ziyaretçi varsa, mevcut gruba ekle
+                $groupedVisitors[$name]['visitors'][] = $visitor;
+                $groupedVisitors[$name]['count']++;
+                $groupedVisitors[$name]['visitor_ids'][] = $visitor->visitor_id;
+            }
+        }
+        
         // Sorgu oluştur
         $query = ChatMessage::query();
         
@@ -46,8 +72,26 @@ class MessageHistoryController extends Controller
             $query->where('sender', 'ai');
         }
         
+        // Kullanıcı adına göre filtre uygula (öncelikli)
+        if (!empty($userName) && isset($groupedVisitors[$userName])) {
+            // Bu isme sahip tüm ziyaretçi ID'lerini al
+            $visitorIds = $groupedVisitors[$userName]['visitor_ids'];
+            \Log::info("Kullanıcı adına göre filtreleme yapılıyor", [
+                'user_name' => $userName,
+                'visitor_ids' => $visitorIds
+            ]);
+            
+            // Birden fazla visitor ID için OR koşulu oluştur
+            $query->where(function($q) use ($visitorIds) {
+                foreach ($visitorIds as $vId) {
+                    $q->orWhereRaw('JSON_EXTRACT(metadata, "$.visitor_id") = ?', ['"' . $vId . '"'])
+                      ->orWhere('metadata', 'LIKE', '%"visitor_id":"' . $vId . '"%')
+                      ->orWhere('metadata', 'LIKE', '%"visitor_id": "' . $vId . '"%');
+                }
+            });
+        }
         // Belirli bir ziyaretçinin mesajlarını filtrele
-        if (!empty($visitorId)) {
+        elseif (!empty($visitorId)) {
             \Log::info("Visitor ID ile mesaj filtreleme yapılıyor", ['visitor_id' => $visitorId]);
             
             // Çoklu sorgulama stratejisi kullan
@@ -82,13 +126,8 @@ class MessageHistoryController extends Controller
         foreach ($messages as $message) {
             $message->visitor_name = $this->getVisitorName($message);
         }
-        
-        // Ziyaretçi adlarını isimle arama formunda kullanmak için al
-        $visitorNames = DB::table('visitor_names')
-            ->pluck('name', 'visitor_id')
-            ->toArray();
             
-        return view('admin.message_history.index', compact('messages', 'search', 'filterBy', 'visitorId', 'visitors', 'visitorNames'));
+        return view('admin.message_history.index', compact('messages', 'search', 'filterBy', 'visitorId', 'userName', 'groupedVisitors'));
     }
     
     /**
@@ -96,12 +135,79 @@ class MessageHistoryController extends Controller
      */
     public function visitors()
     {
-        $visitors = DB::table('visitor_names')
+        // Önce veritabanından tüm ziyaretçileri al
+        $allVisitors = DB::table('visitor_names')
             ->select('visitor_id', 'name', 'ip_address', 'created_at')
             ->orderBy('name')
             ->get();
+        
+        // İsme göre gruplamak için boş bir dizi oluştur
+        $groupedVisitors = [];
+        
+        // Her ziyaretçiyi ismine göre grupla
+        foreach ($allVisitors as $visitor) {
+            $name = $visitor->name ?? 'İsimsiz Ziyaretçi';
             
-        return view('admin.message_history.visitors', compact('visitors'));
+            if (!isset($groupedVisitors[$name])) {
+                // Eğer isim ilk kez görüldüyse, yeni bir grup oluştur
+                $groupedVisitors[$name] = [
+                    'name' => $name,
+                    'first_visitor' => $visitor,  // İlk ziyaretçiyi sakla
+                    'visitors' => [$visitor],     // Tüm ziyaretçileri sakla
+                    'count' => 1                  // Ziyaretçi sayısını tut
+                ];
+            } else {
+                // Aynı isimli ziyaretçi varsa, mevcut gruba ekle
+                $groupedVisitors[$name]['visitors'][] = $visitor;
+                $groupedVisitors[$name]['count']++;
+            }
+        }
+        
+        // İsimlerin sayısına göre sırala (a-z)
+        ksort($groupedVisitors);
+            
+        return view('admin.message_history.visitors', compact('groupedVisitors'));
+    }
+    
+    /**
+     * POST metodu ile ziyaretçi mesajlarını görüntüle
+     * URL sorunlarını önlemek için tasarlanmıştır
+     */
+    public function viewUser(Request $request)
+    {
+        $visitorId = $request->input('visitor_id');
+        
+        // Boş veya deleted olarak gelen visitor_id kontrolü
+        if (empty($visitorId) || $visitorId === 'deleted') {
+            return redirect()->route('admin.message-history.index')
+                ->with('error', 'Geçersiz ziyaretçi ID\'si: ' . $visitorId);
+        }
+
+        // Özel karakterleri temizle
+        $cleanVisitorId = $this->cleanVisitorId($visitorId);
+        
+        // Ziyaretçinin varlığını kontrol et
+        if (!$this->checkIfVisitorExists($cleanVisitorId)) {
+            return redirect()->route('admin.message-history.index')
+                ->with('error', 'Belirtilen ID için ziyaretçi bulunamadı: ' . $cleanVisitorId);
+        }
+        
+        return $this->userHistory($cleanVisitorId);
+    }
+    
+    private function cleanVisitorId($visitorId) 
+    {
+        // Özel karakterleri temizle
+        $cleanId = preg_replace('/[; ].*$/', '', $visitorId);
+        
+        // Tırnak işaretlerini temizle
+        $cleanId = str_replace('"', '', $cleanId);
+        $cleanId = str_replace("'", "", $cleanId);
+        
+        // Boşlukları temizle
+        $cleanId = trim($cleanId);
+        
+        return $cleanId;
     }
     
     /**
@@ -114,8 +220,11 @@ class MessageHistoryController extends Controller
                 ->with('error', 'Geçersiz ziyaretçi ID\'si');
         }
         
+        // Temizle: URL'den gelebilecek çerez formatındaki değeri temizle
+        $visitorId = $this->cleanVisitorId($visitorId);
+        
         // Debug için visitor ID'yi logla
-        \Log::info("Ziyaretçi mesajları görüntüleniyor", ['visitor_id' => $visitorId]);
+        \Log::info("Ziyaretçi mesajları görüntüleniyor (temizlenmiş ID)", ['visitor_id' => $visitorId]);
         
         // Ziyaretçi bilgilerini al
         $visitor = DB::table('visitor_names')
@@ -124,44 +233,72 @@ class MessageHistoryController extends Controller
             
         // Eğer ziyaretçi bilgisi yoksa ve mesajlarda da bulunamıyorsa hata ver
         if (!$visitor) {
-            $visitorExists = $this->checkIfVisitorExists($visitorId);
-            
-            if (!$visitorExists) {
-                return redirect()->route('admin.message-history.index')
-                    ->with('error', 'Belirtilen ID için ziyaretçi bulunamadı');
-            }
-            
-            // Eğer visitor_names tablosunda kaydı yoksa ama mesajlarda varsa, bir kayıt oluşturalım
-            try {
-                // Ziyaretçiye ait bir mesaj bul
-                $firstMessage = ChatMessage::whereRaw('JSON_EXTRACT(metadata, "$.visitor_id") = ?', ['"' . $visitorId . '"'])
-                    ->where('sender', 'user')
-                    ->orderBy('created_at', 'asc')
-                    ->first();
+            // Temizlenmiş ID ile bulunamadıysa, orijinal ID'ye tırnak işaretleri ekleyerek deneyelim
+            $quotedVisitorId = '"' . $visitorId . '"';
+            $visitor = DB::table('visitor_names')
+                ->where('visitor_id', $quotedVisitorId)
+                ->first();
                 
-                if ($firstMessage) {
-                    $metadata = is_array($firstMessage->metadata) 
-                        ? $firstMessage->metadata 
-                        : json_decode($firstMessage->metadata, true);
+            if (!$visitor) {
+                $visitorExists = $this->checkIfVisitorExists($visitorId);
+                
+                if (!$visitorExists) {
+                    // Ayrıca tırnaklı versiyonla da kontrol edelim
+                    $visitorExists = $this->checkIfVisitorExists($quotedVisitorId);
                     
-                    $visitorName = $metadata['visitor_name'] ?? 'İsimsiz Ziyaretçi';
+                    if ($visitorExists) {
+                        $visitorId = $quotedVisitorId;
+                    } else {
+                        return redirect()->route('admin.message-history.index')
+                            ->with('error', 'Belirtilen ID için ziyaretçi bulunamadı: ' . $visitorId);
+                    }
+                }
+                
+                // Eğer visitor_names tablosunda kaydı yoksa ama mesajlarda varsa, bir kayıt oluşturalım
+                try {
+                    // Ziyaretçiye ait bir mesaj bul (hem normal hem tırnaklı versiyonu dene)
+                    $firstMessage = $this->findFirstMessageByVisitorId($visitorId);
                     
-                    // visitor_names tablosuna ekle
-                    DB::table('visitor_names')->insert([
+                    if (!$firstMessage && $visitorId != $quotedVisitorId) {
+                        $firstMessage = $this->findFirstMessageByVisitorId($quotedVisitorId);
+                        if ($firstMessage) {
+                            $visitorId = $quotedVisitorId;
+                        }
+                    }
+                    
+                    if ($firstMessage) {
+                        $metadata = is_array($firstMessage->metadata) 
+                            ? $firstMessage->metadata 
+                            : json_decode($firstMessage->metadata, true);
+                        
+                        $visitorName = $metadata['visitor_name'] ?? 'İsimsiz Ziyaretçi';
+                        
+                        // visitor_names tablosuna ekle
+                        DB::table('visitor_names')->insert([
+                            'visitor_id' => $visitorId,
+                            'name' => $visitorName,
+                            'ip_address' => $firstMessage->ip_address ?? '127.0.0.1',
+                            'created_at' => now(),
+                            'updated_at' => now()
+                        ]);
+                        
+                        // Yeni oluşturulan kaydı al
+                        $visitor = DB::table('visitor_names')
+                            ->where('visitor_id', $visitorId)
+                            ->first();
+                    } else {
+                        return redirect()->route('admin.message-history.index')
+                            ->with('error', 'Belirtilen ID için mesaj bulunamadı: ' . $visitorId);
+                    }
+                } catch (\Exception $e) {
+                    \Log::error('Eksik ziyaretçi kaydı oluşturma hatası: ' . $e->getMessage(), [
                         'visitor_id' => $visitorId,
-                        'name' => $visitorName,
-                        'ip_address' => $firstMessage->ip_address,
-                        'created_at' => now(),
-                        'updated_at' => now()
+                        'trace' => $e->getTraceAsString()
                     ]);
                     
-                    // Yeni oluşturulan kaydı al
-                    $visitor = DB::table('visitor_names')
-                        ->where('visitor_id', $visitorId)
-                        ->first();
+                    return redirect()->route('admin.message-history.index')
+                        ->with('error', 'Ziyaretçi kaydı oluşturulurken hata: ' . $e->getMessage());
                 }
-            } catch (\Exception $e) {
-                \Log::error('Eksik ziyaretçi kaydı oluşturma hatası: ' . $e->getMessage());
             }
         }
         
@@ -169,46 +306,32 @@ class MessageHistoryController extends Controller
         try {
             \Log::info("Ziyaretçi ID ile mesaj sorgusu yapılıyor", ['visitor_id' => $visitorId]);
             
-            // Farklı sorgulama stratejileri deneyelim
-            $queryMethod = 'multi';
-            
-            if ($queryMethod === 'JSON_EXTRACT') {
-                // JSON_EXTRACT kullanarak sorgulama
-                $messagesQuery = ChatMessage::whereRaw('JSON_EXTRACT(metadata, "$.visitor_id") = ?', ['"' . $visitorId . '"'])
-                    ->orderBy('created_at', 'desc');
-                
-                \Log::info("JSON_EXTRACT metodu kullanıldı");
-            } 
-            elseif ($queryMethod === 'LIKE') {
-                // LIKE kullanarak sorgulama (metadata metin ise)
-                $messagesQuery = ChatMessage::where('metadata', 'LIKE', '%"visitor_id":"' . $visitorId . '"%')
-                    ->orderBy('created_at', 'desc');
-                
-                \Log::info("LIKE metodu kullanıldı");
-            }
-            else {
-                // Tüm olası sorgu yöntemlerini deneyen çoklu yaklaşım
-                $messagesQuery = ChatMessage::where(function($query) use ($visitorId) {
-                    // JSON_EXTRACT ile arama
-                    $query->whereRaw('JSON_EXTRACT(metadata, "$.visitor_id") = ?', ['"' . $visitorId . '"'])
-                    // VEYA metin içinde arama 
-                    ->orWhere('metadata', 'LIKE', '%"visitor_id":"' . $visitorId . '"%')
-                    // VEYA basit bir dizi içinde arama
-                    ->orWhere('metadata', 'LIKE', '%"visitor_id": "' . $visitorId . '"%')
-                    // VEYA chat modelinde context içinde saklıysa
-                    ->orWhereHas('chat', function($q) use ($visitorId) {
-                        $q->whereRaw('JSON_EXTRACT(context, "$.visitor_id") = ?', ['"' . $visitorId . '"'])
-                        ->orWhere('context', 'LIKE', '%"visitor_id":"' . $visitorId . '"%');
-                    });
-                })
-                ->orderBy('created_at', 'desc');
-                
-                \Log::info("Çoklu sorgulama metodu kullanıldı");
-            }
+            // Tüm olası sorgu yöntemlerini deneyen çoklu yaklaşım
+            $messagesQuery = $this->getMessagesByVisitorId($visitorId);
             
             // Bulunan mesaj sayısını logla
             $countBeforePagination = $messagesQuery->count();
             \Log::info("Bulunan toplam mesaj sayısı", ['count' => $countBeforePagination]);
+            
+            // Hiç mesaj bulunamadıysa ve ID'de tırnak yoksa, tırnaklı ID ile deneyelim
+            if ($countBeforePagination == 0 && strpos($visitorId, '"') === false) {
+                $quotedVisitorId = '"' . $visitorId . '"';
+                $messagesQuery = $this->getMessagesByVisitorId($quotedVisitorId);
+                $countBeforePagination = $messagesQuery->count();
+                
+                if ($countBeforePagination > 0) {
+                    $visitorId = $quotedVisitorId;
+                    \Log::info("Tırnaklı ID ile mesajlar bulundu", [
+                        'quoted_id' => $quotedVisitorId,
+                        'count' => $countBeforePagination
+                    ]);
+                }
+            }
+            
+            if ($countBeforePagination == 0) {
+                return redirect()->route('admin.message-history.index')
+                    ->with('error', 'Bu ziyaretçi için mesaj bulunamadı: ' . $visitorId);
+            }
             
             // Ziyaretçinin tüm mesajlarını al (sayfalanmış)
             $messages = clone $messagesQuery;
@@ -254,95 +377,111 @@ class MessageHistoryController extends Controller
     }
     
     /**
+     * Belirtilen ziyaretçi ID'sine ait ilk mesajı bul
+     */
+    private function findFirstMessageByVisitorId($visitorId)
+    {
+        try {
+            // JSON_EXTRACT ile deneyelim
+            $message = ChatMessage::whereRaw('JSON_EXTRACT(metadata, "$.visitor_id") = ?', [$visitorId])
+                ->where('sender', 'user')
+                ->orderBy('created_at', 'asc')
+                ->first();
+                
+            if ($message) return $message;
+            
+            // LIKE ile deneyelim
+            $message = ChatMessage::where('metadata', 'LIKE', '%"visitor_id":"' . str_replace('"', '\"', $visitorId) . '"%')
+                ->orWhere('metadata', 'LIKE', '%"visitor_id": "' . str_replace('"', '\"', $visitorId) . '"%')
+                ->where('sender', 'user')
+                ->orderBy('created_at', 'asc')
+                ->first();
+                
+            return $message;
+        } catch (\Exception $e) {
+            \Log::error('İlk mesaj aranırken hata: ' . $e->getMessage());
+            return null;
+        }
+    }
+    
+    /**
+     * Belirtilen ziyaretçi ID'sine ait tüm mesajları sorgula
+     */
+    private function getMessagesByVisitorId($visitorId)
+    {
+        return ChatMessage::where(function($query) use ($visitorId) {
+            // JSON_EXTRACT ile arama
+            $query->whereRaw('JSON_EXTRACT(metadata, "$.visitor_id") = ?', [$visitorId])
+            // VEYA metin içinde arama
+            ->orWhere('metadata', 'LIKE', '%"visitor_id":"' . str_replace('"', '\"', $visitorId) . '"%')
+            // VEYA basit bir dizi içinde arama
+            ->orWhere('metadata', 'LIKE', '%"visitor_id": "' . str_replace('"', '\"', $visitorId) . '"%')
+            // VEYA chat modelinde context içinde saklıysa
+            ->orWhereHas('chat', function($q) use ($visitorId) {
+                $q->whereRaw('JSON_EXTRACT(context, "$.visitor_id") = ?', [$visitorId])
+                ->orWhere('context', 'LIKE', '%"visitor_id":"' . str_replace('"', '\"', $visitorId) . '"%')
+                ->orWhere('context', 'LIKE', '%"visitor_id": "' . str_replace('"', '\"', $visitorId) . '"%');
+            });
+        })
+        ->orderBy('created_at', 'desc');
+    }
+    
+    /**
      * Belirli bir sohbetin mesajlarını görüntüle
      */
     public function chatHistory($chatId)
     {
-        try {
-            // Sohbet bilgilerini al
-            $chat = Chat::findOrFail($chatId);
-            
-            \Log::info("Sohbet görüntüleniyor", ['chat_id' => $chatId]);
-            
-            // Sohbetin mesajlarını kronolojik sırayla al
-            $messages = ChatMessage::where('chat_id', $chatId)
-                ->orderBy('created_at', 'asc')
-                ->get();
-                
-            \Log::info("Sohbet mesajları bulundu", ['count' => $messages->count()]);
-                
-            // Sohbeti başlatan ziyaretçi bilgisi
-            $visitorId = null;
-            $visitorName = null;
-            
-            // Önce context içinde visitor_id'yi kontrol edelim
-            if ($chat->context && is_array($chat->context) && isset($chat->context['visitor_id'])) {
-                $visitorId = $chat->context['visitor_id'];
-                \Log::info("Sohbet context'inde visitor_id bulundu", ['visitor_id' => $visitorId]);
-            } 
-            // Json formattaysa decode edip bakalım
-            elseif ($chat->context && is_string($chat->context)) {
-                $context = json_decode($chat->context, true);
-                if (is_array($context) && isset($context['visitor_id'])) {
-                    $visitorId = $context['visitor_id'];
-                    \Log::info("Sohbet context'i decode edilerek visitor_id bulundu", ['visitor_id' => $visitorId]);
-                }
+        $chat = Chat::findOrFail($chatId);
+        
+        // Chat tablosundan verileri al
+        $messages = ChatMessage::where('chat_id', $chatId)
+            ->orderBy('created_at', 'asc')
+            ->get();
+        
+        // Ziyaretçi ID'sini bulmaya çalışalım
+        $visitorId = null;
+        
+        // Önce sohbetin context alanında arayalım
+        if ($chat->context) {
+            $context = is_array($chat->context) ? $chat->context : json_decode($chat->context, true);
+            if (is_array($context) && isset($context['visitor_id'])) {
+                $visitorId = $context['visitor_id'];
             }
-            
-            // Sohbet context'inde visitor_id yoksa, ilk mesajın metadata'sına bakalım
-            if (empty($visitorId) && $messages->count() > 0) {
-                $firstUserMessage = $messages->where('sender', 'user')->first();
-                
-                if ($firstUserMessage) {
-                    $metadata = null;
-                    
-                    if (is_array($firstUserMessage->metadata)) {
-                        $metadata = $firstUserMessage->metadata;
-                    } elseif (is_string($firstUserMessage->metadata)) {
-                        $metadata = json_decode($firstUserMessage->metadata, true);
-                    }
-                    
-                    if (is_array($metadata) && isset($metadata['visitor_id'])) {
-                        $visitorId = $metadata['visitor_id'];
-                        \Log::info("İlk kullanıcı mesajında visitor_id bulundu", ['visitor_id' => $visitorId]);
-                    }
-                }
-            }
-            
-            if ($visitorId) {
-                $visitorInfo = DB::table('visitor_names')
-                    ->where('visitor_id', $visitorId)
-                    ->first();
-                    
-                if ($visitorInfo) {
-                    $visitorName = $visitorInfo->name;
-                    \Log::info("Ziyaretçi adı bulundu", ['name' => $visitorName]);
-                } else {
-                    \Log::warning("Visitor_id ($visitorId) için ziyaretçi kaydı bulunamadı");
-                }
-            } else {
-                \Log::warning("Sohbet için visitor_id bulunamadı", ['chat_id' => $chatId]);
-            }
-            
-            // İstatistikler
-            $stats = [
-                'total_messages' => $messages->count(),
-                'user_messages' => $messages->where('sender', 'user')->count(),
-                'ai_messages' => $messages->where('sender', 'ai')->count(),
-                'first_message' => $messages->first() ? $messages->first()->created_at : null,
-                'last_message' => $messages->last() ? $messages->last()->created_at : null,
-            ];
-            
-            return view('admin.message_history.chat_history', compact('chat', 'messages', 'visitorId', 'visitorName', 'stats'));
-        } catch (\Exception $e) {
-            \Log::error('Sohbet görüntüleme hatası: ' . $e->getMessage(), [
-                'chat_id' => $chatId,
-                'exception' => $e->getTraceAsString()
-            ]);
-            
-            return redirect()->route('admin.message-history.index')
-                ->with('error', 'Sohbet görüntülenirken bir hata oluştu: ' . $e->getMessage());
         }
+        
+        // Bulamazsak, ilk mesajın metadata'sında arayalım
+        if (!$visitorId && $messages->count() > 0) {
+            $firstMessage = $messages->where('sender', 'user')->first();
+            if ($firstMessage) {
+                $metadata = is_array($firstMessage->metadata) ? 
+                    $firstMessage->metadata : 
+                    json_decode($firstMessage->metadata, true);
+                
+                if (is_array($metadata) && isset($metadata['visitor_id'])) {
+                    $visitorId = $metadata['visitor_id'];
+                }
+            }
+        }
+        
+        // Her mesaj için ziyaretçi adını belirle
+        foreach ($messages as $message) {
+            $message->visitor_name = $this->getVisitorName($message);
+        }
+        
+        // İstatistikler oluştur
+        $stats = [
+            'total_messages' => $messages->count(),
+            'user_messages' => $messages->where('sender', 'user')->count(),
+            'ai_messages' => $messages->where('sender', 'ai')->count(),
+            'first_message' => $messages->first() ? $messages->first()->created_at : null,
+            'last_message' => $messages->last() ? $messages->last()->created_at : null,
+        ];
+        
+        // İstatistikleri hesapla
+        $userPercentage = $stats['total_messages'] > 0 ? round(($stats['user_messages'] / $stats['total_messages']) * 100) : 0;
+        $aiPercentage = 100 - $userPercentage;
+        
+        return view('admin.message_history.chat_history', compact('chat', 'messages', 'visitorId', 'stats', 'userPercentage', 'aiPercentage'));
     }
     
     /**

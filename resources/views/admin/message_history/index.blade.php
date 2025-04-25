@@ -30,7 +30,7 @@
                             <h5 class="mb-0">Aktif Kullanıcılar</h5>
                             <div class="small opacity-75">Farklı ziyaretçi</div>
                         </div>
-                        <div class="fs-2 fw-bold">{{ count($visitors) }}</div>
+                        <div class="fs-2 fw-bold">{{ count($groupedVisitors) }}</div>
                     </div>
                 </div>
             </div>
@@ -78,11 +78,11 @@
                 <div class="col-md-4">
                     <div class="input-group">
                         <span class="input-group-text"><i class="fas fa-user"></i></span>
-                        <select name="visitor_id" id="visitor_id" class="form-select">
+                        <select name="user_name" id="user_name" class="form-select">
                             <option value="">Tüm Kullanıcılar</option>
-                            @foreach($visitors as $visitor)
-                                <option value="{{ $visitor->visitor_id }}" {{ $visitorId == $visitor->visitor_id ? 'selected' : '' }}>
-                                    {{ $visitor->name }} ({{ $visitor->ip_address }})
+                            @foreach($groupedVisitors as $name => $group)
+                                <option value="{{ $name }}" {{ isset($userName) && $userName == $name ? 'selected' : '' }}>
+                                    {{ $name }} ({{ $group['count'] }} oturum)
                                 </option>
                             @endforeach
                         </select>
@@ -97,6 +97,10 @@
                         <i class="fas fa-redo"></i>
                     </a>
                 </div>
+                
+                @if(!empty($visitorId))
+                <input type="hidden" name="visitor_id" value="{{ $visitorId }}">
+                @endif
             </form>
         </div>
     </div>
@@ -136,17 +140,39 @@
                                             $visitorId = $decoded['visitor_id'];
                                         }
                                     }
+                                    // Visitor ID'yi temizle
+                                    $cleanVisitorId = $visitorId ? preg_replace('/[; ].*$/', '', $visitorId) : '';
+                                    
+                                    // Avatar bilgisini al
+                                    $avatar = null;
+                                    if ($cleanVisitorId) {
+                                        $avatar = \DB::table('visitor_names')
+                                            ->where('visitor_id', $cleanVisitorId)
+                                            ->value('avatar');
+                                    }
                                 @endphp
                                 @if($visitorId)
-                                <a href="{{ route('admin.message-history.user', ['visitorId' => $visitorId]) }}" class="text-decoration-none">
-                                    <i class="fas fa-user-circle me-1 text-primary"></i>
-                                    {{ $message->visitor_name }}
-                                </a>
+                                <form method="POST" action="{{ route('admin.message-history.view-user') }}" class="d-inline">
+                                    @csrf
+                                    <input type="hidden" name="visitor_id" value="{{ $cleanVisitorId }}">
+                                    <button type="submit" class="btn btn-link text-decoration-none p-0 border-0 text-start d-flex align-items-center">
+                                        @if(!empty($avatar))
+                                            <img src="{{ $avatar }}" alt="{{ $message->visitor_name }}" class="me-1 rounded-circle" width="24" height="24">
+                                        @else
+                                            <i class="fas fa-user-circle me-1 text-primary"></i>
+                                        @endif
+                                        {{ $message->visitor_name }}
+                                    </button>
+                                </form>
                                 @else
-                                <span class="text-muted"><i class="fas fa-user me-1"></i> {{ $message->visitor_name }}</span>
+                                <span class="text-muted d-flex align-items-center">
+                                    <i class="fas fa-user me-1"></i> {{ $message->visitor_name }}
+                                </span>
                                 @endif
                             @else
-                                <span class="text-muted"><i class="fas fa-user me-1"></i> Anonim</span>
+                                <span class="text-muted d-flex align-items-center">
+                                    <i class="fas fa-user me-1"></i> Anonim
+                                </span>
                             @endif
                         </td>
                         <td class="text-center">
@@ -180,11 +206,17 @@
                                             $visitorId = $decoded['visitor_id'];
                                         }
                                     }
+                                    // Visitor ID'yi temizle
+                                    $cleanVisitorId = $visitorId ? preg_replace('/[; ].*$/', '', $visitorId) : '';
                                 @endphp
                                 @if($visitorId)
-                                <a href="{{ route('admin.message-history.user', ['visitorId' => $visitorId]) }}" class="btn btn-info btn-sm ms-1" data-bs-toggle="tooltip" title="Kullanıcı Mesajları">
-                                    <i class="fas fa-user"></i>
-                                </a>
+                                <form method="POST" action="{{ route('admin.message-history.view-user') }}" class="d-inline ms-1">
+                                    @csrf
+                                    <input type="hidden" name="visitor_id" value="{{ $cleanVisitorId }}">
+                                    <button type="submit" class="btn btn-info btn-sm" data-bs-toggle="tooltip" title="Kullanıcı Mesajları">
+                                        <i class="fas fa-user"></i>
+                                    </button>
+                                </form>
                                 @endif
                             </div>
                         </td>

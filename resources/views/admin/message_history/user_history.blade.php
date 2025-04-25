@@ -109,14 +109,20 @@
                 <div class="card-body">
                     <table class="table">
                         <tr>
-                            <th style="width: 150px;">Ziyaretçi ID:</th>
+                            <th>Ziyaretçi ID:</th>
                             <td><code class="bg-light p-1 rounded">{{ $visitorId }}</code></td>
                         </tr>
                         <tr>
                             <th>Kullanıcı Adı:</th>
                             <td>
-                                <i class="fas fa-user-circle me-1 text-primary"></i>
-                                {{ $visitor->name ?? 'İsimsiz Ziyaretçi' }}
+                                <div class="d-flex align-items-center">
+                                    @if(!empty($visitor->avatar))
+                                        <img src="{{ $visitor->avatar }}" alt="{{ $visitor->name }}" class="me-2 rounded-circle" width="32" height="32">
+                                    @else
+                                        <i class="fas fa-user-circle me-1 text-primary"></i>
+                                    @endif
+                                    {{ $visitor->name ?? 'İsimsiz Ziyaretçi' }}
+                                </div>
                             </td>
                         </tr>
                         <tr>

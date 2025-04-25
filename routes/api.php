@@ -7,6 +7,7 @@ use App\Http\Controllers\ChatController;
 use App\Http\Controllers\GeminiApiController;
 use App\Http\Controllers\AICodeLearningController;
 use App\Http\Controllers\AICodeConsciousnessController;
+use App\Http\Controllers\SpeechController;
 
 /*
 |--------------------------------------------------------------------------
@@ -108,4 +109,20 @@ Route::prefix('ai/code-consciousness')->group(function () {
     
     // Bildirimler
     Route::get('/notifications', [AICodeConsciousnessController::class, 'getNotifications']);
+});
+
+/*
+|--------------------------------------------------------------------------
+| Speech API Routes
+|--------------------------------------------------------------------------
+|
+| Konuşma tanıma ve metin okuma için API rotaları.
+|
+*/
+
+// Ses işleme API'leri
+Route::prefix('speech')->group(function () {
+    Route::post('/text-to-speech', [SpeechController::class, 'convertTextToSpeech']);
+    Route::post('/speech-to-text', [SpeechController::class, 'convertSpeechToText']);
+    Route::post('/save-audio', [SpeechController::class, 'saveRecordedAudio']);
 });

@@ -56,6 +56,7 @@ Route::prefix('admin')->group(function () {
         Route::prefix('message-history')->name('admin.message-history.')->group(function () {
             Route::get('/', [MessageHistoryController::class, 'index'])->name('index');
             Route::get('/user/{visitorId}', [MessageHistoryController::class, 'userHistory'])->name('user');
+            Route::post('/view-user', [MessageHistoryController::class, 'viewUser'])->name('view-user');
             Route::get('/chat/{chatId}', [MessageHistoryController::class, 'chatHistory'])->name('chat');
             Route::get('/visitors', [MessageHistoryController::class, 'visitors'])->name('visitors');
         });

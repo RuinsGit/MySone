@@ -2,187 +2,181 @@
 
 @section('content')
 <div class="container-fluid px-4">
-    <h1 class="mt-4">Kullanıcı İstatistikleri</h1>
+    <h1 class="mt-4">
+        <i class="fas fa-users text-primary me-2"></i>
+        Kullanıcı İstatistikleri
+    </h1>
     <ol class="breadcrumb mb-4">
         <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Dashboard</a></li>
         <li class="breadcrumb-item active">Kullanıcı İstatistikleri</li>
     </ol>
     
+    <!-- İstatistik Kartları -->
     <div class="row">
-        <div class="col-xl-6">
-            <div class="card mb-4">
-                <div class="card-header">
-                    <i class="fas fa-chart-area me-1"></i>
-                    Günlük Mesaj İstatistikleri
-                </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-primary text-white mb-4">
                 <div class="card-body">
-                    <canvas id="dailyMessageChart" width="100%" height="40"></canvas>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="mb-0">Toplam Ziyaretçi</h5>
+                        </div>
+                        <div class="fs-2 fw-bold">{{ $visitors->total() }}</div>
+                    </div>
                 </div>
-            </div>
-        </div>
-        <div class="col-xl-6">
-            <div class="card mb-4">
-                <div class="card-header">
-                    <i class="fas fa-chart-pie me-1"></i>
-                    Cihaz Dağılımı
-                </div>
-                <div class="card-body">
-                    <canvas id="deviceChart" width="100%" height="40"></canvas>
+                <div class="card-footer d-flex align-items-center justify-content-between small">
+                    <div>Tüm kullanıcılar</div>
+                    <div class="text-white"><i class="fas fa-users"></i></div>
                 </div>
             </div>
         </div>
     </div>
     
+    <!-- Kullanıcı Tablosu -->
     <div class="card mb-4">
-        <div class="card-header">
-            <i class="fas fa-users me-1"></i>
-            Benzersiz Ziyaretçiler (Oturum ID'ye Göre)
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+                <i class="fas fa-table me-1"></i>
+                Ziyaretçi Listesi
+            </div>
+            <div class="d-flex">
+                <input type="text" class="form-control form-control-sm me-2" id="userSearchInput" placeholder="Ara...">
+            </div>
         </div>
         <div class="card-body">
-            <table id="visitorStatsTable" class="table table-striped table-bordered">
-                <thead>
-                    <tr>
-                        <th>Ziyaretçi ID</th>
-                        <th>Ziyaretçi Adı</th>
-                        <th>IP Adresi</th>
-                        <th>Mesaj Sayısı</th>
-                        <th>İşlemler</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach($visitorStats as $stat)
-                    <tr>
-                        <td>{{ str_replace('"', '', $stat->visitor_id) }}</td>
-                        <td>
-                            @php 
-                                $cleanVisitorId = str_replace('"', '', $stat->visitor_id);
-                            @endphp
-                            {{ $visitorNames[$cleanVisitorId] ?? 'İsimsiz Ziyaretçi' }}
-                        </td>
-                        <td>{{ $stat->ip_address }}</td>
-                        <td>{{ $stat->message_count }}</td>
-                        <td>
-                            <a href="{{ route('admin.user-stats.visitor-details', ['visitorId' => str_replace('"', '', $stat->visitor_id)]) }}" class="btn btn-primary btn-sm">
-                                <i class="fas fa-eye"></i> Ziyaretçi Detayı
-                            </a>
-                            <a href="{{ route('admin.user-stats.ip-details', $stat->ip_address) }}" class="btn btn-secondary btn-sm">
-                                <i class="fas fa-network-wired"></i> IP Detayı
-                            </a>
-                        </td>
-                    </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
-    </div>
-    
-    <div class="card mb-4">
-        <div class="card-header">
-            <i class="fas fa-table me-1"></i>
-            IP Adresi İstatistikleri
-        </div>
-        <div class="card-body">
-            <table id="ipStatsTable" class="table table-striped table-bordered">
-                <thead>
-                    <tr>
-                        <th>IP Adresi</th>
-                        <th>Mesaj Sayısı</th>
-                        <th>İşlemler</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach($ipStats as $stat)
-                    <tr>
-                        <td>{{ $stat->ip_address }}</td>
-                        <td>{{ $stat->message_count }}</td>
-                        <td>
-                            <a href="{{ route('admin.user-stats.ip-details', $stat->ip_address) }}" class="btn btn-primary btn-sm">
-                                <i class="fas fa-eye"></i> Detaylar
-                            </a>
-                        </td>
-                    </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
-    </div>
-    
-    <div class="row">
-        <div class="col-xl-4">
-            <div class="card mb-4">
-                <div class="card-header">
-                    <i class="fas fa-laptop me-1"></i>
-                    Tarayıcı Dağılımı
-                </div>
-                <div class="card-body">
-                    <table class="table table-striped">
-                        <thead>
-                            <tr>
-                                <th>Tarayıcı</th>
-                                <th>Kullanıcı Sayısı</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($deviceStats['browsers'] as $browser => $count)
-                            <tr>
-                                <td>{{ $browser }}</td>
-                                <td>{{ $count }}</td>
-                            </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
+            <div class="table-responsive">
+                <table class="table table-striped table-bordered table-hover" id="usersTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Kullanıcı</th>
+                            <th>Cihaz Bilgisi</th>
+                            <th>IP Adresi</th>
+                            <th>Son Aktivite</th>
+                            <th>Mesaj Sayısı</th>
+                            <th class="text-center">İşlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($visitors as $visitor)
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    @if(!empty($visitor->avatar))
+                                        <img src="{{ $visitor->avatar }}" alt="{{ $visitor->name }}" class="rounded-circle me-2" style="width: 36px; height: 36px;">
+                                    @else
+                                        <div class="bg-light d-flex align-items-center justify-content-center rounded-circle me-2" style="width: 36px; height: 36px;">
+                                            <i class="fas fa-user text-secondary"></i>
+                                        </div>
+                                    @endif
+                                    <div>
+                                        <div class="fw-semibold">{{ $visitor->name }}</div>
+                                        <div class="small text-muted">ID: {{ substr($visitor->visitor_id, 0, 10) }}...</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                @php
+                                    $deviceInfo = $visitor->device_info_decoded;
+                                    $browser = $deviceInfo['browser'] ?? 'Bilinmiyor';
+                                    $os = $deviceInfo['os'] ?? 'Bilinmiyor';
+                                    $device = $deviceInfo['device'] ?? 'Bilinmiyor';
+                                    
+                                    // İşletim sistemi ikonları
+                                    $osIcons = [
+                                        'Windows' => 'fab fa-windows',
+                                        'Mac' => 'fab fa-apple',
+                                        'iOS' => 'fab fa-apple',
+                                        'Android' => 'fab fa-android',
+                                        'Linux' => 'fab fa-linux',
+                                        'Ubuntu' => 'fab fa-ubuntu'
+                                    ];
+                                    
+                                    // Tarayıcı ikonları
+                                    $browserIcons = [
+                                        'Chrome' => 'fab fa-chrome',
+                                        'Firefox' => 'fab fa-firefox',
+                                        'Safari' => 'fab fa-safari',
+                                        'Edge' => 'fab fa-edge',
+                                        'Opera' => 'fab fa-opera',
+                                        'IE' => 'fab fa-internet-explorer'
+                                    ];
+                                    
+                                    // İkon belirleme
+                                    $osIcon = 'fas fa-desktop';
+                                    foreach($osIcons as $key => $icon) {
+                                        if(stripos($os, $key) !== false) {
+                                            $osIcon = $icon;
+                                            break;
+                                        }
+                                    }
+                                    
+                                    $browserIcon = 'fas fa-globe';
+                                    foreach($browserIcons as $key => $icon) {
+                                        if(stripos($browser, $key) !== false) {
+                                            $browserIcon = $icon;
+                                            break;
+                                        }
+                                    }
+                                    
+                                    $deviceIcon = 'fas fa-desktop';
+                                    if(stripos($device, 'Mobile') !== false || stripos($device, 'Phone') !== false) {
+                                        $deviceIcon = 'fas fa-mobile-alt';
+                                    } elseif(stripos($device, 'Tablet') !== false) {
+                                        $deviceIcon = 'fas fa-tablet-alt';
+                                    }
+                                @endphp
+                                
+                                <div class="mb-1"><i class="{{ $osIcon }} me-1"></i> {{ $os }}</div>
+                                <div class="mb-1"><i class="{{ $browserIcon }} me-1"></i> {{ $browser }}</div>
+                                <div><i class="{{ $deviceIcon }} me-1"></i> {{ $device }}</div>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-network-wired me-2 text-secondary"></i>
+                                    <a href="{{ route('admin.user-stats.ip-details', $visitor->ip_address) }}" class="text-decoration-none">
+                                        {{ $visitor->ip_address }}
+                                    </a>
+                                </div>
+                                <div class="small mt-1">
+                                    <i class="fas fa-map-marker-alt me-1 text-danger"></i>
+                                    <span>{{ $visitor->ip_location['country'] ?? 'Bilinmiyor' }}</span>
+                                    @if(!empty($visitor->ip_location['city']))
+                                        <span>, {{ $visitor->ip_location['city'] }}</span>
+                                    @endif
+                                </div>
+                            </td>
+                            <td>
+                                @if(isset($visitor->last_active))
+                                    <span data-bs-toggle="tooltip" data-bs-placement="top" title="{{ \Carbon\Carbon::parse($visitor->last_active)->format('d.m.Y H:i:s') }}">
+                                        {{ \Carbon\Carbon::parse($visitor->last_active)->diffForHumans() }}
+                                    </span>
+                                @else
+                                    <span class="text-muted">Bilinmiyor</span>
+                                @endif
+                                <div class="small text-muted">
+                                    <i class="far fa-calendar-alt me-1"></i> Kayıt: {{ \Carbon\Carbon::parse($visitor->created_at)->format('d.m.Y') }}
+                                </div>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-info">{{ $visitor->message_count }}</span>
+                            </td>
+                            <td class="text-center">
+                                <a href="{{ route('admin.user-stats.visitor-details', ['visitorId' => $visitor->visitor_id]) }}" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-eye"></i> Detaylar
+                                </a>
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
             </div>
-        </div>
-        <div class="col-xl-4">
-            <div class="card mb-4">
-                <div class="card-header">
-                    <i class="fas fa-desktop me-1"></i>
-                    İşletim Sistemi Dağılımı
+            
+            <!-- Sayfalama -->
+            <div class="mt-4 d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="text-muted">Toplam {{ $visitors->total() }} ziyaretçi | Sayfa {{ $visitors->currentPage() }}/{{ $visitors->lastPage() }}</span>
                 </div>
-                <div class="card-body">
-                    <table class="table table-striped">
-                        <thead>
-                            <tr>
-                                <th>İşletim Sistemi</th>
-                                <th>Kullanıcı Sayısı</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($deviceStats['operating_systems'] as $os => $count)
-                            <tr>
-                                <td>{{ $os }}</td>
-                                <td>{{ $count }}</td>
-                            </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-        <div class="col-xl-4">
-            <div class="card mb-4">
-                <div class="card-header">
-                    <i class="fas fa-mobile-alt me-1"></i>
-                    Cihaz Tipi Dağılımı
-                </div>
-                <div class="card-body">
-                    <table class="table table-striped">
-                        <thead>
-                            <tr>
-                                <th>Cihaz Tipi</th>
-                                <th>Kullanıcı Sayısı</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($deviceStats['device_types'] as $deviceType => $count)
-                            <tr>
-                                <td>{{ $deviceType }}</td>
-                                <td>{{ $count }}</td>
-                            </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
+                <div>
+                    {{ $visitors->links('pagination::bootstrap-5') }}
                 </div>
             </div>
         </div>
@@ -190,97 +184,28 @@
 </div>
 @endsection
 
-@section('scripts')
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.8.0/Chart.min.js"></script>
+@section('js')
 <script>
-    // Günlük mesaj istatistikleri için grafik
-    var dailyCtx = document.getElementById("dailyMessageChart");
-    var dailyChart = new Chart(dailyCtx, {
-        type: 'line',
-        data: {
-            labels: [
-                @foreach($dailyMessageStats as $stat)
-                "{{ $stat->date }}",
-                @endforeach
-            ],
-            datasets: [{
-                label: "Mesaj Sayısı",
-                lineTension: 0.3,
-                backgroundColor: "rgba(2,117,216,0.2)",
-                borderColor: "rgba(2,117,216,1)",
-                pointRadius: 5,
-                pointBackgroundColor: "rgba(2,117,216,1)",
-                pointBorderColor: "rgba(255,255,255,0.8)",
-                pointHoverRadius: 5,
-                pointHoverBackgroundColor: "rgba(2,117,216,1)",
-                pointHitRadius: 50,
-                pointBorderWidth: 2,
-                data: [
-                    @foreach($dailyMessageStats as $stat)
-                    {{ $stat->message_count }},
-                    @endforeach
-                ],
-            }],
-        },
-        options: {
-            scales: {
-                xAxes: [{
-                    time: {
-                        unit: 'date'
-                    },
-                    gridLines: {
-                        display: false
-                    },
-                    ticks: {
-                        maxTicksLimit: 7
-                    }
-                }],
-                yAxes: [{
-                    ticks: {
-                        min: 0,
-                        maxTicksLimit: 5
-                    },
-                    gridLines: {
-                        color: "rgba(0, 0, 0, .125)",
-                    }
-                }],
-            },
-            legend: {
-                display: false
-            }
-        }
-    });
-    
-    // Cihaz tipi dağılımı için grafik
-    var deviceCtx = document.getElementById("deviceChart");
-    var deviceChart = new Chart(deviceCtx, {
-        type: 'pie',
-        data: {
-            labels: [
-                @foreach($deviceStats['device_types'] as $deviceType => $count)
-                "{{ $deviceType }}",
-                @endforeach
-            ],
-            datasets: [{
-                data: [
-                    @foreach($deviceStats['device_types'] as $count)
-                    {{ $count }},
-                    @endforeach
-                ],
-                backgroundColor: ['#007bff', '#dc3545', '#ffc107', '#28a745', '#6f42c1', '#fd7e14', '#20c997'],
-            }],
-        },
-    });
-    
-    // DataTables
     $(document).ready(function() {
-        $('#ipStatsTable').DataTable({
-            order: [[1, 'desc']]
+        // Tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl)
         });
         
-        $('#visitorStatsTable').DataTable({
-            order: [[2, 'desc']]
+        // DataTable
+        var table = $('#usersTable').DataTable({
+            paging: false,
+            info: false,
+            responsive: true,
+            dom: 'rt',
+            order: [[3, 'desc']] // Son aktiviteye göre sırala
+        });
+        
+        // Arama kutusunu aktifleştir
+        $('#userSearchInput').keyup(function() {
+            table.search($(this).val()).draw();
         });
     });
 </script>
-@endsection 
+@endsection

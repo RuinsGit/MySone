@@ -17,7 +17,7 @@
             <div>
                 <i class="fas fa-users me-1"></i>
                 Sistemdeki Kullanıcılar
-                <span class="badge bg-primary ms-2">{{ count($visitors) }}</span>
+                <span class="badge bg-primary ms-2">{{ count($groupedVisitors) }}</span>
             </div>
             <div>
                 <a href="{{ route('admin.message-history.index') }}" class="btn btn-sm btn-outline-secondary">
@@ -41,31 +41,98 @@
                     <thead class="table-light">
                         <tr>
                             <th>Kullanıcı Adı</th>
-                            <th>Ziyaretçi ID</th>
+                            <th>Oturum Sayısı</th>
                             <th>IP Adresi</th>
                             <th class="text-center">İşlemler</th>
                         </tr>
                     </thead>
                     
                     <tbody>
-                        @forelse($visitors as $visitor)
+                        @forelse($groupedVisitors as $name => $group)
                         <tr>
                             <td>
                                 <div class="d-flex align-items-center">
                                     <div class="avatar avatar-sm me-2 bg-light rounded-circle">
-                                        <span class="avatar-text rounded-circle">{{ strtoupper(substr($visitor->name ?? 'A', 0, 1)) }}</span>
+                                        @php
+                                            $firstVisitor = $group['first_visitor'];
+                                            $avatar = DB::table('visitor_names')
+                                                ->where('visitor_id', $firstVisitor->visitor_id)
+                                                ->value('avatar');
+                                        @endphp
+                                        
+                                        @if(!empty($avatar))
+                                            <img src="{{ $avatar }}" alt="{{ $name }}" class="avatar-img rounded-circle" width="32" height="32">
+                                        @else
+                                            <span class="avatar-text rounded-circle">{{ strtoupper(substr($name ?? 'A', 0, 1)) }}</span>
+                                        @endif
                                     </div>
                                     <div>
-                                        <h6 class="mb-0">{{ $visitor->name }}</h6>
+                                        <h6 class="mb-0">{{ $name }}</h6>
                                     </div>
                                 </div>
                             </td>
-                            <td><code class="bg-light p-1 rounded">{{ $visitor->visitor_id }}</code></td>
-                            <td>{{ $visitor->ip_address }}</td>
+                            <td>
+                                <span class="badge bg-info">{{ $group['count'] }}</span>
+                                <button class="btn btn-sm btn-link text-decoration-none" 
+                                        type="button" 
+                                        data-bs-toggle="collapse" 
+                                        data-bs-target="#collapse-{{ md5($name) }}" 
+                                        aria-expanded="false">
+                                    <i class="fas fa-info-circle"></i> Detaylar
+                                </button>
+                            </td>
+                            <td>{{ $group['first_visitor']->ip_address }}</td>
                             <td class="text-center">
-                                <a href="{{ route('admin.message-history.user', ['visitorId' => $visitor->visitor_id]) }}" class="btn btn-primary btn-sm">
-                                    <i class="fas fa-eye me-1"></i> Mesajları Görüntüle
-                                </a>
+                                @php
+                                    // Çerez sorununu önlemek için ID'yi düzenle
+                                    $cleanVisitorId = preg_replace('/[; ].*$/', '', $group['first_visitor']->visitor_id);
+                                @endphp
+                                <form method="POST" action="{{ route('admin.message-history.view-user') }}" class="d-inline">
+                                    @csrf
+                                    <input type="hidden" name="visitor_id" value="{{ $cleanVisitorId }}">
+                                    <button type="submit" class="btn btn-primary btn-sm">
+                                        <i class="fas fa-eye me-1"></i> Mesajları Görüntüle
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        <tr class="collapse bg-light" id="collapse-{{ md5($name) }}">
+                            <td colspan="4" class="p-3">
+                                <h6 class="border-bottom pb-2 mb-3">{{ $name }} kullanıcısının tüm oturumları ({{ $group['count'] }})</h6>
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-bordered">
+                                        <thead class="table-secondary">
+                                            <tr>
+                                                <th>Ziyaretçi ID</th>
+                                                <th>IP Adresi</th>
+                                                <th>Kayıt Tarihi</th>
+                                                <th>İşlemler</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach($group['visitors'] as $visitor)
+                                            <tr>
+                                                <td><code class="small">{{ $visitor->visitor_id }}</code></td>
+                                                <td>{{ $visitor->ip_address }}</td>
+                                                <td>{{ \Carbon\Carbon::parse($visitor->created_at)->format('d.m.Y H:i:s') }}</td>
+                                                <td>
+                                                    @php
+                                                        // Çerez sorununu önlemek için ID'yi düzenle
+                                                        $cleanVisitorId = preg_replace('/[; ].*$/', '', $visitor->visitor_id);
+                                                    @endphp
+                                                    <form method="POST" action="{{ route('admin.message-history.view-user') }}" class="d-inline">
+                                                        @csrf
+                                                        <input type="hidden" name="visitor_id" value="{{ $cleanVisitorId }}">
+                                                        <button type="submit" class="btn btn-outline-primary btn-sm">
+                                                            <i class="fas fa-eye"></i> Görüntüle
+                                                        </button>
+                                                    </form>
+                                                </td>
+                                            </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
                             </td>
                         </tr>
                         @empty

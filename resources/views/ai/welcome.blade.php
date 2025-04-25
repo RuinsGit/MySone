@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SONE AI - Hoşgeldiniz</title>
+    <title>LIZZ AI - Hoşgeldiniz</title>
     <style>
         body {
             margin: 0;
@@ -334,7 +334,7 @@
     <div id="particles-js"></div>
     
     <div class="welcome-container">
-        <div class="welcome-title">SONE AI</div>
+        <div class="welcome-title">LIZZ AI</div>
         
         <div id="welcome-content">
             <!-- İçerik JavaScript ile doldurulacak -->

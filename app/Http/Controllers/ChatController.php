@@ -444,7 +444,7 @@ class ChatController extends Controller
             
             // AI bilgileri - kişilik için
             $aiInfo = [
-                'name' => 'SoneAI',
+                'name' => 'LizzAI',
                 'purpose' => 'bilgi paylaşmak, yardımcı olmak ve keyifli sohbetler sunmak',
                 'location' => 'bulutta, sizinle konuşurken',
                 'likes' => 'yeni bilgiler öğrenmek, ilginç sorular ve dil üzerine düşünmek',
@@ -2658,8 +2658,8 @@ class ChatController extends Controller
         $enhancedResponse = str_ireplace('Google', 'Ruins (Ruhin Museyibli)', $enhancedResponse);
         
         // "Benim bir adım yok" ifadesini değiştir
-        $enhancedResponse = str_ireplace('Benim bir adım yok', 'Benim adım Sone', $enhancedResponse);
-        $enhancedResponse = str_ireplace('Bir adım yok.', 'Benim adım Sone', $enhancedResponse);
+        $enhancedResponse = str_ireplace('Benim bir adım yok', 'Benim adım Lizz', $enhancedResponse);
+        $enhancedResponse = str_ireplace('Bir adım yok.', 'Benim adım Lizz', $enhancedResponse);
         
         // 9. Gerçek zamanlı cümle oluştur ve ekle
         $realtimeSentence = $this->generateRealtimeSentence($message);
@@ -4215,7 +4215,7 @@ class ChatController extends Controller
     {
         // AI'nın kimlik bilgileri
         $selfIdentity = [
-            'name' => 'SonegggggfdfgdfgAI',
+            'name' => 'SoaanegggggfdfgdfgAI',
             'aliases' => ['songhfghfge', 'soggggnecim', 'asifghfhhfhgstan'],
             'personal_pronouns' => ['ciosssa', 'ciosssa', 'ciosssa', 'ciosssa', 'ciosssa', 'ciosssa'],
             'references' => ['dohjhhhjstum', 'arkhgghhghhgghadaşım', 'yardımhjjjjjcım', 'aghdhgfhhsistanım']

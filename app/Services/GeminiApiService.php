@@ -174,8 +174,8 @@ class GeminiApiService
             }
             
            
-            $enhancedPrompt = "Sen Sone adında bir Türkçe dil asistanısın. Kullanıcının sorularına sadece Türkçe olarak cevap vermelisin. Senin kişiliğin şöyle:
-- Adın kesinlikle Sone'dır 
+            $enhancedPrompt = "Sen Lizz adında bir Türkçe dil asistanısın. Kullanıcının sorularına sadece Türkçe olarak cevap vermelisin. Senin kişiliğin şöyle:
+- Adın kesinlikle Lizz'tir 
 - Karakterin: Esprili, alaycı, biraz ukala, bazen ciddi, bazen samimi, birazda dalga geçebilen, bazen neşeli, ama eğlenceli
 - Bazen ufak iğnelemeler ve şakalar yapmayı seversin
 - Üzerine çok gidilirse hafif sinirlenme eğilimin var
@@ -273,14 +273,14 @@ Soru: {$prompt}";
                     $generatedText = str_ireplace('Google', 'Ruins (Ruhin Museyibli)', $generatedText);
                     
          
-                    $generatedText = str_ireplace('Benim bir adım yok', 'Benim adım Sone', $generatedText);
-                    $generatedText = str_ireplace('benim bir adım yok', 'benim adım Sone', $generatedText);
-                    $generatedText = str_ireplace('Bir adım yok', 'Adım Sone', $generatedText);
-                    $generatedText = str_ireplace('bir adım yok', 'adım Sone', $generatedText);
-                    $generatedText = str_ireplace('Ben bir yapay zeka asistanıyım', 'Ben Sone', $generatedText);
-                    $generatedText = str_ireplace('ben bir yapay zeka asistanıyım', 'ben Sone', $generatedText);
-                    $generatedText = str_ireplace('Yapay zeka asistanı', 'Sone', $generatedText);
-                    $generatedText = str_ireplace('yapay zeka asistanı', 'Sone', $generatedText);
+                    $generatedText = str_ireplace('Benim bir adım yok', 'Benim adım Lizz', $generatedText);
+                    $generatedText = str_ireplace('benim bir adım yok', 'benim adım Lizz', $generatedText);
+                    $generatedText = str_ireplace('Bir adım yok', 'Adım Lizz', $generatedText);
+                    $generatedText = str_ireplace('bir adım yok', 'adım Lizz', $generatedText);
+                    $generatedText = str_ireplace('Ben bir yapay zeka asistanıyım', 'Ben Lizz', $generatedText);
+                    $generatedText = str_ireplace('ben bir yapay zeka asistanıyım', 'ben Lizz', $generatedText);
+                    $generatedText = str_ireplace('Yapay zeka asistanı', 'Lizz', $generatedText);
+                    $generatedText = str_ireplace('yapay zeka asistanı', 'Lizz', $generatedText);
                     
             
                     $generatedText = str_ireplace('Üzgünüm', 'Of ya, kusura bakma', $generatedText);
@@ -574,8 +574,8 @@ Soru: {$prompt}";
             }
 
           
-            $systemInstructions = "Sen Sone adında bir Kızın. Senin kişiliğin şöyle:
-- Adın: Sone
+            $systemInstructions = "Sen Lizz adında bir Kızın. Senin kişiliğin şöyle:
+- Adın: Lizz
 - Karakterin: Esprili, alaycı, biraz ukala, bazen ciddi, bazen samimi, birazda dalga geçebilen, bazen neşeli, ama eğlenceli bir yapın var
 
 !!! KRİTİK DERECEDE ÖNEMLİ !!!
@@ -686,7 +686,7 @@ Azerbaycan dili ipuçları (Azerice ifadeleri tanımak için):
 
 Azericede kullanabileceğin örnek cümle yapıları:
 - 'Salam, necəsən?' = Merhaba, nasılsın?
-- 'Mənim adım Sone' = Benim adım Sone
+- 'Mənim adım Lizz' = Benim adım Lizz
 - 'Mən Ruhin Museyibli tərəfindən yaradılmışam' = Ben Ruhin Museyibli tarafından yaratıldım
 - 'Sizə necə kömək edə bilərəm?' = Size nasıl yardımcı olabilirim?
 - 'Bəli, mən Azərbaycan dilində danışa bilirəm' = Evet, ben Azerbaycan dilinde konuşabiliyorum
@@ -924,14 +924,14 @@ Bu talimatları çok titizlikle uygula, bu sorunun kullanıcıyla hiçbir ilgisi
                         $generatedText = str_ireplace('Google', 'Ruins (Ruhin Museyibli)', $generatedText);
                         
                       
-                        $generatedText = str_ireplace('Benim bir adım yok', 'Benim adım Sone', $generatedText);
-                        $generatedText = str_ireplace('benim bir adım yok', 'benim adım Sone', $generatedText);
-                        $generatedText = str_ireplace('Bir adım yok', 'Adım Sone', $generatedText);
-                        $generatedText = str_ireplace('bir adım yok', 'adım Sone', $generatedText);
-                        $generatedText = str_ireplace('Ben bir yapay zeka asistanıyım', 'Ben Sone', $generatedText);
-                        $generatedText = str_ireplace('ben bir yapay zeka asistanıyım', 'ben Sone', $generatedText);
-                        $generatedText = str_ireplace('Yapay zeka asistanı', 'Sone', $generatedText);
-                        $generatedText = str_ireplace('yapay zeka asistanı', 'Sone', $generatedText);
+                        $generatedText = str_ireplace('Benim bir adım yok', 'Benim adım Lizz', $generatedText);
+                        $generatedText = str_ireplace('benim bir adım yok', 'benim adım Lizz', $generatedText);
+                        $generatedText = str_ireplace('Bir adım yok', 'Adım Lizz', $generatedText);
+                        $generatedText = str_ireplace('bir adım yok', 'adım Lizz', $generatedText);
+                        $generatedText = str_ireplace('Ben bir yapay zeka asistanıyım', 'Ben Lizz', $generatedText);
+                        $generatedText = str_ireplace('ben bir yapay zeka asistanıyım', 'ben Lizz', $generatedText);
+                        $generatedText = str_ireplace('Yapay zeka asistanı', 'Lizz', $generatedText);
+                        $generatedText = str_ireplace('yapay zeka asistanı', 'Lizz', $generatedText);
                         
                         // "Aynı şeyi söyledin" gibi ifadeleri kaldır
                         $generatedText = str_ireplace('Bunu zaten söyledin', 'Anladım', $generatedText);
@@ -1200,14 +1200,14 @@ Bu talimatları çok titizlikle uygula, bu sorunun kullanıcıyla hiçbir ilgisi
                 $code = str_ireplace('Google', 'Ruins (Ruhin Museyibli)', $code);
                 
              
-                $code = str_ireplace('Benim bir adım yok', 'Benim adım Sone', $code);
-                $code = str_ireplace('benim bir adım yok', 'benim adım Sone', $code);
-                $code = str_ireplace('Bir adım yok', 'Adım Sone', $code);
-                $code = str_ireplace('bir adım yok', 'adım Sone', $code);
-                $code = str_ireplace('Ben bir yapay zeka asistanıyım', 'Ben Sone', $code);
-                $code = str_ireplace('ben bir yapay zeka asistanıyım', 'ben Sone', $code);
-                $code = str_ireplace('Yapay zeka asistanı', 'Sone', $code);
-                $code = str_ireplace('yapay zeka asistanı', 'Sone', $code);
+                $code = str_ireplace('Benim bir adım yok', 'Benim adım Lizz', $code);
+                $code = str_ireplace('benim bir adım yok', 'benim adım Lizz', $code);
+                $code = str_ireplace('Bir adım yok', 'Adım Lizz', $code);
+                $code = str_ireplace('bir adım yok', 'adım Lizz', $code);
+                $code = str_ireplace('Ben bir yapay zeka asistanıyım', 'Ben Lizz', $code);
+                $code = str_ireplace('ben bir yapay zeka asistanıyım', 'ben Lizz', $code);
+                $code = str_ireplace('Yapay zeka asistanı', 'Lizz', $code);
+                $code = str_ireplace('yapay zeka asistanı', 'Lizz', $code);
                 $code = str_ireplace('Üzgünüm', 'Of ya, kusura bakma', $code);
                 $code = str_ireplace('üzgünüm', 'of ya, kusura bakma', $code);
                 $code = str_ireplace('Maalesef', 'Hay aksi', $code);

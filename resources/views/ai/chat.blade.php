@@ -460,6 +460,7 @@ input:checked + .toggle-slider:before {
   letter-spacing: 0.5px;
   opacity: 0.9;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  white-space: nowrap;
 }
 
 .message-ai .message-sender-name {
@@ -481,7 +482,7 @@ input:checked + .toggle-slider:before {
   border-radius: 18px;
   font-size: 15px;
   line-height: 1.6;
-  max-width: calc(100% - 60px);
+  max-width: calc(90% - 0px);
   position: relative;
   z-index: 1;
   letter-spacing: 0.2px;
@@ -1833,7 +1834,7 @@ button.gradient-btn:hover {
     <div class="sidebar">
         <div class="sidebar-header">
             <div class="sidebar-logo" >
-                <img src="{{ asset('images/sone.png') }}" alt="SoneAI Logo" 
+                <img src="{{ asset('images/sone.png') }}" alt="LizzAI Logo" 
                    style="background-size:cover;
                    background-position: center;
                    background-repeat: no-repeat;
@@ -1842,13 +1843,13 @@ button.gradient-btn:hover {
                    height: 35px;
                    !important;
                    ">
-                <span class="logo-text" style="color:rgb(255, 255, 255);">SoneAI</span>
+                <span class="logo-text" style="color:rgb(255, 255, 255);">LizzAI</span>
             </div>
             
             <div class="model-selector-container">
                 <select id="model-selector" class="model-selector">
-                    <option value="soneai">SoneAI</option>
-                    <option value="gemini" selected>SoneAI Turbo</option>
+                    <option value="soneai">LizzAI Basic</option>
+                    <option value="gemini" selected>LizzAI Turbo</option>
                 </select>
             </div>
         </div>
@@ -1896,9 +1897,9 @@ button.gradient-btn:hover {
         <header class="chat-header">
             <div class="chat-header-title">
                 <div class="chat-logo">
-                    <img src="{{ asset('images/sone.png') }}" alt="SoneAI Logo" width="32" height="32">
+                    <img src="{{ asset('images/sone.png') }}" alt="LizzAI Logo" width="32" height="32">
                 </div>
-                <h1 id="chat-title">SoneAI Asistan</h1>
+                <h1 id="chat-title">LizzAI</h1>
             </div>
             
             <div class="chat-controls">
@@ -1938,7 +1939,7 @@ button.gradient-btn:hover {
             <!-- AI Message -->
             <div class="message message-ai">
                 <div class="message-avatar">
-                <img src="{{ asset('images/sone.png') }}" alt="SoneAI Logo" 
+                <img src="{{ asset('images/sone.png') }}" alt="LizzAI Logo" 
                    style="background-size:cover;
                    background-position: center;
                    background-repeat: no-repeat;
@@ -1948,16 +1949,16 @@ button.gradient-btn:hover {
                    !important;
                    ">
                 </div>
-                <div class="message-sender-name">SoneAI</div>
+                <div class="message-sender-name">LizzAI</div>
                 <div class="message-content">
-                    <p>Merhaba! Ben SoneAI. Size nasıl yardımcı olabilirim?</p>
+                    <p>Merhaba! Ben LizzAI. Size nasıl yardımcı olabilirim?</p>
                 </div>
             </div>
             
             <!-- Thinking animation placeholder - Mesaj akışının içinde -->
             <div id="ai-thinking" class="message message-ai ai-thinking-wrapper" style="display: none;">
                 <div class="message-avatar ai-avatar-pulse">
-                    <img src="{{ asset('images/sone.png') }}" alt="SoneAI Logo" 
+                    <img src="{{ asset('images/sone.png') }}" alt="LizzAI Logo" 
                         style="background-size:cover;
                         background-position: center;
                         background-repeat: no-repeat;
@@ -2005,8 +2006,8 @@ button.gradient-btn:hover {
         <div class="settings-section">
             <div class="settings-section-title">AI Modeli</div>
             <select id="mobile-model-selector" class="settings-select">
-                <option value="soneai">SoneAI</option>
-                <option value="gemini" selected>SoneAI Turbo</option>
+                <option value="soneai">LizzAI Basic</option>
+                <option value="gemini" selected>LizzAI Turbo</option>
             </select>
         </div>
         
@@ -2229,7 +2230,7 @@ button.gradient-btn:hover {
         // İlk yükleme sırasında kullanıcı adı isteme
         if (needsName && !nameRequested) {
             setTimeout(() => {
-                addMessage("Merhaba! Ben SoneAI. Sana nasıl hitap etmemi istersin?", 'ai');
+                addMessage("Merhaba! Ben Lizz. Sana nasıl hitap etmemi istersin?", 'ai');
                 nameRequested = true;
                 messageInput.placeholder = "Adınızı yazın...";
                 messageInput.focus();
@@ -2300,7 +2301,7 @@ button.gradient-btn:hover {
         function updateModelDisplay() {
             const modelNameElement = document.getElementById('model-name');
             if (modelNameElement) {
-                modelNameElement.textContent = selectedModel === 'soneai' ? 'SoneAI' : 'SoneAI Turbo';
+                modelNameElement.textContent = selectedModel === 'soneai' ? 'LizzAI Basic' : 'LizzAI Turbo';
             }
         }
         
@@ -2483,7 +2484,7 @@ button.gradient-btn:hover {
 
             // AI mesajları için SoneAI logosu, kullanıcı mesajları için kullanıcı avatarı
             if (sender === 'ai') {
-                avatarEl.innerHTML = `<img src="{{ asset('images/sone.png') }}" alt="SoneAI Logo" 
+                avatarEl.innerHTML = `<img src="{{ asset('images/sone.png') }}" alt="LizzAI Logo" 
                         style="background-size:cover;
                         background-position: center;
                         background-repeat: no-repeat;
@@ -2518,7 +2519,7 @@ button.gradient-btn:hover {
             // Kullanıcı adı veya AI adı ekleyerek görüntüle
             const nameEl = document.createElement('div');
             nameEl.className = 'message-sender-name';
-            nameEl.textContent = sender === 'ai' ? 'SoneAI' : (visitorName || '{{ session('visitor_name') }}' || '{{ auth()->user()->name ?? "Kullanıcı" }}');
+            nameEl.textContent = sender === 'ai' ? 'Lizz' : (visitorName || '{{ session('visitor_name') }}' || '{{ auth()->user()->name ?? "Kullanıcı" }}');
             messageEl.appendChild(nameEl);
             
             // Mesaj içeriği
@@ -2796,7 +2797,7 @@ button.gradient-btn:hover {
             notification.innerHTML = `
                 <div style="display: inline-block; background-color:rgb(61, 63, 65); padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.9rem;">
                     <i class="fas fa-info-circle mr-2"></i>
-                    ${selectedModel === 'soneai' ? 'SoneAI' : 'SoneAI Turbo'} modeli aktif
+                    ${selectedModel === 'soneai' ? 'LizzAI Basic' : 'LizzAI Turbo'} modeli aktif
                 </div>
             `;
             
@@ -2919,7 +2920,7 @@ button.gradient-btn:hover {
             localStorage.removeItem('current_chat_id');
             clearChatHistory();
             messagesContainer.innerHTML = '';
-            addMessage("Merhaba! Ben SoneAI. Size nasıl yardımcı olabilirim?", 'ai');
+            addMessage("Merhaba! Ben Lizz. Size nasıl yardımcı olabilirim?", 'ai');
         }
 
         // Mobil yeni chat butonu
@@ -3742,7 +3743,7 @@ button.gradient-btn:hover {
                                 
                                 // AI yanıt vermeden önce bekleme durumuna geç
                                 waitingForAIResponse = true;
-                                voiceStatus.textContent = 'SoneAI yanıtlıyor...';
+                                voiceStatus.textContent = 'Lizz yanıtlıyor...';
                                 
                                 // AI'dan yanıt al ve seslendirerek yanıtla
                                 getVoiceChatResponse(data.text);
@@ -3860,7 +3861,7 @@ button.gradient-btn:hover {
                     if (!data.is_code_response) {
                         // AI'nin yanıtını popup mesaj alanında göster
                         voiceConversation.style.display = 'block';
-                        voiceMessage.innerHTML += '<strong>SoneAI:</strong> ' + finalResponse + '<br>';
+                        voiceMessage.innerHTML += '<strong>LizzAI:</strong> ' + finalResponse + '<br>';
                         
                         // AI konuşmaya başlıyor - görsel efekt
                         voiceVisualizer.classList.add('ai-speaking');
@@ -3874,7 +3875,7 @@ button.gradient-btn:hover {
                     } else {
                         // Kod yanıtı için özel mesaj
                         voiceConversation.style.display = 'block';
-                        voiceMessage.innerHTML += '<strong>SoneAI:</strong> Kod yanıtı oluşturdum. Görüntülemek için popup\'ı kapatın.<br>';
+                        voiceMessage.innerHTML += '<strong>LizzAI:</strong> Kod yanıtı oluşturdum. Görüntülemek için popup\'ı kapatın.<br>';
                         voiceStatus.textContent = 'Kod yanıtı oluşturuldu. Görmek için popup\'ı kapatabilirsiniz.';
                         
                         // Ana sohbet ekranına kod yanıtını ekle
@@ -3940,7 +3941,7 @@ button.gradient-btn:hover {
                     return;
                 }
                 
-                voiceStatus.textContent = 'SoneAI konuşuyor...';
+                voiceStatus.textContent = 'Lizz konuşuyor...';
                 const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
                 
                 const response = await fetch('/api/speech/to-speech', {

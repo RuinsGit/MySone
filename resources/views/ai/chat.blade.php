@@ -4335,6 +4335,344 @@ button.gradient-btn:hover {
                 }
             });
         }
+
+        // Kullanıcı profil popup'ını oluştur
+        function createProfilePopup() {
+            // Daha önce varsa kaldır
+            const existingModal = document.getElementById('userProfileModal');
+            if (existingModal) existingModal.remove();
+
+            // Yeni modal oluştur
+            const modal = document.createElement('div');
+            modal.id = 'userProfileModal';
+            modal.className = 'fixed inset-0 z-50 flex items-center justify-center';
+            modal.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+            modal.style.backdropFilter = 'blur(5px)';
+            modal.style.display = 'none';
+            modal.style.position = 'fixed';
+            modal.style.top = '0';
+            modal.style.left = '0';
+            modal.style.width = '100vw';
+            modal.style.height = '100vh';
+            modal.style.zIndex = '9999';
+            modal.style.alignItems = 'center';
+            modal.style.justifyContent = 'center';
+
+            // Modal içeriği
+            const modalContent = document.createElement('div');
+            modalContent.className = 'relative bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6';
+            modalContent.style.backgroundColor = '#1f2937';
+            modalContent.style.borderRadius = '12px';
+            modalContent.style.boxShadow = '0 25px 50px -12px rgba(0, 0, 0, 0.25)';
+            modalContent.style.maxWidth = '450px';
+            modalContent.style.width = '90%';
+            modalContent.style.position = 'relative';
+            modalContent.style.padding = '24px';
+            modalContent.style.color = '#f9fafb';
+            modalContent.style.overflow = 'auto';
+            modalContent.style.maxHeight = '85vh';
+
+            // Kapatma butonu
+            const closeButton = document.createElement('button');
+            closeButton.className = 'absolute top-4 right-4 text-gray-400 hover:text-white';
+            closeButton.style.position = 'absolute';
+            closeButton.style.top = '16px';
+            closeButton.style.right = '16px';
+            closeButton.style.color = '#9ca3af';
+            closeButton.style.cursor = 'pointer';
+            closeButton.style.transition = 'color 0.3s';
+            closeButton.innerHTML = '<i class="fas fa-times"></i>';
+            closeButton.addEventListener('click', () => {
+                modal.style.display = 'none';
+                document.body.style.overflow = 'auto';
+            });
+            closeButton.addEventListener('mouseover', () => {
+                closeButton.style.color = '#f9fafb';
+            });
+            closeButton.addEventListener('mouseout', () => {
+                closeButton.style.color = '#9ca3af';
+            });
+
+            // Modal başlığı
+            const title = document.createElement('h2');
+            title.className = 'text-xl font-semibold mb-6 text-indigo-400';
+            title.style.fontSize = '1.25rem';
+            title.style.fontWeight = '600';
+            title.style.marginBottom = '24px';
+            title.style.color = '#6366f1';
+            title.textContent = 'Kullanıcı Profili';
+
+            // Kullanıcı bilgileri
+            const userInfo = document.createElement('div');
+            userInfo.className = 'flex flex-col items-center mb-6';
+            userInfo.style.display = 'flex';
+            userInfo.style.flexDirection = 'column';
+            userInfo.style.alignItems = 'center';
+            userInfo.style.marginBottom = '24px';
+
+            // Kullanıcı avatarı
+            const avatar = document.createElement('div');
+            avatar.className = 'w-24 h-24 rounded-full bg-indigo-500 flex items-center justify-center text-3xl font-bold text-white mb-4';
+            avatar.style.width = '96px';
+            avatar.style.height = '96px';
+            avatar.style.borderRadius = '50%';
+            avatar.style.display = 'flex';
+            avatar.style.alignItems = 'center';
+            avatar.style.justifyContent = 'center';
+            avatar.style.fontSize = '3rem';
+            avatar.style.fontWeight = '700';
+            avatar.style.color = 'white';
+            avatar.style.marginBottom = '16px';
+            avatar.style.background = 'linear-gradient(135deg, #4f46e5 0%, #ec4899 100%)';
+            
+            // Kullanıcı adı
+            const userName = document.createElement('h3');
+            userName.className = 'text-lg font-medium';
+            userName.style.fontSize = '1.25rem';
+            userName.style.fontWeight = '500';
+            userName.style.color = '#f9fafb';
+            
+            // Kullanıcı emaili
+            const userEmail = document.createElement('p');
+            userEmail.className = 'text-gray-400 mt-1';
+            userEmail.style.color = '#9ca3af';
+            userEmail.style.marginTop = '4px';
+            userEmail.style.fontSize = '0.875rem';
+
+            // Hesap bilgileri bölümü
+            const accountInfo = document.createElement('div');
+            accountInfo.className = 'w-full mt-6';
+            accountInfo.style.width = '100%';
+            accountInfo.style.marginTop = '24px';
+
+            // Hesap bilgileri başlığı
+            const accountTitle = document.createElement('h4');
+            accountTitle.className = 'text-sm font-medium text-indigo-300 uppercase tracking-wider mb-4';
+            accountTitle.style.fontSize = '0.875rem';
+            accountTitle.style.fontWeight = '500';
+            accountTitle.style.color = '#a5b4fc';
+            accountTitle.style.textTransform = 'uppercase';
+            accountTitle.style.letterSpacing = '0.05em';
+            accountTitle.style.marginBottom = '16px';
+            accountTitle.textContent = 'HESAP BİLGİLERİ';
+
+            // Hesap bilgilerini görüntülemek için tablo veya liste
+            const infoList = document.createElement('div');
+            infoList.className = 'space-y-3';
+            infoList.style.display = 'flex';
+            infoList.style.flexDirection = 'column';
+            infoList.style.gap = '12px';
+
+            // Kayıt tarihi bilgisi
+            const regDate = document.createElement('div');
+            regDate.className = 'flex justify-between';
+            regDate.style.display = 'flex';
+            regDate.style.justifyContent = 'space-between';
+            regDate.style.alignItems = 'center';
+            
+            const regDateLabel = document.createElement('span');
+            regDateLabel.className = 'text-gray-400';
+            regDateLabel.style.color = '#9ca3af';
+            regDateLabel.textContent = 'Kayıt Tarihi';
+            
+            const regDateValue = document.createElement('span');
+            regDateValue.className = 'text-white';
+            regDateValue.style.color = '#f9fafb';
+            regDateValue.id = 'userRegDate';
+            
+            regDate.appendChild(regDateLabel);
+            regDate.appendChild(regDateValue);
+            
+            // Kullanıcı ID bilgisi
+            const userId = document.createElement('div');
+            userId.className = 'flex justify-between';
+            userId.style.display = 'flex';
+            userId.style.justifyContent = 'space-between';
+            userId.style.alignItems = 'center';
+            
+            const userIdLabel = document.createElement('span');
+            userIdLabel.className = 'text-gray-400';
+            userIdLabel.style.color = '#9ca3af';
+            userIdLabel.textContent = 'Kullanıcı ID';
+            
+            const userIdValue = document.createElement('span');
+            userIdValue.className = 'text-white';
+            userIdValue.style.color = '#f9fafb';
+            userIdValue.id = 'userId';
+            
+            userId.appendChild(userIdLabel);
+            userId.appendChild(userIdValue);
+
+            // İstatistikler bölümü
+            const statsInfo = document.createElement('div');
+            statsInfo.className = 'w-full mt-6';
+            statsInfo.style.width = '100%';
+            statsInfo.style.marginTop = '24px';
+
+            // İstatistikler başlığı
+            const statsTitle = document.createElement('h4');
+            statsTitle.className = 'text-sm font-medium text-indigo-300 uppercase tracking-wider mb-4';
+            statsTitle.style.fontSize = '0.875rem';
+            statsTitle.style.fontWeight = '500';
+            statsTitle.style.color = '#a5b4fc';
+            statsTitle.style.textTransform = 'uppercase';
+            statsTitle.style.letterSpacing = '0.05em';
+            statsTitle.style.marginBottom = '16px';
+            statsTitle.textContent = 'İSTATİSTİKLER';
+
+            // İstatistik bilgilerini görüntülemek için tablo veya liste
+            const statsList = document.createElement('div');
+            statsList.className = 'space-y-3';
+            statsList.style.display = 'flex';
+            statsList.style.flexDirection = 'column';
+            statsList.style.gap = '12px';
+
+            // Toplam sohbet bilgisi
+            const totalChats = document.createElement('div');
+            totalChats.className = 'flex justify-between';
+            totalChats.style.display = 'flex';
+            totalChats.style.justifyContent = 'space-between';
+            totalChats.style.alignItems = 'center';
+            
+            const totalChatsLabel = document.createElement('span');
+            totalChatsLabel.className = 'text-gray-400';
+            totalChatsLabel.style.color = '#9ca3af';
+            totalChatsLabel.textContent = 'Toplam Sohbet';
+            
+            const totalChatsValue = document.createElement('span');
+            totalChatsValue.className = 'text-white';
+            totalChatsValue.style.color = '#f9fafb';
+            totalChatsValue.id = 'userTotalChats';
+            
+            totalChats.appendChild(totalChatsLabel);
+            totalChats.appendChild(totalChatsValue);
+            
+            // Toplam mesaj bilgisi
+            const totalMessages = document.createElement('div');
+            totalMessages.className = 'flex justify-between';
+            totalMessages.style.display = 'flex';
+            totalMessages.style.justifyContent = 'space-between';
+            totalMessages.style.alignItems = 'center';
+            
+            const totalMessagesLabel = document.createElement('span');
+            totalMessagesLabel.className = 'text-gray-400';
+            totalMessagesLabel.style.color = '#9ca3af';
+            totalMessagesLabel.textContent = 'Toplam Mesaj';
+            
+            const totalMessagesValue = document.createElement('span');
+            totalMessagesValue.className = 'text-white';
+            totalMessagesValue.style.color = '#f9fafb';
+            totalMessagesValue.id = 'userTotalMessages';
+            
+            totalMessages.appendChild(totalMessagesLabel);
+            totalMessages.appendChild(totalMessagesValue);
+
+            // Çıkış yap butonu
+            const logoutButton = document.createElement('button');
+            logoutButton.className = 'mt-8 w-full py-2 px-4 bg-red-600 hover:bg-red-700 text-white rounded transition duration-200';
+            logoutButton.style.marginTop = '32px';
+            logoutButton.style.width = '100%';
+            logoutButton.style.padding = '8px 16px';
+            logoutButton.style.backgroundColor = '#dc2626';
+            logoutButton.style.color = 'white';
+            logoutButton.style.borderRadius = '6px';
+            logoutButton.style.border = 'none';
+            logoutButton.style.cursor = 'pointer';
+            logoutButton.style.transition = 'background-color 0.2s';
+            logoutButton.innerHTML = '<i class="fas fa-sign-out-alt mr-2"></i> Çıkış Yap';
+            
+            logoutButton.addEventListener('mouseover', () => {
+                logoutButton.style.backgroundColor = '#b91c1c';
+            });
+            
+            logoutButton.addEventListener('mouseout', () => {
+                logoutButton.style.backgroundColor = '#dc2626';
+            });
+            
+            logoutButton.addEventListener('click', () => {
+                // Çıkış yapma form submit işlemi
+                document.querySelector('.user-dropdown-menu form').submit();
+            });
+
+            // Tüm bileşenleri bir araya getirme
+            infoList.appendChild(regDate);
+            infoList.appendChild(userId);
+            accountInfo.appendChild(accountTitle);
+            accountInfo.appendChild(infoList);
+            
+            statsList.appendChild(totalChats);
+            statsList.appendChild(totalMessages);
+            statsInfo.appendChild(statsTitle);
+            statsInfo.appendChild(statsList);
+            
+            userInfo.appendChild(avatar);
+            userInfo.appendChild(userName);
+            userInfo.appendChild(userEmail);
+            
+            modalContent.appendChild(closeButton);
+            modalContent.appendChild(title);
+            modalContent.appendChild(userInfo);
+            modalContent.appendChild(accountInfo);
+            modalContent.appendChild(statsInfo);
+            modalContent.appendChild(logoutButton);
+            
+            modal.appendChild(modalContent);
+            document.body.appendChild(modal);
+            
+            return modal;
+        }
+
+        // Kullanıcı profil popup'ını oluştur ve kullanıcı verilerini ekle
+        if (userDropdownToggle) {
+            const profileModal = createProfilePopup();
+            
+            // Kullanıcı dropdown'ına tıklandığında profil popup'ı göster
+            userDropdownToggle.addEventListener('click', function(e) {
+                // Avatar ve kullanıcı adı bilgisini al
+                const avatarElem = userDropdownToggle.querySelector('.user-avatar');
+                const avatarText = avatarElem ? avatarElem.textContent.trim() : 'R';
+                const userName = userDropdownToggle.querySelector('span') ? 
+                                 userDropdownToggle.querySelector('span').textContent.trim() : 'Ruhin';
+                
+                // Modal içindeki öğeleri seç
+                const modalAvatar = document.querySelector('#userProfileModal .w-24');
+                const modalUserName = document.querySelector('#userProfileModal h3');
+                const modalUserEmail = document.querySelector('#userProfileModal p');
+                
+                // Bilgileri doldur
+                if (modalAvatar) modalAvatar.textContent = avatarText;
+                if (modalUserName) modalUserName.textContent = userName;
+                
+                // Email ve diğer bilgileri ekle
+                @auth
+                if (modalUserEmail) modalUserEmail.textContent = "{{ auth()->user()->email }}";
+                
+                const regDate = document.getElementById('userRegDate');
+                const userId = document.getElementById('userId');
+                const totalChats = document.getElementById('userTotalChats');
+                const totalMessages = document.getElementById('userTotalMessages');
+                
+                if (regDate) regDate.textContent = "{{ auth()->user()->created_at ? auth()->user()->created_at->format('d.m.Y') : '25.04.2025' }}";
+                if (userId) userId.textContent = "{{ auth()->id() ?? '1' }}";
+                if (totalChats) totalChats.textContent = "2";
+                if (totalMessages) totalMessages.textContent = "12";
+                @endauth
+                
+                // Popup'ı göster
+                profileModal.style.display = 'flex';
+                document.body.style.overflow = 'hidden';
+                
+                // Dışarı tıklandığında kapat
+                profileModal.addEventListener('click', function(e) {
+                    if (e.target === this) {
+                        this.style.display = 'none';
+                        document.body.style.overflow = 'auto';
+                    }
+                });
+                
+                e.stopPropagation();
+            });
+        }
     });
 </script>
 @endsection 

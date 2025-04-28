@@ -314,6 +314,9 @@ Soru: {$prompt}";
                     // Giphy URL'lerini filtrele
                     $generatedText = $this->filterGiphyUrls($generatedText);
                     
+                    // Emoji sayısını sınırla
+                    $generatedText = $this->limitEmojis($generatedText, 1);
+                    
                     // GIF gönderilip gönderilmediğini kontrol eden değişken
                     $gifAdded = false;
                     
@@ -920,10 +923,10 @@ Bu talimatları çok titizlikle uygula, bu sorunun kullanıcıyla hiçbir ilgisi
                             'length' => strlen($generatedText),
                         ]);
                         
-                  
+                        // İsim referanslarını değiştir
                         $generatedText = str_ireplace('Google', 'Ruins (Ruhin Museyibli)', $generatedText);
                         
-                      
+                        // Genel metni değiştir
                         $generatedText = str_ireplace('Benim bir adım yok', 'Benim adım Lizz', $generatedText);
                         $generatedText = str_ireplace('benim bir adım yok', 'benim adım Lizz', $generatedText);
                         $generatedText = str_ireplace('Bir adım yok', 'Adım Lizz', $generatedText);
@@ -954,6 +957,9 @@ Bu talimatları çok titizlikle uygula, bu sorunun kullanıcıyla hiçbir ilgisi
                         
                         // Giphy URL'lerini filtrele
                         $generatedText = $this->filterGiphyUrls($generatedText);
+                        
+                        // Emoji sayısını sınırla
+                        $generatedText = $this->limitEmojis($generatedText, 1);
                         
                         // GIF gönderilip gönderilmediğini kontrol eden değişken
                         $gifAdded = false;
@@ -1477,5 +1483,45 @@ Bu talimatları çok titizlikle uygula, bu sorunun kullanıcıyla hiçbir ilgisi
             'score' => $emotionData['score'],
             'show_gif' => $shouldShowGif
         ];
+    }
+
+    /**
+     * Metindeki emoji sayısını sınırlandıran ve sadece yanıtın sonunda kullanılmasını sağlayan fonksiyon
+     * 
+     * @param string $text Emoji sayısı sınırlandırılacak metin
+     * @param int $maxEmojiCount İzin verilen maksimum emoji sayısı
+     * @return string Emoji sayısı sınırlandırılmış ve sonuna eklenmiş metin
+     */
+    private function limitEmojis($text, $maxEmojiCount = 2)
+    {
+        // Emoji regex pattern (yaklaşık emoji aralığı)
+        $emojiPattern = '/[\x{1F300}-\x{1F6FF}|\x{1F900}-\x{1F9FF}|\x{2600}-\x{26FF}|\x{FE00}-\x{FE0F}]/u';
+        
+        // Metindeki tüm emojileri bul
+        preg_match_all($emojiPattern, $text, $matches);
+        
+        // Bulunan emoji listesi
+        $foundEmojis = $matches[0];
+        
+        // Emojileri metinden temizle
+        $cleanText = preg_replace($emojiPattern, '', $text);
+        $cleanText = trim($cleanText);
+        
+        // Eğer emoji bulunmadıysa, metni olduğu gibi döndür
+        if (count($foundEmojis) === 0) {
+            return $cleanText;
+        }
+        
+        // Emoji sayısı limiti aşıyorsa, sadece ilk birkaçını al
+        if (count($foundEmojis) > $maxEmojiCount) {
+            $foundEmojis = array_slice($foundEmojis, 0, $maxEmojiCount);
+        }
+        
+        // Emojileri metnin sonuna ekle (tekrarları kaldırarak)
+        $uniqueEmojis = array_unique($foundEmojis);
+        $emojisToAdd = implode(' ', $uniqueEmojis);
+        
+        // İçeriğin sonuna emojiyi ekle
+        return $cleanText . ' ' . $emojisToAdd;
     }
 } 

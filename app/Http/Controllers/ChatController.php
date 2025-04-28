@@ -44,92 +44,136 @@ class ChatController extends Controller
      */
     public function chat()
     {
-        // Ziyaretçi ID'sini kontrol et veya oluştur
-        if (!session()->has('visitor_id')) {
-            session(['visitor_id' => uniqid('visitor_', true)]);
+        // URL'den misafir parametrelerini kontrol et
+        $isGuest = request()->get('guest') === 'true';
+        $guestName = request()->get('name');
+        
+        if ($isGuest && $guestName) {
+            // Misafir girişi için visitor_id oluştur
+            $visitorId = uniqid('guest_', true);
+            session(['visitor_id' => $visitorId]);
+            session(['visitor_name' => $guestName]);
             
             // Uzun süreli cookie olarak da sakla
-            cookie()->queue('visitor_id', session('visitor_id'), 525600); // 1 yıl
-        }
-        
-        // Önce cookie'den visitor_id kontrolü yap
-        $cookieVisitorId = cookie('visitor_id');
-        if (!empty($cookieVisitorId) && $cookieVisitorId != session('visitor_id')) {
-            session(['visitor_id' => $cookieVisitorId]);
-            \Log::info('Cookie\'den visitor_id yüklendi', ['visitor_id' => $cookieVisitorId]);
-        }
-        
-        // Ziyaretçi adını kontrol et
-        $needsName = false;
-        $visitorName = '';
-        
-        // Auth ile giriş yapmış kullanıcı var mı kontrol et
-        if (auth()->check()) {
-            // Kullanıcı giriş yapmışsa, adını al
-            $visitorName = auth()->user()->name;
-            session(['visitor_name' => $visitorName]);
+            cookie()->queue('visitor_id', $visitorId, 525600); // 1 yıl
+            cookie()->queue('visitor_name', $guestName, 525600); // 1 yıl
             
-            // Veritabanına kullanıcı adını kaydet
+            \Log::info('Misafir girişi yapıldı', [
+                'visitor_id' => $visitorId,
+                'name' => $guestName
+            ]);
+            
+            // Misafir bilgilerini veritabanına kaydet
             try {
-                $deviceInfo = DeviceHelper::getUserDeviceInfo();
-                $visitorId = session('visitor_id');
+                $deviceInfo = app(\App\Helpers\DeviceHelper::class)->getUserDeviceInfo();
                 
                 // Visitor_names tablosuna kaydet
                 \DB::table('visitor_names')->updateOrInsert(
                     ['visitor_id' => $visitorId],
                     [
-                        'name' => $visitorName,
+                        'name' => $guestName,
                         'ip_address' => $deviceInfo['ip_address'],
                         'device_info' => json_encode($deviceInfo['device_info']),
-                        'user_id' => auth()->id(),
+                        'is_guest' => true,
                         'updated_at' => now()
                     ]
                 );
-                
-                \Log::info('Auth kullanıcısının adı kaydedildi', [
-                    'visitor_id' => $visitorId,
-                    'name' => $visitorName,
-                    'user_id' => auth()->id()
-                ]);
             } catch (\Exception $e) {
-                \Log::error('Auth kullanıcı adı kayıt hatası: ' . $e->getMessage());
+                \Log::error('Misafir bilgileri kayıt hatası: ' . $e->getMessage());
             }
+            
+            // Misafir olarak devam et, welcome sayfasına yönlendirme yapma
+            $visitorName = $guestName;
+            $needsName = false;
         } else {
-            // Normal ziyaretçi için kontrol et
-            if (!session()->has('visitor_name')) {
+            // Mevcut normal akış
+            // Ziyaretçi ID'sini kontrol et veya oluştur
+            if (!session()->has('visitor_id')) {
+                session(['visitor_id' => uniqid('visitor_', true)]);
+                
+                // Uzun süreli cookie olarak da sakla
+                cookie()->queue('visitor_id', session('visitor_id'), 525600); // 1 yıl
+            }
+            
+            // Önce cookie'den visitor_id kontrolü yap
+            $cookieVisitorId = cookie('visitor_id');
+            if (!empty($cookieVisitorId) && $cookieVisitorId != session('visitor_id')) {
+                session(['visitor_id' => $cookieVisitorId]);
+                \Log::info('Cookie\'den visitor_id yüklendi', ['visitor_id' => $cookieVisitorId]);
+            }
+            
+            // Ziyaretçi adını kontrol et
+            $needsName = false;
+            $visitorName = '';
+            
+            // Auth ile giriş yapmış kullanıcı var mı kontrol et
+            if (auth()->check()) {
+                // Kullanıcı giriş yapmışsa, adını al
+                $visitorName = auth()->user()->name;
+                session(['visitor_name' => $visitorName]);
+                
+                // Veritabanına kullanıcı adını kaydet
                 try {
-                    // Önce cookie'den kontrol et
-                    $cookieVisitorName = cookie('visitor_name');
-                    if (!empty($cookieVisitorName)) {
-                        session(['visitor_name' => $cookieVisitorName]);
-                        $visitorName = $cookieVisitorName;
-                        \Log::info('Cookie\'den ziyaretçi adı yüklendi', ['name' => $cookieVisitorName]);
-                    } else {
-                        // Cookie'de yoksa veritabanından kontrol et
-                        $visitorId = session('visitor_id');
-                        $visitorInfo = \DB::table('visitor_names')->where('visitor_id', $visitorId)->first();
-                        
-                        if ($visitorInfo && !empty($visitorInfo->name)) {
-                            session(['visitor_name' => $visitorInfo->name]);
-                            $visitorName = $visitorInfo->name;
-                            // Uzun süreli cookie olarak da sakla
-                            cookie()->queue('visitor_name', $visitorInfo->name, 525600); // 1 yıl
-                            \Log::info('Kayıtlı ziyaretçi adı bulundu', [
-                                'visitor_id' => $visitorId,
-                                'name' => $visitorInfo->name
-                            ]);
-                        } else {
-                            // Eğer kullanıcı adı yoksa, ana sayfaya yönlendir
-                            return redirect()->route('ai.welcome');
-                        }
-                    }
+                    $deviceInfo = app(\App\Helpers\DeviceHelper::class)->getUserDeviceInfo();
+                    $visitorId = session('visitor_id');
+                    
+                    // Visitor_names tablosuna kaydet
+                    \DB::table('visitor_names')->updateOrInsert(
+                        ['visitor_id' => $visitorId],
+                        [
+                            'name' => $visitorName,
+                            'ip_address' => $deviceInfo['ip_address'],
+                            'device_info' => json_encode($deviceInfo['device_info']),
+                            'user_id' => auth()->id(),
+                            'updated_at' => now()
+                        ]
+                    );
+                    
+                    \Log::info('Auth kullanıcısının adı kaydedildi', [
+                        'visitor_id' => $visitorId,
+                        'name' => $visitorName,
+                        'user_id' => auth()->id()
+                    ]);
                 } catch (\Exception $e) {
-                    \Log::error('Ziyaretçi adı kontrolü hatası: ' . $e->getMessage());
-                    // Hata durumunda da welcome sayfasına yönlendir
-                    return redirect()->route('ai.welcome');
+                    \Log::error('Auth kullanıcı adı kayıt hatası: ' . $e->getMessage());
                 }
             } else {
-                $visitorName = session('visitor_name');
+                // Normal ziyaretçi için kontrol et
+                if (!session()->has('visitor_name')) {
+                    try {
+                        // Önce cookie'den kontrol et
+                        $cookieVisitorName = cookie('visitor_name');
+                        if (!empty($cookieVisitorName)) {
+                            session(['visitor_name' => $cookieVisitorName]);
+                            $visitorName = $cookieVisitorName;
+                            \Log::info('Cookie\'den ziyaretçi adı yüklendi', ['name' => $cookieVisitorName]);
+                        } else {
+                            // Cookie'de yoksa veritabanından kontrol et
+                            $visitorId = session('visitor_id');
+                            $visitorInfo = \DB::table('visitor_names')->where('visitor_id', $visitorId)->first();
+                            
+                            if ($visitorInfo && !empty($visitorInfo->name)) {
+                                session(['visitor_name' => $visitorInfo->name]);
+                                $visitorName = $visitorInfo->name;
+                                // Uzun süreli cookie olarak da sakla
+                                cookie()->queue('visitor_name', $visitorInfo->name, 525600); // 1 yıl
+                                \Log::info('Kayıtlı ziyaretçi adı bulundu', [
+                                    'visitor_id' => $visitorId,
+                                    'name' => $visitorInfo->name
+                                ]);
+                            } else {
+                                // Eğer kullanıcı adı yoksa, ana sayfaya yönlendir
+                                return redirect()->route('ai.welcome');
+                            }
+                        }
+                    } catch (\Exception $e) {
+                        \Log::error('Ziyaretçi adı kontrolü hatası: ' . $e->getMessage());
+                        // Hata durumunda da welcome sayfasına yönlendir
+                        return redirect()->route('ai.welcome');
+                    }
+                } else {
+                    $visitorName = session('visitor_name');
+                }
             }
         }
         
@@ -141,7 +185,8 @@ class ChatController extends Controller
             'memory_usage' => $this->brain->getMemoryUsage(),
             'learning_progress' => $this->brain->getLearningProgress(),
             'needs_name' => $needsName,
-            'visitor_name' => $visitorName // Kullanıcı adını doğrudan gönder
+            'visitor_name' => $visitorName, // Kullanıcı adını doğrudan gönder
+            'is_guest' => $isGuest ?? false
         ];
         
         return view('ai.chat', compact('initialState'));
@@ -168,17 +213,18 @@ class ChatController extends Controller
             // Önceliği Google girişine veriyoruz
             $visitorName = session('visitor_name');
             
-            // Eğer kullanıcı Google ile giriş yapmışsa, adını değiştirmesine izin vermiyoruz
+            // Eğer kullanıcı Google ile giriş yapmışsa veya misafir ise, adını değiştirmesine izin vermiyoruz
             $googleUser = auth()->check() && auth()->user()->google_id;
+            $isGuest = strpos(session('visitor_id') ?? '', 'guest_') === 0;
             
             // Kullanıcı adını kontrol et ve kaydet (eğer bu ilk mesajsa ve henüz bir ad yoksa)
-            if (!$visitorName && $request->input('is_first_message', false) && !$googleUser) {
+            if (!$visitorName && $request->input('is_first_message', false) && !$googleUser && !$isGuest) {
                 $visitorName = $message;
                 session(['visitor_name' => $visitorName]);
                 
                 // Kullanıcı adını veritabanına kaydet
                 try {
-                    $deviceInfo = DeviceHelper::getUserDeviceInfo();
+                    $deviceInfo = app(\App\Helpers\DeviceHelper::class)->getUserDeviceInfo();
                     $visitorId = session('visitor_id');
                     
                     // Visitor_names tablosuna kaydet
@@ -212,13 +258,13 @@ class ChatController extends Controller
             
             // Frontend'den gelen visitor_name varsa, Google ile giriş yapmamış kullanıcılar için güncelle
             $requestVisitorName = $request->input('visitor_name');
-            if (!$googleUser && !empty($requestVisitorName) && $requestVisitorName != $visitorName) {
+            if (!$googleUser && !$isGuest && !empty($requestVisitorName) && $requestVisitorName != $visitorName) {
                 $visitorName = $requestVisitorName;
                 session(['visitor_name' => $visitorName]);
                 
                 // Veritabanında da güncelle
                 try {
-                    $deviceInfo = DeviceHelper::getUserDeviceInfo();
+                    $deviceInfo = app(\App\Helpers\DeviceHelper::class)->getUserDeviceInfo();
                     $visitorId = session('visitor_id');
                     
                     // Visitor_names tablosuna kaydet
@@ -4613,14 +4659,10 @@ class ChatController extends Controller
     private function recordUserVisit()
     {
         try {
-            $visitorId = session('visitor_id');
-            $visitorName = session('visitor_name');
-            
-            // RecordVisit servisini kullanarak ziyaretçi bilgilerini kaydet
-            $this->recordVisit->record($visitorId, $visitorName);
-            
+            $deviceInfo = app(\App\Helpers\DeviceHelper::class)->getUserDeviceInfo();
+            $this->recordVisit->record($deviceInfo);
         } catch (\Exception $e) {
-            Log::error('Kullanıcı ziyareti kaydedilirken hata: ' . $e->getMessage());
+            \Log::error('Ziyaret kaydı hatası: ' . $e->getMessage());
         }
     }
 

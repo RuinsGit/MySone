@@ -15,6 +15,11 @@
             background:rgb(22, 30, 41);
             font-family: 'Arial', sans-serif;
             overflow: hidden;
+            box-sizing: border-box;
+        }
+        
+        *, *:before, *:after {
+            box-sizing: inherit;
         }
         
         .welcome-container {
@@ -56,7 +61,8 @@
             border-radius: 10px;
             overflow: hidden;
             box-shadow: 0 0 15px rgba(99, 102, 241, 0.2);
-            width: 300px;
+            width: 100%;
+            max-width: 300px;
             margin-left: auto;
             margin-right: auto;
         }
@@ -82,6 +88,10 @@
             opacity: 0;
             transform: translateY(20px);
             animation: fadeIn 1s ease-out 0.8s forwards;
+            width: 100%;
+            max-width: 300px;
+            margin-left: auto;
+            margin-right: auto;
         }
         
         .auth-form {
@@ -95,44 +105,74 @@
         .google-login {
             margin-top: 20px;
             margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            width: 100%;
+            max-width: 300px;
+            margin-left: auto;
+            margin-right: auto;
         }
         
         .google-button {
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 10px;
-            padding: 10px 20px;
+            gap: 8px;
+            padding: 12px 0;
             border-radius: 8px;
             background-color: white;
             color: #4285F4;
             border: 2px solid rgba(66, 133, 244, 0.3);
             font-weight: 500;
-            transition: all 0.3s ease;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
             cursor: pointer;
-            width: 300px;
-            margin: 0 auto;
+            width: 100%;
+            font-size: 14px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            text-decoration: none;
         }
         
         .google-button:hover {
-            box-shadow: 0 0 20px rgba(66, 133, 244, 0.4);
-            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(66, 133, 244, 0.4);
+            transform: translateY(-3px);
+        }
+        
+        .google-button:active {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 10px rgba(66, 133, 244, 0.3);
+        }
+        
+        .guest-button {
+            background: linear-gradient(45deg, #a855f7, #8b5cf6);
+            color: white;
+            border: none;
+            box-shadow: 0 2px 10px rgba(168, 85, 247, 0.3);
+        }
+        
+        .guest-button:hover {
+            background: linear-gradient(45deg, #9333ea, #7c3aed);
+            box-shadow: 0 5px 15px rgba(168, 85, 247, 0.5);
+        }
+        
+        .guest-button:active {
+            box-shadow: 0 3px 10px rgba(168, 85, 247, 0.4);
         }
         
         .form-input {
             width: 100%;
-            max-width: 300px;
-            padding: 12px 20px;
+            padding: 12px 15px;
             font-size: 16px;
             border-radius: 8px;
             border: 2px solid rgba(99, 102, 241, 0.3);
             background-color: rgba(30, 41, 59, 0.8);
             color: white;
             outline: none;
-            transition: all 0.3s ease;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
             text-align: center;
             box-shadow: 0 0 15px rgba(99, 102, 241, 0.2);
             margin-bottom: 15px;
+            box-sizing: border-box;
         }
         
         .form-input:focus {
@@ -146,7 +186,7 @@
         
         .form-button {
             margin-top: 10px;
-            padding: 12px 30px;
+            padding: 12px 0;
             font-size: 16px;
             font-weight: 500;
             background: linear-gradient(45deg, #8b5cf6, #6366f1);
@@ -154,15 +194,21 @@
             border: none;
             border-radius: 8px;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
             box-shadow: 0 0 15px rgba(99, 102, 241, 0.3);
-            width: 300px;
+            width: 100%;
+            box-sizing: border-box;
         }
         
         .form-button:hover {
             background: linear-gradient(45deg, #a855f7, #818cf8);
             transform: translateY(-2px);
-            box-shadow: 0 0 20px rgba(168, 85, 247, 0.5);
+            box-shadow: 0 5px 15px rgba(168, 85, 247, 0.5);
+        }
+        
+        .form-button:active {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 10px rgba(168, 85, 247, 0.4);
         }
         
         .form-link {
@@ -178,6 +224,7 @@
             align-items: center;
             margin: 20px 0;
             color: #9ca3af;
+            width: 100%;
             max-width: 300px;
             margin-left: auto;
             margin-right: auto;
@@ -406,7 +453,7 @@
                     <div class="form-container">
                         ${errorMessage ? `<div class="error-message">${errorMessage}</div>` : ''}
                         
-                        <!-- Google ile Giriş -->
+                        <!-- Google ile Giriş ve Misafir Olarak Giriş Butonları -->
                         <div class="google-login">
                             <a href="{{ route('google.login') }}" class="google-button">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 48 48">
@@ -415,8 +462,12 @@
                                     <path fill="#FBBC05" d="M11.69 28.18C11.25 26.86 11 25.45 11 24s.25-2.86.69-4.18v-5.7H4.34C2.85 17.09 2 20.45 2 24c0 3.55.85 6.91 2.34 9.88l7.35-5.7z"/>
                                     <path fill="#EA4335" d="M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2 15.4 2 7.96 6.93 4.34 14.12l7.35 5.7c1.73-5.2 6.58-9.07 12.31-9.07z"/>
                                 </svg>
-                                Google ile devam et
+                                Google
                             </a>
+                            <button id="guest-login-button" class="google-button guest-button">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                                Misafir
+                            </button>
                         </div>
                         
                         <div class="divider">veya</div>
@@ -499,6 +550,55 @@
                 document.getElementById('show-login').addEventListener('click', function() {
                     document.getElementById('login-tab').click();
                 });
+                
+                // Misafir olarak giriş butonuna tıklama
+                document.getElementById('guest-login-button').addEventListener('click', function() {
+                    startGuestLogin();
+                });
+            }
+            
+            // Misafir olarak giriş fonksiyonu
+            function startGuestLogin() {
+                // Random isim oluştur
+                const randomNames = [
+                    "Misafir1234", "YeniKullanıcı", "GeziCi", "ZiyaretÇi", "MisafirKonuk", 
+                    "GeçiciKullanıcı", "Anonim", "Gezgin", "MeraklıZiyaretçi", "YolcuX",
+                    "KeşfediciY", "HızlıGezgin", "MisafirDost", "YeniMisafir", "GeçerkenUğrayan"
+                ];
+                
+                const randomName = randomNames[Math.floor(Math.random() * randomNames.length)] + Math.floor(Math.random() * 1000);
+                
+                // Misafir girişi için yükleme ekranını göster
+                const welcomeContent = document.getElementById('welcome-content');
+                
+                welcomeContent.innerHTML = `
+                    <div class="welcome-subtitle">HOŞ GELDİN, ${randomName}!</div>
+                    
+                    <div id="loading-section">
+                        <div class="loading-container">
+                            <div class="loading-circle"></div>
+                            <div class="loading-circle loading-circle-2"></div>
+                            <div class="loading-circle loading-circle-3"></div>
+                            <div class="glow-effect"></div>
+                        </div>
+                        
+                        <div class="loading-bar-container">
+                            <div class="loading-bar" id="loading-bar"></div>
+                        </div>
+                        <div class="percentage" id="percentage">0%</div>
+                    </div>
+                `;
+                
+                // Yükleme animasyonunu başlat
+                startLoadingAnimation();
+                
+                // Misafir bilgisini sakla
+                localStorage.setItem('guestName', randomName);
+                
+                // Misafir olarak chat sayfasına yönlendir
+                setTimeout(() => {
+                    window.location.href = "{{ route('ai.chat') }}?guest=true&name=" + encodeURIComponent(randomName);
+                }, 5000);
             }
             
             // Yükleme animasyonu fonksiyonu

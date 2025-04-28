@@ -1123,37 +1123,130 @@ input:checked + .switch-slider:before {
 
 /* Responsive Styles */
 @media (max-width: 767px) {
-  .sidebar {
-    display: none;
-  }
-  
-  .message {
-    max-width: 100%;
-  }
-  
-  .input-container.keyboard-visible {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-  }
-  
-  .chat-header-title h1 {
-    font-size: 1.1rem;
-  }
-  
-  .message-content {
-    font-size: 14px;
-  }
-  
-  .ai-thinking-wrapper {
-    position: relative;
-    bottom: auto;
-    margin: 10px 0;
-    padding: 0 16px;
-    width: auto;
-    clear: both;
-  }
+    .app-container {
+        position: relative;
+        overflow-x: hidden;
+        background: var(--bg-dark); /* Ana arka plan rengini tekrar belirt */
+    }
+    
+    /* Menü açık olduğunda ana içeriğin pozisyonunu ayarla */
+    .main-content {
+        transition: all 0.3s ease;
+        position: relative;
+        background: var(--bg-dark); /* Ana içerik arka plan rengini belirt */
+        z-index: 0; /* Ana içerik z-index değeri */
+    }
+    
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: -280px;
+        height: 100%;
+        z-index: 1001;
+        transition: all 0.3s ease;
+        width: 280px;
+        background: var(--bg-medium);
+        display: block !important;
+        overflow-y: auto;
+        transform: none;
+        visibility: visible; /* Her zaman görünür ancak dışarda */
+    }
+    
+    .sidebar.active {
+        left: 0;
+        right: auto;
+        box-shadow: 5px 0 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .sidebar-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 999; /* Sidebar'dan düşük, diğer içerikten yüksek */
+        opacity: 0;
+        visibility: hidden; /* Başlangıçta gizli */
+        transition: all 0.3s ease;
+        pointer-events: none; /* Başlangıçta tıklanamaz */
+    }
+    
+    .sidebar-overlay.active {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto; /* Aktif olduğunda tıklanabilir */
+    }
+
+    /* Kaydırma sorununu önlemek için */
+    .sidebar.active .sidebar-header,
+    .sidebar.active .sidebar-options {
+        pointer-events: auto;
+    }
+
+    .sidebar-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        pointer-events: auto;
+    }
+
+    /* Menü hamburger butonu stil düzenlemeleri */
+    .menu-toggle-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        background: transparent;
+        border: none;
+        color: var(--text-light);
+        font-size: 20px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        padding: 0;
+        border-radius: 50%;
+        z-index: 1002;
+    }
+    
+    .menu-toggle-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: var(--primary-light);
+    }
+    
+    .message {
+        max-width: 100%;
+    }
+    
+    .input-container.keyboard-visible {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+    }
+    
+    .chat-header-title h1 {
+        font-size: 1.1rem;
+    }
+    
+    .message-content {
+        font-size: 14px;
+    }
+    
+    .ai-thinking-wrapper {
+        position: relative;
+        bottom: auto;
+        margin: 10px 0;
+        padding: 0 16px;
+        width: auto;
+        clear: both;
+    }
 }
 
 /* Dark mode specific styles for code highlighting */
@@ -1928,7 +2021,7 @@ button.gradient-btn:hover {
                 </div>
                 @endauth
                 
-                <button id="menu-toggle" class="d-lg-none">
+                <button id="menu-toggle" class="menu-toggle-btn">
                     <i class="fas fa-bars"></i>
                 </button>
             </div>
@@ -2216,11 +2309,25 @@ button.gradient-btn:hover {
         const mobileModelSelector = document.getElementById('mobile-model-selector');
         
         // Kullanıcı adını localStorage'a kaydet
-        let visitorName = '{{ session('visitor_name') }}' || localStorage.getItem('visitor_name') || '';
-        
-        // Eğer session'da isim varsa, localStorage'a da kaydedelim
-        if ('{{ session('visitor_name') }}') {
-            localStorage.setItem('visitor_name', '{{ session('visitor_name') }}');
+        let visitorName = ''; // Temiz başla
+
+        // Eğer session'da visitor_name varsa ve cookie değerlerini içermiyorsa kullan
+        const sessionVisitorName = '{{ session('visitor_name') }}';
+        if (sessionVisitorName && !sessionVisitorName.includes('=') && !sessionVisitorName.includes(';')) {
+            visitorName = sessionVisitorName;
+            localStorage.setItem('visitor_name', sessionVisitorName);
+        } 
+        // Eğer localStorage'da varsa ve cookie değerlerini içermiyorsa kullan
+        else if (localStorage.getItem('visitor_name') && 
+                !localStorage.getItem('visitor_name').includes('=') && 
+                !localStorage.getItem('visitor_name').includes(';')) {
+            visitorName = localStorage.getItem('visitor_name');
+        } 
+        // Hiçbiri yoksa varsayılan kullan
+        else {
+            visitorName = 'Kullanıcı';
+            // Geçersiz değerleri temizle
+            localStorage.removeItem('visitor_name');
         }
         
         // Kullanıcı adı kontrolü
@@ -2496,7 +2603,7 @@ button.gradient-btn:hover {
             } else {
                 // Kullanıcı avatarı - Google'dan gelen avatar varsa kullan, yoksa baş harfini göster
                 @auth
-                if ("{{ auth()->user()->avatar }}") {
+                if ("{{ auth()->check() && auth()->user()->avatar }}") {
                     avatarEl.innerHTML = `<img src="{{ auth()->user()->avatar }}" alt="{{ auth()->user()->name }}" 
                         style="background-size:cover;
                         background-position: center;
@@ -2507,7 +2614,7 @@ button.gradient-btn:hover {
                         !important;">`;
                 } else {
                     avatarEl.innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;">
-                        {{ substr(auth()->user()->name, 0, 1) }}</div>`;
+                        {{ auth()->check() ? substr(auth()->user()->name, 0, 1) : 'K' }}</div>`;
                 }
                 @else
                 avatarEl.innerHTML = `<i class="fas fa-user"></i>`;
@@ -2519,7 +2626,23 @@ button.gradient-btn:hover {
             // Kullanıcı adı veya AI adı ekleyerek görüntüle
             const nameEl = document.createElement('div');
             nameEl.className = 'message-sender-name';
-            nameEl.textContent = sender === 'ai' ? 'Lizz' : (visitorName || '{{ session('visitor_name') }}' || '{{ auth()->user()->name ?? "Kullanıcı" }}');
+
+            // Kullanıcı adı kontrolü - çerez değeri kontrolü
+            let displayName = '';
+            if (sender === 'ai') {
+                displayName = 'Lizz';
+            } else {
+                // Kullanıcı adı için çeşitli kaynakları kontrol et ve cookie değerlerini içerenleri filtrele
+                if (visitorName && !visitorName.includes('=') && !visitorName.includes(';')) {
+                    displayName = visitorName;
+                } else if ('{{ auth()->check() ? auth()->user()->name : "" }}' && !'{{ auth()->check() ? auth()->user()->name : "" }}'.includes('=')) {
+                    displayName = '{{ auth()->check() ? auth()->user()->name : "Kullanıcı" }}';
+                } else {
+                    displayName = 'Kullanıcı';
+                }
+            }
+
+            nameEl.textContent = displayName;
             messageEl.appendChild(nameEl);
             
             // Mesaj içeriği
@@ -4660,7 +4783,7 @@ button.gradient-btn:hover {
                 // Bilgileri doldur
                 if (modalAvatar) {
                     @auth
-                    if ("{{ auth()->user()->avatar }}") {
+                    if ("{{ auth()->check() && auth()->user()->avatar }}") {
                         // Google avatarı varsa
                         modalAvatar.innerHTML = `<img src="{{ auth()->user()->avatar }}" alt="{{ auth()->user()->name }}" 
                             style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
@@ -4706,5 +4829,100 @@ button.gradient-btn:hover {
             });
         }
     });
+
+    // Hamburger menü için gerekli elemanları seç
+    const menuToggle = document.getElementById('menu-toggle');
+    const sidebar = document.querySelector('.sidebar');
+    
+    // Hamburger menü tıklama olayı
+    if (menuToggle) {
+        menuToggle.addEventListener('click', function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            
+            // Varolan tüm overlay'leri temizle
+            const existingOverlays = document.querySelectorAll('.sidebar-overlay');
+            existingOverlays.forEach(overlay => {
+                if (overlay && overlay.parentNode) {
+                    overlay.parentNode.removeChild(overlay);
+                }
+            });
+            
+            // Overlay oluştur
+            const sidebarOverlay = document.createElement('div');
+            sidebarOverlay.className = 'sidebar-overlay';
+            document.body.appendChild(sidebarOverlay);
+            
+            // İlk animasyon gecikmesi için minimum süre
+            setTimeout(() => {
+                // Sidebar'ı aç/kapat
+                sidebar.classList.toggle('active');
+                
+                // Overlay'i aktifleştir veya kapat
+                if (sidebar.classList.contains('active')) {
+                    sidebarOverlay.classList.add('active');
+                    
+                    // Arka plana tıklama olayı ekle
+                    sidebarOverlay.addEventListener('click', function() {
+                        sidebar.classList.remove('active');
+                        sidebarOverlay.classList.remove('active');
+                        
+                        setTimeout(() => {
+                            if (sidebarOverlay.parentNode) {
+                                document.body.removeChild(sidebarOverlay);
+                            }
+                        }, 300);
+                    });
+                } else {
+                    sidebarOverlay.classList.remove('active');
+                    
+                    setTimeout(() => {
+                        if (sidebarOverlay.parentNode) {
+                            document.body.removeChild(sidebarOverlay);
+                        }
+                    }, 300);
+                }
+            }, 10);
+        });
+        
+        // Sidebar içindeki tüm elemanların tıklama olaylarını engelleme
+        sidebar.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+        
+        // Sayfa yüklendiğinde sidebar'ı gizle
+        window.addEventListener('load', function() {
+            if (window.innerWidth <= 767) {
+                sidebar.classList.remove('active');
+                
+                // Tüm overlay'leri temizle
+                const overlays = document.querySelectorAll('.sidebar-overlay');
+                overlays.forEach(overlay => {
+                    if (overlay && overlay.parentNode) {
+                        overlay.parentNode.removeChild(overlay);
+                    }
+                });
+            }
+        });
+        
+        // Rezise olayında sidebar'ı kontrol et
+        window.addEventListener('resize', function() {
+            if (window.innerWidth <= 767) {
+                if (!sidebar.classList.contains('active')) {
+                    // Stil durumunu düzelt
+                    sidebar.style.left = '-280px';
+                    sidebar.style.right = 'auto';
+                    
+                    // Tüm overlay'leri temizle
+                    const overlays = document.querySelectorAll('.sidebar-overlay');
+                    overlays.forEach(overlay => {
+                        if (overlay && overlay.parentNode) {
+                            overlay.parentNode.removeChild(overlay);
+                        }
+                    });
+                }
+            }
+        });
+    }
 </script>
 @endsection 

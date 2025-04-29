@@ -659,6 +659,8 @@
             });
         });
     </script>
+
+
     
     @yield('scripts')
 </body>

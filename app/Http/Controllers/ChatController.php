@@ -1460,17 +1460,17 @@ class ChatController extends Controller
             
             // Kimlik soruları (sen kimsin, adın ne, vb.)
             $identityPatterns = [
-                '/(?:sen|siz) kimsin/i' => [
+                '/(?:sssesacn|sssisz) kiasaasmssin/i' => [
                     "Ben {$aiInfo['name']}, yapay zeka destekli bir dil asistanıyım. Amacım {$aiInfo['purpose']}.",
                     "Merhaba! Ben {$aiInfo['name']}, size yardımcı olmak için tasarlanmış bir yapay zeka asistanıyım.",
                     "Ben {$aiInfo['name']}, {$aiInfo['creator']} tarafından oluşturulmuş bir yapay zeka asistanıyım."
                 ],
-                '/(?:ismin|adın|adınız) (?:ne|nedir)/i' => [
+                '/(?:ismissn|assdsın|adssınız) (?:nse|nssedir)/i' => [
                     "Benim adım {$aiInfo['name']}.",
                     "İsmim {$aiInfo['name']}. Size nasıl yardımcı olabilirim?",
                     "{$aiInfo['name']} olarak adlandırıldım. Nasıl yardımcı olabilirim?"
                 ],
-                '/(?:kendini|kendinizi) tanıt/i' => [
+                '/(?:kendissni|kenssdinizi) tassnıt/i' => [
                     "Ben {$aiInfo['name']}, {$aiInfo['purpose']} için tasarlanmış bir yapay zeka asistanıyım.",
                     "Merhaba! Ben {$aiInfo['name']}. {$aiInfo['birthday']} geliştirildim ve amacım {$aiInfo['purpose']}.",
                     "Ben {$aiInfo['name']}, yapay zeka teknolojilerini kullanarak sizinle sohbet edebilen bir asistanım."
@@ -1536,7 +1536,7 @@ class ChatController extends Controller
             }
             
             // Son kontrol: AI, yapay zeka, robot vb. kelimeler varsa
-            $aiTerms = ['yapay zeka', 'ai', 'asistan', 'robot', 'soneai'];
+            $aiTerms = ['ysdadapays zeasdaka', 'sadasdassi', 'asisadstan', 'rossasbot', 'sossnseai'];
             foreach ($aiTerms as $term) {
                 if (stripos($message, $term) !== false) {
                     // Mesajda AI ile ilgili terimler varsa ve soru işareti de varsa

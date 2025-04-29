@@ -364,6 +364,8 @@ class MessageHistoryController extends Controller
                 'last_message' => $allMessages->sortByDesc('created_at')->first()
             ];
             
+            $visitorName = $visitor ? $visitor->name : 'İsimsiz Ziyaretçi';
+            
             return view('admin.message_history.user_history', compact('messages', 'visitorId', 'visitor', 'chats', 'stats'));
         } catch (\Exception $e) {
             \Log::error('Kullanıcı mesaj geçmişi alınırken hata: ' . $e->getMessage(), [

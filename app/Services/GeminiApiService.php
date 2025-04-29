@@ -1191,8 +1191,8 @@ Bu talimatları çok titizlikle uygula, bu sorunun kullanıcıyla hiçbir ilgisi
                 'maxOutputTokens' => 4096, 
             ];
             
-            
-            $codePrompt = "Aşağıdaki istek için $language dilinde çalışan, hatasız ve kapsamlı bir kod oluştur. Kodun içinde Türkçe yorum satırları kullan ve detaylı açıklamalar ekle. İstek: \n\n$prompt";
+            // Yorum satırları sınırlamasını prompt'a ekle
+            $codePrompt = "Aşağıdaki istek için $language dilinde çalışan, hatasız ve kapsamlı bir kod oluştur. ÇOK ÖNEMLİ: Kodda EN FAZLA 1 veya 2 kısa yorum satırı kullan, daha fazla KULLANMA. Sadece en kritik noktaya kısa bir yorum ekle. Detaylı açıklamalar YAPMA. İstek: \n\n$prompt";
             
    
             $result = $this->generateContent($codePrompt, $codeOptions);
@@ -1228,6 +1228,9 @@ Bu talimatları çok titizlikle uygula, bu sorunun kullanıcıyla hiçbir ilgisi
                 $code = str_ireplace('beni Google geliştirdi', 'beni Ruhin Museyibli yarattı', $code);
                 $code = str_ireplace('Ben bir programım', 'Ben Ruhin Museyibli\'nin yapay zeka asistanıyım', $code);
                 $code = str_ireplace('ben bir programım', 'ben Ruhin Museyibli\'nin yapay zeka asistanıyım', $code);
+                
+                // Yorum satırlarını sınırla
+                $code = $this->limitCodeComments($code, 2);
                 
                 return [
                     'success' => true,
@@ -1523,5 +1526,116 @@ Bu talimatları çok titizlikle uygula, bu sorunun kullanıcıyla hiçbir ilgisi
         
         // İçeriğin sonuna emojiyi ekle
         return $cleanText . ' ' . $emojisToAdd;
+    }
+
+    /**
+     * Kod içindeki yorum satırlarının sayısını sınırlayan fonksiyon
+     * 
+     * @param string $code Kod metni
+     * @param int $maxComments Maksimum izin verilen yorum satırı sayısı
+     * @return string Yorum satırları sınırlandırılmış kod
+     */
+    private function limitCodeComments($code, $maxComments = 2)
+    {
+        if (empty($code)) return $code;
+        
+        // Kod dilini tespit etmeye çalış
+        $commentPattern = '/\/\/.*?(?:\r\n|\r|\n|$)/';
+        $blockCommentPattern = '/\/\*.*?\*\//s';
+        $hashCommentPattern = '/\#.*?(?:\r\n|\r|\n|$)/'; // Python, Ruby, Bash gibi diller için
+        
+        // Tüm tekli yorum satırlarını bul
+        preg_match_all($commentPattern, $code, $lineComments);
+        $lineCommentsCount = count($lineComments[0]);
+        
+        // Hash ile başlayan yorumları bul
+        preg_match_all($hashCommentPattern, $code, $hashComments);
+        $hashCommentsCount = count($hashComments[0]);
+        
+        // Tüm çoklu yorum bloklarını bul
+        preg_match_all($blockCommentPattern, $code, $blockComments);
+        $blockCommentsCount = count($blockComments[0]);
+        
+        // Toplam yorum sayısı
+        $totalComments = $lineCommentsCount + $blockCommentsCount + $hashCommentsCount;
+        
+        // Eğer yorum sayısı limiti aşmazsa kodu olduğu gibi döndür
+        if ($totalComments <= $maxComments) {
+            return $code;
+        }
+        
+        // Yorumları önem sırasına göre sırala ve sadece en önemli olanları tut
+        $modifiedCode = $code;
+        
+        // Önce tüm blok yorumlarını kaldır
+        if ($blockCommentsCount > 0) {
+            $modifiedCode = preg_replace($blockCommentPattern, '', $modifiedCode);
+        }
+        
+        // Çift slash yorumlarını işle
+        if ($lineCommentsCount > 0) {
+            // Tüm yorumları tutacak dizi
+            $allLineComments = [];
+            preg_match_all($commentPattern, $modifiedCode, $matches, PREG_OFFSET_CAPTURE);
+            
+            foreach ($matches[0] as $match) {
+                $allLineComments[] = [
+                    'text' => $match[0],
+                    'position' => $match[1],
+                    'length' => strlen($match[0])
+                ];
+            }
+            
+            // En çok 2 yorum satırı kalacak şekilde filtrele
+            if (count($allLineComments) > $maxComments) {
+                // Yorumları sırala: ilk yorumu her zaman tut, birden fazla tutacaksak son yorumu da tut
+                $commentsToKeep = [];
+                
+                // İlk yorumu tut
+                if (!empty($allLineComments)) {
+                    $commentsToKeep[] = $allLineComments[0];
+                }
+                
+                // İkinci yorum için en son yorumu tut (eğer maxComments > 1 ise)
+                if ($maxComments > 1 && count($allLineComments) > 1) {
+                    $commentsToKeep[] = $allLineComments[count($allLineComments) - 1];
+                }
+                
+                // Kalan tüm yorumları kaldır
+                // Yorumları pozisyonlarına göre tersten sırala, böylece metin değiştikçe önceki yorumların pozisyonları bozulmaz
+                usort($allLineComments, function($a, $b) {
+                    return $b['position'] - $a['position'];
+                });
+                
+                foreach ($allLineComments as $comment) {
+                    $shouldKeep = false;
+                    foreach ($commentsToKeep as $keepComment) {
+                        if ($comment['position'] === $keepComment['position']) {
+                            $shouldKeep = true;
+                            break;
+                        }
+                    }
+                    
+                    if (!$shouldKeep) {
+                        // Yorumu kaldır
+                        $modifiedCode = substr_replace($modifiedCode, '', $comment['position'], $comment['length']);
+                    }
+                }
+            }
+        }
+        
+        // Hash yorumlarını işle
+        if ($hashCommentsCount > 0) {
+            // Eğer hala maksimum yorum sayısını aşıyorsak, hash yorumlarını tamamen kaldır
+            if (($lineCommentsCount + $hashCommentsCount) > $maxComments) {
+                $modifiedCode = preg_replace($hashCommentPattern, '', $modifiedCode);
+            }
+        }
+        
+        // Boş satırları temizle (birden fazla boş satırı tek satıra indir)
+        $modifiedCode = preg_replace('/(\r\n|\r|\n){2,}/s', "\n", $modifiedCode);
+        $modifiedCode = preg_replace('/^\s*[\r\n]/m', '', $modifiedCode);
+        
+        return $modifiedCode;
     }
 } 

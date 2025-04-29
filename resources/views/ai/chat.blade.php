@@ -5,7 +5,8 @@
 @section('styles')
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css">
+<!-- Son sürüm ve daha iyi tema ile değiştiriyorum -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/vs2015.min.css">
 
 <style>
 :root {
@@ -737,106 +738,145 @@ input:checked + .toggle-slider:before {
 
 /* Code Block Styles */
 .code-block {
-  margin-top: 16px;
-  border-radius: var(--border-radius);
+  margin: 20px 0;
+  border-radius: 8px;
   overflow: hidden;
-  background: #282c34;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  transition: all 0.3s ease;
-  transform: translateZ(0);
-  backface-visibility: hidden;
-}
-
-.code-block:hover {
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.1);
-  transform: translateY(-3px) translateZ(0);
+  background: #1e1e1e;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+  width: 100%;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
 }
 
 .code-header {
+  background: #343541;
+  padding: 10px 15px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
-  background: rgba(0, 0, 0, 0.4);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-muted);
-  letter-spacing: 0.5px;
+  color: #e9e9e9;
+  font-size: 14px;
+  font-weight: 500;
+  border-bottom: 1px solid #44444f;
 }
 
+/* Kod içeriği için yeni stiller - renklendirme sorununu çözmek için */
 .code-content {
-  max-height: 400px;
-  overflow-y: auto;
   position: relative;
-}
-
-.code-content::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
-}
-
-.code-content::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.2);
-}
-
-.code-content::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 5px;
-}
-
-.code-content::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  max-height: none; /* Yükseklik sınırını kaldır */
+  background: #1e1e1e;
 }
 
 .code-content pre {
   margin: 0;
-  padding: 16px;
+  padding: 0 !important;
   background: transparent !important;
+  overflow-x: hidden;
+  overflow-y: auto;
+  max-height: 600px; /* Dikey kaydırma için maksimum yükseklik */
 }
 
 .code-content code {
-  font-family: 'Fira Code', 'JetBrains Mono', 'Courier New', monospace;
+  padding: 16px !important;
+  display: block;
+  overflow-x: auto;
+  white-space: pre !important;
+  word-wrap: normal !important; 
+  word-break: normal !important;
+  tab-size: 4;
   font-size: 14px;
-  line-height: 1.5;
+  line-height: 1.6;
+  font-family: 'Consolas', 'Monaco', 'Menlo', 'Courier New', monospace !important;
+  background: #1e1e1e !important;
+  color: #d4d4d4 !important; /* VS Code varsayılan metin rengi */
 }
 
 .code-footer {
+  background: #343541;
+  padding: 8px 15px;
   display: flex;
   justify-content: flex-end;
-  padding: 10px 16px;
-  background: rgba(0, 0, 0, 0.3);
-  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  gap: 10px;
+  border-top: 1px solid #44444f;
 }
 
 .code-button {
-  background: rgba(79, 70, 229, 0.2);
-  color: var(--primary-light);
-  border: 1px solid rgba(79, 70, 229, 0.3);
-  border-radius: 6px;
-  padding: 8px 14px;
+  background: transparent;
+  color: #e9e9e9;
+  border: 1px solid #555;
+  border-radius: 4px;
+  padding: 5px 12px;
   font-size: 12px;
-  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  transition: all 0.2s;
 }
 
 .code-button:hover {
-  background: rgba(79, 70, 229, 0.3);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: #888;
 }
 
-.code-button:active {
-  transform: translateY(0);
+/* Highlight.js'nin stillerinin önceliğini arttır */
+.hljs-keyword,
+.hljs-built_in,
+.hljs-type,
+.hljs-literal,
+.hljs-number,
+.hljs-operator,
+.hljs-tag {
+  color: #569cd6 !important; /* Mavi */
 }
 
-.code-button i {
-  font-size: 14px;
+.hljs-string,
+.hljs-regexp,
+.hljs-addition,
+.hljs-attribute,
+.hljs-meta .hljs-string {
+  color: #ce9178 !important; /* Turuncu */
+}
+
+.hljs-function,
+.hljs-title.function_ {
+  color: #dcdcaa !important; /* Sarı */
+}
+
+.hljs-comment,
+.hljs-quote {
+  color: #6a9955 !important; /* Yeşil */
+  font-style: italic;
+}
+
+.hljs-doctag,
+.hljs-meta,
+.hljs-meta .hljs-keyword {
+  color: #ff7b72 !important;
+}
+
+.hljs-variable,
+.hljs-template-variable {
+  color: #bd63c5 !important; /* Mor */
+}
+
+.hljs-attr,
+.hljs-property {
+  color: #9cdcfe !important; /* Açık mavi */
+}
+
+.hljs-name,
+.hljs-title,
+.hljs-title.class_ {
+  color: #4ec9b0 !important; /* Mint yeşili */
+}
+
+.hljs-section,
+.hljs-selector-class {
+  color: #ff7b72 !important;
+}
+
+/* Dil etiketini göster */
+.language-badge {
+  font-size: 12px;
+  color: #6a9955;
+  opacity: 0.8;
 }
 
 /* Input Container */
@@ -1916,6 +1956,148 @@ button.gradient-btn:hover {
     50% { background-position: 100% 50%; }
     100% { background-position: 0% 50%; }
 }
+
+// Kod formatlama yardımcı fonksiyonu
+function formatCode(code, language) {
+    // Temel kod biçimlendirme
+    if (!code || typeof code !== 'string') return code;
+    
+    // Satır başındaki ve sonundaki boşlukları temizle
+    let formattedCode = code.trim();
+    
+    // Bazı diller için özel formatlamalar yapılabilir
+    switch (language.toLowerCase()) {
+        case 'javascript':
+        case 'js':
+        case 'typescript':
+        case 'ts':
+            // JavaScript/TypeScript kodunu düzgün formatlama
+            formattedCode = formatJavaScript(formattedCode);
+            break;
+            
+        case 'html':
+        case 'xml':
+            // HTML için daha iyi görüntü
+            formattedCode = formattedCode.replace(/></g, '>\n<');
+            break;
+            
+        case 'json':
+            // JSON için biçimlendirme
+            try {
+                const jsonObj = JSON.parse(formattedCode);
+                formattedCode = JSON.stringify(jsonObj, null, 2);
+            } catch (e) {
+                // Geçersiz JSON, olduğu gibi bırak
+            }
+            break;
+            
+        case 'css':
+        case 'scss':
+        case 'sass':
+            // CSS formatlaması
+            formattedCode = formatCSS(formattedCode);
+            break;
+            
+        case 'php':
+            // PHP formatlaması
+            formattedCode = formatPHP(formattedCode);
+            break;
+    }
+    
+    return formattedCode;
+}
+
+// JavaScript kodunu düzgün formatlama
+function formatJavaScript(code) {
+    if (!code) return code;
+    
+    // Kod bir satırda ise düzenleme yap
+    if (!code.includes('\n')) {
+        // Noktalı virgülleri satır sonlarına çevir
+        code = code.replace(/;/g, ';\n');
+        
+        // Süslü parantezleri düzenle
+        code = code.replace(/{/g, ' {\n').replace(/}/g, '\n}');
+        
+        // Yorum satırlarını düzenle
+        code = code.replace(/\/\//g, '\n//');
+        
+        // function ve if gibi anahtar kelimeleri düzenle
+        code = code.replace(/function\s+/g, '\nfunction ');
+        code = code.replace(/if\s*\(/g, '\nif (');
+        code = code.replace(/else\s*{/g, '\nelse {');
+        
+        // Gereksiz boş satırları temizle
+        code = code.replace(/\n\s*\n/g, '\n');
+    }
+    
+    // Uzun satırları böl
+    let lines = code.split('\n');
+    
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        
+        // Eğer satır çok uzunsa ve özel işaretler içeriyorsa böl
+        if (line.length > 80) {
+            if (line.includes('&&') || line.includes('||')) {
+                lines[i] = line.replace(/\s*(&&|\|\|)\s*/g, '\n    $1 ');
+            } else if (line.includes('.') && !line.startsWith('//')) {
+                lines[i] = line.replace(/\.\s*(?=[a-zA-Z])/g, '.\n    ');
+            }
+        }
+    }
+    
+    return lines.join('\n');
+}
+
+// CSS kodu formatla
+function formatCSS(code) {
+    if (!code) return code;
+    
+    // Tek satır CSS'i çoklu satıra dönüştür
+    code = code.replace(/\s*{\s*/g, ' {\n    ');
+    code = code.replace(/;\s*/g, ';\n    ');
+    code = code.replace(/\s*}\s*/g, '\n}\n');
+    
+    // Fazla satırları temizle
+    code = code.replace(/\n\s*\n/g, '\n');
+    
+    return code;
+}
+
+// PHP kodu formatla
+function formatPHP(code) {
+    if (!code) return code;
+    
+    // Basit PHP formatlaması
+    code = code.replace(/\s*{\s*/g, ' {\n    ');
+    code = code.replace(/;\s*/g, ';\n');
+    code = code.replace(/\s*}\s*/g, '\n}\n');
+    
+    return code;
+}
+
+// Pre ve code elementlerinin stillerini düzenle
+document.addEventListener('DOMContentLoaded', function() {
+    // Stil ekle
+    const styleElement = document.createElement('style');
+    styleElement.textContent = `
+        .code-content pre {
+            max-height: none !important;
+            overflow-x: hidden !important;
+            white-space: pre !important;
+        }
+        
+        .code-content code {
+            white-space: pre !important;
+            overflow-x: auto !important;
+            word-wrap: normal !important;
+            word-break: normal !important;
+            tab-size: 4 !important;
+        }
+    `;
+    document.head.appendChild(styleElement);
+});
 </style>
 @endsection
 
@@ -2201,15 +2383,24 @@ button.gradient-btn:hover {
 @endsection
 
 @section('scripts')
-<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
-<!-- Diller için ek paketler -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/languages/javascript.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/languages/php.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/languages/python.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/languages/css.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/languages/html.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/languages/sql.min.js"></script>
+<!-- Highlight.js'in en son sürümünü yükle - tüm dil desteğiyle -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/javascript.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/typescript.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/php.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/css.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/html.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/json.min.js"></script>
 <script>
+    // Yükleme sonrası highlight.js'yi başlat
+    document.addEventListener('DOMContentLoaded', function() {
+        hljs.configure({
+            languages: ['javascript', 'typescript', 'php', 'css', 'html', 'json'],
+            ignoreUnescapedHTML: true
+        });
+        hljs.highlightAll();
+    });
+
     // Hızlı erişim için global değişken
     let fullscreenToggleBtn;
     
@@ -2702,6 +2893,7 @@ button.gradient-btn:hover {
             codeHeader.className = 'code-header';
             codeHeader.innerHTML = `
                 <span>${language.charAt(0).toUpperCase() + language.slice(1)}</span>
+                <span class="language-badge">${language}</span>
             `;
             codeBlock.appendChild(codeHeader);
             
@@ -2712,7 +2904,18 @@ button.gradient-btn:hover {
             const pre = document.createElement('pre');
             const codeEl = document.createElement('code');
             codeEl.className = `language-${language}`;
-            codeEl.textContent = code;
+            
+            // Kodu biçimlendir (indentation ve formatting)
+            let formattedCode = code;
+            try {
+                // Basit bir kod biçimlendirme
+                formattedCode = formatCode(code, language);
+            } catch (e) {
+                console.warn('Kod biçimlendirme hatası:', e);
+                formattedCode = code;
+            }
+            
+            codeEl.textContent = formattedCode;
             
             pre.appendChild(codeEl);
             codeContent.appendChild(pre);
@@ -2724,12 +2927,12 @@ button.gradient-btn:hover {
             
             const copyBtn = document.createElement('button');
             copyBtn.className = 'code-button';
-            copyBtn.textContent = 'Kopyala';
+            copyBtn.innerHTML = '<i class="far fa-copy mr-1"></i> Kopyala';
             copyBtn.addEventListener('click', () => {
                 navigator.clipboard.writeText(code);
-                copyBtn.textContent = 'Kopyalandı!';
+                copyBtn.innerHTML = '<i class="fas fa-check mr-1"></i> Kopyalandı!';
                 setTimeout(() => {
-                    copyBtn.textContent = 'Kopyala';
+                    copyBtn.innerHTML = '<i class="far fa-copy mr-1"></i> Kopyala';
                 }, 2000);
             });
             
@@ -2741,9 +2944,129 @@ button.gradient-btn:hover {
                 if (codeEl) {
                     hljs.highlightElement(codeEl);
                 }
-            }, 0);
+            }, 10);
             
             return codeBlock;
+        }
+        
+        // Kod formatlama yardımcı fonksiyonu
+        function formatCode(code, language) {
+            // Temel kod biçimlendirme
+            if (!code || typeof code !== 'string') return code;
+            
+            // Satır başındaki ve sonundaki boşlukları temizle
+            let formattedCode = code.trim();
+            
+            // Bazı diller için özel formatlamalar yapılabilir
+            switch (language.toLowerCase()) {
+                case 'javascript':
+                case 'js':
+                case 'typescript':
+                case 'ts':
+                    // JavaScript/TypeScript kodunu düzgün formatlama
+                    formattedCode = formatJavaScript(formattedCode);
+                    break;
+                    
+                case 'html':
+                case 'xml':
+                    // HTML için daha iyi görüntü
+                    formattedCode = formattedCode.replace(/></g, '>\n<');
+                    break;
+                    
+                case 'json':
+                    // JSON için biçimlendirme
+                    try {
+                        const jsonObj = JSON.parse(formattedCode);
+                        formattedCode = JSON.stringify(jsonObj, null, 2);
+                    } catch (e) {
+                        // Geçersiz JSON, olduğu gibi bırak
+                    }
+                    break;
+                    
+                case 'css':
+                case 'scss':
+                case 'sass':
+                    // CSS formatlaması
+                    formattedCode = formatCSS(formattedCode);
+                    break;
+                    
+                case 'php':
+                    // PHP formatlaması
+                    formattedCode = formatPHP(formattedCode);
+                    break;
+            }
+            
+            return formattedCode;
+        }
+        
+        // JavaScript kodunu düzgün formatlama
+        function formatJavaScript(code) {
+            if (!code) return code;
+            
+            // Kod bir satırda ise düzenleme yap
+            if (!code.includes('\n')) {
+                // Noktalı virgülleri satır sonlarına çevir
+                code = code.replace(/;/g, ';\n');
+                
+                // Süslü parantezleri düzenle
+                code = code.replace(/{/g, ' {\n').replace(/}/g, '\n}');
+                
+                // Yorum satırlarını düzenle
+                code = code.replace(/\/\//g, '\n//');
+                
+                // function ve if gibi anahtar kelimeleri düzenle
+                code = code.replace(/function\s+/g, '\nfunction ');
+                code = code.replace(/if\s*\(/g, '\nif (');
+                code = code.replace(/else\s*{/g, '\nelse {');
+                
+                // Gereksiz boş satırları temizle
+                code = code.replace(/\n\s*\n/g, '\n');
+            }
+            
+            // Uzun satırları böl
+            let lines = code.split('\n');
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                
+                // Eğer satır çok uzunsa ve özel işaretler içeriyorsa böl
+                if (line.length > 80) {
+                    if (line.includes('&&') || line.includes('||')) {
+                        lines[i] = line.replace(/\s*(&&|\|\|)\s*/g, '\n    $1 ');
+                    } else if (line.includes('.') && !line.startsWith('//')) {
+                        lines[i] = line.replace(/\.\s*(?=[a-zA-Z])/g, '.\n    ');
+                    }
+                }
+            }
+            
+            return lines.join('\n');
+        }
+        
+        // CSS kodu formatla
+        function formatCSS(code) {
+            if (!code) return code;
+            
+            // Tek satır CSS'i çoklu satıra dönüştür
+            code = code.replace(/\s*{\s*/g, ' {\n    ');
+            code = code.replace(/;\s*/g, ';\n    ');
+            code = code.replace(/\s*}\s*/g, '\n}\n');
+            
+            // Fazla satırları temizle
+            code = code.replace(/\n\s*\n/g, '\n');
+            
+            return code;
+        }
+        
+        // PHP kodu formatla
+        function formatPHP(code) {
+            if (!code) return code;
+            
+            // Basit PHP formatlaması
+            code = code.replace(/\s*{\s*/g, ' {\n    ');
+            code = code.replace(/;\s*/g, ';\n');
+            code = code.replace(/\s*}\s*/g, '\n}\n');
+            
+            return code;
         }
         
         // Yazı daktilo efekti

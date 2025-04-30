@@ -7,6 +7,10 @@
         });
         hljs.highlightAll();
 
+        // Bildirim sesi değişkenleri
+        let notificationSound = new Audio('{{ asset('music/Ivory.mp3') }}');
+        let isNotificationMuted = localStorage.getItem('notification_muted') === 'true';
+
         // Mobil Menü işlevselliği
         const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
         const sidebar = document.getElementById('sidebar');
@@ -115,7 +119,65 @@
         const messagesContainer = document.getElementById('messages');
         const aiThinking = document.getElementById('ai-thinking');
         
-    
+        // Bildirim sesi için değişkenler
+        let notificationSound = new Audio('{{ asset('music/Ivory.mp3') }}');
+        let isNotificationMuted = localStorage.getItem('notification_muted') === 'true';
+        
+        // Bildirim ses kontrolü butonunu ekleme
+        const soundToggleBtn = document.createElement('button');
+        soundToggleBtn.id = 'sound-toggle';
+        soundToggleBtn.className = 'sound-toggle-btn';
+        soundToggleBtn.innerHTML = isNotificationMuted 
+            ? '<i class="fas fa-volume-mute"></i>' 
+            : '<i class="fas fa-volume-up"></i>';
+        soundToggleBtn.title = isNotificationMuted 
+            ? 'Bildirim sesini aç' 
+            : 'Bildirim sesini kapat';
+        
+        // Bildirim ses kontrolü butonunu Sidebar'a ekle
+        const sidebarOptions = document.querySelector('.sidebar-options');
+        if (sidebarOptions) {
+            // Yeni bir sidebar-option div'i oluştur
+            const soundToggleOption = document.createElement('div');
+            soundToggleOption.className = 'sidebar-option';
+            
+            // Etiket ekle
+            const soundLabel = document.createElement('span');
+            soundLabel.textContent = 'Bildirim Sesi';
+            
+            // Etiket ve butonu div'e ekle
+            soundToggleOption.appendChild(soundLabel);
+            soundToggleOption.appendChild(soundToggleBtn);
+            
+            // Oluşturulan div'i sidebar-options'a ekle
+            sidebarOptions.appendChild(soundToggleOption);
+        }
+        
+        // Bildirim ses kontrolü butonu tıklama olayı
+        soundToggleBtn.addEventListener('click', function() {
+            isNotificationMuted = !isNotificationMuted;
+            localStorage.setItem('notification_muted', isNotificationMuted);
+            
+            if (isNotificationMuted) {
+                this.innerHTML = '<i class="fas fa-volume-mute"></i>';
+                this.title = 'Bildirim sesini aç';
+            } else {
+                this.innerHTML = '<i class="fas fa-volume-up"></i>';
+                this.title = 'Bildirim sesini kapat';
+                // Buton tıklamasını test etmek için bildirim sesini çal
+                playNotificationSound();
+            }
+        });
+        
+        // Bildirim sesini çal
+        function playNotificationSound() {
+            if (!isNotificationMuted) {
+                notificationSound.volume = 0.5; // Ses seviyesini %50 yap
+                notificationSound.play().catch(error => {
+                    console.error('Bildirim sesi çalınamadı:', error);
+                });
+            }
+        }
         
         const inputContainer = document.querySelector('.input-container');
         const chatMessagesContainer = document.querySelector('.chat-messages-container');
@@ -358,6 +420,9 @@
                         height: 28px;
                         !important;
                         ">`;
+                
+                // AI mesajı geldiğinde bildirim sesini çal
+                playNotificationSound();
             } else {
                 // Kullanıcı avatarı - Google'dan gelen avatar varsa kullan, yoksa baş harfini göster
                 @auth
@@ -448,6 +513,16 @@
             
             // Scroll to bottom
             scrollToBottom();
+        }
+        
+        // Bildirim sesini çal
+        function playNotificationSound() {
+            if (!isNotificationMuted) {
+                notificationSound.volume = 0.5; // Ses seviyesini %50 yap
+                notificationSound.play().catch(error => {
+                    console.error('Bildirim sesi çalınamadı:', error);
+                });
+            }
         }
         
         // Kod bloğu oluştur
@@ -743,7 +818,6 @@
             });
         }
         
-    
         // Masaüstü ayarları
         if (creativeToggle) {
             creativeToggle.addEventListener('change', function() {
@@ -769,8 +843,6 @@
                 syncSettings('language', this.value);
             });
         }
-        
-      
         
         function showModelNotification() {
             // Bildirim göster
@@ -800,9 +872,6 @@
                 }, 500);
             }, 3000);
         }
-        
-        // Mobil klavye görünürlüğünü takip et - artık kullanılmıyor
-        // setupMobileKeyboardEvents();
         
         // Viewport yüksekliğini ayarla
         setVhVariable();
@@ -941,12 +1010,6 @@
             startNewChat();
         });
         
-        // Mobil yeni chat butonu artık kullanılmıyor
-        // document.getElementById('mobile-new-chat-btn').addEventListener('click', function() {
-        //     startNewChat();
-        //     toggleSettingsPanel();
-        // });
-
         // Tam ekran modu değişkenini tanımla
         let isFullScreen = false;
         

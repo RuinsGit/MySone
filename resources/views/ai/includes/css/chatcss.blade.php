@@ -1697,6 +1697,50 @@ button.gradient-btn:hover {
     100% { background-position: 0% 50%; }
 }
 
+/* Bildirim sesi butonu */
+.sound-toggle-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-light);
+  font-size: 1.2rem;
+  cursor: pointer;
+  width: 40px;
+  height: 24px;
+  border-radius: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.sound-toggle-btn:hover {
+  color: var(--primary-light);
+  transform: scale(1.1);
+}
+
+.sound-toggle-btn:active {
+  transform: scale(0.95);
+}
+
+/* Sidebar içindeki bildirim ses butonu için özel stil */
+.sidebar-option .sound-toggle-btn {
+  background-color: var(--bg-light);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  position: relative;
+  height: 24px;
+}
+
+.sidebar-option .sound-toggle-btn:hover {
+  border-color: var(--primary-light);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+.sidebar-option .sound-toggle-btn[title*="kapat"] {
+  background-color: var(--primary-color);
+  box-shadow: 0 0 10px var(--glow-color);
+}
+
 // Kod formatlama yardımcı fonksiyonu
 function formatCode(code, language) {
     // Temel kod biçimlendirme

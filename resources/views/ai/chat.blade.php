@@ -16,8 +16,8 @@
 <meta name="csrf-token" content="{{ csrf_token() }}">
 
 <div class="app-container">
-    <!-- Sol Sidebar - Büyük ekranlarda görünür -->
-    <div class="sidebar">
+    <!-- Sol Sidebar - Büyük ekranlarda görünür, mobilde gizli -->
+    <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <div class="sidebar-logo" >
                 <img src="{{ asset('images/sone.png') }}" alt="LizzAI Logo" 
@@ -77,10 +77,18 @@
         </div>
     </div>
 
+    <!-- Mobil görünümde sidebar arkaplanı -->
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
     <!-- Sağ Alan - Ana İçerik -->
     <div class="main-content">
         <!-- Header -->
         <header class="chat-header">
+            <!-- Mobil menü butonu eklendi -->
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle">
+                <i class="fas fa-bars"></i>
+            </button>
+            
             <div class="chat-header-title">
                 <div class="chat-logo">
                     <img src="{{ asset('images/sone.png') }}" alt="LizzAI Logo" width="32" height="32">
@@ -113,10 +121,6 @@
                     </div>
                 </div>
                 @endauth
-                
-                <button id="menu-toggle" class="menu-toggle-btn">
-                    <i class="fas fa-bars"></i>
-                </button>
             </div>
         </header>
 
@@ -149,7 +153,7 @@
                         background-position: center;
                         background-repeat: no-repeat;
                         border-radius: 50%;
-                        width: 28   px;
+                        width: 28px;
                         height: 28px;
                         !important;">
                 </div>
@@ -179,78 +183,6 @@
             </div>
         </div>
     </div>
-
-    <!-- Settings Panel - Mobilde gösterilen ayarlar paneli -->
-    <div id="settings-panel" class="settings-panel">
-        <div class="settings-header">
-            <div class="settings-title">Ayarlar</div>
-            <button id="close-settings" class="settings-close">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        
-        <div class="settings-section">
-            <div class="settings-section-title">AI Modeli</div>
-            <select id="mobile-model-selector" class="settings-select">
-                <option value="soneai">LizzAI Basic</option>
-                <option value="gemini" selected>LizzAI Turbo</option>
-            </select>
-        </div>
-        
-        <div class="settings-section">
-            <div class="settings-section-title">Özellikler</div>
-            
-            <div class="settings-option">
-                <div class="settings-option-label">Yaratıcı Mod</div>
-                <label class="settings-switch">
-                    <input type="checkbox" id="mobile-creative-toggle">
-                    <span class="switch-slider"></span>
-                </label>
-            </div>
-            
-            <div class="settings-option">
-                <div class="settings-option-label">Kodlama Modu</div>
-                <label class="settings-switch">
-                    <input type="checkbox" id="mobile-coding-toggle">
-                    <span class="switch-slider"></span>
-                </label>
-            </div>
-        </div>
-        
-        <div class="settings-section" id="mobile-language-settings" style="display: none;">
-            <div class="settings-section-title">Kodlama Dili</div>
-            <select id="mobile-code-language" class="settings-select">
-                <option value="javascript">JavaScript</option>
-                <option value="php">PHP</option>
-                <option value="python">Python</option>
-                <option value="html">HTML</option>
-                <option value="css">CSS</option>
-                <option value="sql">SQL</option>
-                <option value="csharp">C#</option>
-                <option value="java">Java</option>
-                <option value="kotlin">Kotlin</option>
-                <option value="swift">Swift</option>
-                <option value="ruby">Ruby</option>
-                <option value="go">Go</option>
-                <option value="react">React</option>
-                <option value="vue">Vue</option>
-                <option value="angular">Angular</option>
-                <option value="nodejs">Node.js</option>
-                <option value="express">Express</option>
-                <option value="django">Django</option>
-                
-                
-            </select>
-        </div>
-        
-        <div class="settings-section">
-            <button id="mobile-new-chat-btn" class="gradient-btn w-full">
-                <i class="fas fa-plus mr-2"></i> Yeni Sohbet
-            </button>
-        </div>
-    </div>
-    
-    <div id="settings-overlay" class="settings-overlay"></div>
 
     <!-- Sesli Sohbet Popup -->
     <div id="voice-popup" class="voice-popup">

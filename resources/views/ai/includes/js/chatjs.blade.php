@@ -1,5 +1,3 @@
-
-
 <script>
     // Yükleme sonrası highlight.js'yi başlat
     document.addEventListener('DOMContentLoaded', function() {
@@ -8,6 +6,38 @@
             ignoreUnescapedHTML: true
         });
         hljs.highlightAll();
+
+        // Mobil Menü işlevselliği
+        const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebar-overlay');
+        
+        // Hamburger menü tıklama olayı
+        if (mobileMenuToggle) {
+            mobileMenuToggle.addEventListener('click', function() {
+                toggleSidebar();
+            });
+        }
+        
+        // Overlay tıklama olayı
+        if (sidebarOverlay) {
+            sidebarOverlay.addEventListener('click', function() {
+                toggleSidebar();
+            });
+        }
+        
+        // Sidebar göster/gizle
+        function toggleSidebar() {
+            sidebar.classList.toggle('active');
+            sidebarOverlay.classList.toggle('active');
+            
+            // Scrollu kilitlemek/açmak için
+            if (sidebar.classList.contains('active')) {
+                document.body.style.overflow = 'hidden';
+            } else {
+                document.body.style.overflow = '';
+            }
+        }
     });
 
     // Hızlı erişim için global değişken
@@ -84,10 +114,9 @@
         const sendMessageBtn = document.getElementById('send-message');
         const messagesContainer = document.getElementById('messages');
         const aiThinking = document.getElementById('ai-thinking');
-        const settingsPanel = document.getElementById('settings-panel');
-        const settingsOverlay = document.getElementById('settings-overlay');
-        const toggleSettings = document.getElementById('toggle-settings');
-        const closeSettings = document.getElementById('close-settings');
+        
+    
+        
         const inputContainer = document.querySelector('.input-container');
         const chatMessagesContainer = document.querySelector('.chat-messages-container');
         const fullscreenToggle = document.getElementById('fullscreen-toggle');
@@ -101,12 +130,7 @@
         const languageSettings = document.getElementById('language-settings');
         const modelSelector = document.getElementById('model-selector');
         
-        // Mobil kontrolleri
-        const mobileCreativeToggle = document.getElementById('mobile-creative-toggle');
-        const mobileCodingToggle = document.getElementById('mobile-coding-toggle');
-        const mobileCodeLanguage = document.getElementById('mobile-code-language');
-        const mobileLangSettings = document.getElementById('mobile-language-settings');
-        const mobileModelSelector = document.getElementById('mobile-model-selector');
+   
         
         // Kullanıcı adını localStorage'a kaydet
         let visitorName = ''; // Temiz başla
@@ -144,25 +168,7 @@
             }, 1000);
         }
         
-        // Mobil cihazlar için klavye olayları
-        function setupMobileKeyboardEvents() {
-            if (window.innerWidth <= 767) {
-                // Klavye açıldığında
-                messageInput.addEventListener('focus', function() {
-                    setTimeout(function() {
-                        inputContainer.classList.add('keyboard-visible');
-                        scrollToBottom();
-                    }, 300);
-                });
-                
-                // Klavye kapandığında
-                messageInput.addEventListener('blur', function() {
-                    setTimeout(function() {
-                        inputContainer.classList.remove('keyboard-visible');
-                    }, 100);
-                });
-            }
-        }
+      
         
         // Mobil cihazlar için viewport yüksekliği ayarı
         function setVhVariable() {
@@ -186,25 +192,10 @@
                 languageSettings.style.display = isCodingMode ? 'block' : 'none';
             }
             
-            // Mobil
-            if (mobileCreativeToggle) mobileCreativeToggle.checked = isCreativeMode;
-            if (mobileCodingToggle) mobileCodingToggle.checked = isCodingMode;
-            if (mobileModelSelector) mobileModelSelector.value = selectedModel;
-            if (mobileLangSettings) {
-                mobileLangSettings.style.display = isCodingMode ? 'block' : 'none';
-            }
-            
             updateModelDisplay();
         }
         
-        // Ayarlar panelini aç/kapat
-        function toggleSettingsPanel() {
-            settingsPanel.classList.toggle('active');
-            settingsOverlay.classList.toggle('active');
-            document.body.classList.toggle('no-scroll');
-        }
-        
-        // Model göstergesini güncelle
+        // YENİ: Sadece model göstergesini güncelle
         function updateModelDisplay() {
             const modelNameElement = document.getElementById('model-name');
             if (modelNameElement) {
@@ -212,40 +203,7 @@
             }
         }
         
-        // Ayarları senkronize tutma
-        function syncSettings(key, value) {
-            if (key === 'creative') {
-                isCreativeMode = value;
-                localStorage.setItem('creative_mode', value);
-                if (creativeToggle) creativeToggle.checked = value;
-                if (mobileCreativeToggle) mobileCreativeToggle.checked = value;
-            } 
-            else if (key === 'coding') {
-                isCodingMode = value;
-                localStorage.setItem('coding_mode', value);
-                if (codingToggle) codingToggle.checked = value;
-                if (mobileCodingToggle) mobileCodingToggle.checked = value;
-                
-                // Dil seçim alanlarını göster/gizle
-                if (languageSettings) {
-                    languageSettings.style.display = value ? 'block' : 'none';
-                }
-                if (mobileLangSettings) {
-                    mobileLangSettings.style.display = value ? 'block' : 'none';
-                }
-            }
-            else if (key === 'model') {
-                selectedModel = value;
-                localStorage.setItem('selected_model', value);
-                if (modelSelector) modelSelector.value = value;
-                if (mobileModelSelector) mobileModelSelector.value = value;
-                updateModelDisplay();
-            }
-            else if (key === 'language') {
-                if (codeLanguage) codeLanguage.value = value;
-                if (mobileCodeLanguage) mobileCodeLanguage.value = value;
-            }
-        }
+      
         
         // Mesaj gönder
         async function sendMessage(message, isFirstMessage = false) {
@@ -268,9 +226,9 @@
                 // Chat ID
                 const chatId = localStorage.getItem('current_chat_id') || null;
                 
-                // Dil seçimi (mobil veya masaüstü)
-                const language = codeLanguage ? codeLanguage.value : 
-                               (mobileCodeLanguage ? mobileCodeLanguage.value : 'javascript');
+                // Mobil cihazlar artık kullanılmıyor, sadece varsayılan değeri ata
+                // Dil seçimi (sadece masaüstü)
+                const language = codeLanguage ? codeLanguage.value : 'javascript';
                 
                 // İstek verisi
                 const requestData = {
@@ -785,11 +743,7 @@
             });
         }
         
-        // Ayarlar paneli
-        if (toggleSettings) toggleSettings.addEventListener('click', toggleSettingsPanel);
-        if (closeSettings) closeSettings.addEventListener('click', toggleSettingsPanel);
-        if (settingsOverlay) settingsOverlay.addEventListener('click', toggleSettingsPanel);
-        
+    
         // Masaüstü ayarları
         if (creativeToggle) {
             creativeToggle.addEventListener('change', function() {
@@ -816,31 +770,7 @@
             });
         }
         
-        // Mobil ayarları
-        if (mobileCreativeToggle) {
-            mobileCreativeToggle.addEventListener('change', function() {
-                syncSettings('creative', this.checked);
-            });
-        }
-        
-        if (mobileCodingToggle) {
-            mobileCodingToggle.addEventListener('change', function() {
-                syncSettings('coding', this.checked);
-            });
-        }
-        
-        if (mobileModelSelector) {
-            mobileModelSelector.addEventListener('change', function() {
-                syncSettings('model', this.value);
-                showModelNotification();
-            });
-        }
-        
-        if (mobileCodeLanguage) {
-            mobileCodeLanguage.addEventListener('change', function() {
-                syncSettings('language', this.value);
-            });
-        }
+      
         
         function showModelNotification() {
             // Bildirim göster
@@ -871,8 +801,8 @@
             }, 3000);
         }
         
-        // Mobil klavye görünürlüğünü takip et
-        setupMobileKeyboardEvents();
+        // Mobil klavye görünürlüğünü takip et - artık kullanılmıyor
+        // setupMobileKeyboardEvents();
         
         // Viewport yüksekliğini ayarla
         setVhVariable();
@@ -970,6 +900,34 @@
             localStorage.removeItem('chat_history');
         }
 
+        // Ayarları senkronize tutma
+        function syncSettings(key, value) {
+            if (key === 'creative') {
+                isCreativeMode = value;
+                localStorage.setItem('creative_mode', value);
+                if (creativeToggle) creativeToggle.checked = value;
+            } 
+            else if (key === 'coding') {
+                isCodingMode = value;
+                localStorage.setItem('coding_mode', value);
+                if (codingToggle) codingToggle.checked = value;
+                
+                // Dil seçim alanlarını göster/gizle
+                if (languageSettings) {
+                    languageSettings.style.display = value ? 'block' : 'none';
+                }
+            }
+            else if (key === 'model') {
+                selectedModel = value;
+                localStorage.setItem('selected_model', value);
+                if (modelSelector) modelSelector.value = value;
+                updateModelDisplay();
+            }
+            else if (key === 'language') {
+                if (codeLanguage) codeLanguage.value = value;
+            }
+        }
+        
         // Yeni chat başlat
         function startNewChat() {
             localStorage.removeItem('current_chat_id');
@@ -978,16 +936,16 @@
             addMessage("Merhaba! Ben Lizz. Size nasıl yardımcı olabilirim?", 'ai');
         }
 
-        // Mobil yeni chat butonu
-        document.getElementById('mobile-new-chat-btn').addEventListener('click', function() {
-            startNewChat();
-            toggleSettingsPanel();
-        });
-
         // Yeni chat butonu masaüstü
         document.getElementById('new-chat-btn').addEventListener('click', function() {
             startNewChat();
         });
+        
+        // Mobil yeni chat butonu artık kullanılmıyor
+        // document.getElementById('mobile-new-chat-btn').addEventListener('click', function() {
+        //     startNewChat();
+        //     toggleSettingsPanel();
+        // });
 
         // Tam ekran modu değişkenini tanımla
         let isFullScreen = false;
@@ -1482,8 +1440,7 @@
             
             // Eğer sesli sohbet modu aktifse, varsayılan davranışı engelle
             if (voicePopup.classList.contains('active') && voicePopup.classList.contains('voice-chat-mode')) {
-                // Sesli sohbet modunda işlem zaten voice modüllerinde hallediliyor
-                // Bu durumda normal sohbet akışını işleme ve sadece sesli yanıt döndür
+      
                 return;
             }
             
@@ -1505,9 +1462,9 @@
                 // Chat ID
                 const chatId = localStorage.getItem('current_chat_id') || null;
                 
-                // Dil seçimi (mobil veya masaüstü)
-                const language = codeLanguage ? codeLanguage.value : 
-                               (mobileCodeLanguage ? mobileCodeLanguage.value : 'javascript');
+                // Mobil cihazlar artık kullanılmıyor, sadece varsayılan değeri ata
+                // Dil seçimi (sadece masaüstü)
+                const language = codeLanguage ? codeLanguage.value : 'javascript';
                 
                 // İstek verisi
                 const requestData = {
@@ -1900,19 +1857,19 @@
                 if (response.ok) {
                     const data = await response.json();
                     
-                    // Chat ID'yi kaydet
+        
                     if (data.chat_id) {
                         localStorage.setItem('current_chat_id', data.chat_id);
                     }
                     
-                    // Yanıtı işle
+                 
                     let finalResponse = data.response;
                     
-                    // AI yanıtını geçmişe ekle
+
                     addToChatHistory(text, 'user');
                     addToChatHistory(finalResponse, 'ai');
                     
-                    // Kod yanıtı değilse seslendir
+                 
                     if (!data.is_code_response) {
                         // AI'nin yanıtını popup mesaj alanında göster
                         voiceConversation.style.display = 'block';
@@ -2762,98 +2719,5 @@
         }
     });
 
-    // Hamburger menü için gerekli elemanları seç
-    const menuToggle = document.getElementById('menu-toggle');
-    const sidebar = document.querySelector('.sidebar');
-    
-    // Hamburger menü tıklama olayı
-    if (menuToggle) {
-        menuToggle.addEventListener('click', function(e) {
-            e.stopPropagation();
-            e.preventDefault();
-            
-            // Varolan tüm overlay'leri temizle
-            const existingOverlays = document.querySelectorAll('.sidebar-overlay');
-            existingOverlays.forEach(overlay => {
-                if (overlay && overlay.parentNode) {
-                    overlay.parentNode.removeChild(overlay);
-                }
-            });
-            
-            // Overlay oluştur
-            const sidebarOverlay = document.createElement('div');
-            sidebarOverlay.className = 'sidebar-overlay';
-            document.body.appendChild(sidebarOverlay);
-            
-            // İlk animasyon gecikmesi için minimum süre
-            setTimeout(() => {
-                // Sidebar'ı aç/kapat
-                sidebar.classList.toggle('active');
-                
-                // Overlay'i aktifleştir veya kapat
-                if (sidebar.classList.contains('active')) {
-                    sidebarOverlay.classList.add('active');
-                    
-                    // Arka plana tıklama olayı ekle
-                    sidebarOverlay.addEventListener('click', function() {
-                        sidebar.classList.remove('active');
-                        sidebarOverlay.classList.remove('active');
-                        
-                        setTimeout(() => {
-                            if (sidebarOverlay.parentNode) {
-                                document.body.removeChild(sidebarOverlay);
-                            }
-                        }, 300);
-                    });
-                } else {
-                    sidebarOverlay.classList.remove('active');
-                    
-                    setTimeout(() => {
-                        if (sidebarOverlay.parentNode) {
-                            document.body.removeChild(sidebarOverlay);
-                        }
-                    }, 300);
-                }
-            }, 10);
-        });
-        
-        // Sidebar içindeki tüm elemanların tıklama olaylarını engelleme
-        sidebar.addEventListener('click', function(e) {
-            e.stopPropagation();
-        });
-        
-        // Sayfa yüklendiğinde sidebar'ı gizle
-        window.addEventListener('load', function() {
-            if (window.innerWidth <= 767) {
-                sidebar.classList.remove('active');
-                
-                // Tüm overlay'leri temizle
-                const overlays = document.querySelectorAll('.sidebar-overlay');
-                overlays.forEach(overlay => {
-                    if (overlay && overlay.parentNode) {
-                        overlay.parentNode.removeChild(overlay);
-                    }
-                });
-            }
-        });
-        
-        // Rezise olayında sidebar'ı kontrol et
-        window.addEventListener('resize', function() {
-            if (window.innerWidth <= 767) {
-                if (!sidebar.classList.contains('active')) {
-                    // Stil durumunu düzelt
-                    sidebar.style.left = '-280px';
-                    sidebar.style.right = 'auto';
-                    
-                    // Tüm overlay'leri temizle
-                    const overlays = document.querySelectorAll('.sidebar-overlay');
-                    overlays.forEach(overlay => {
-                        if (overlay && overlay.parentNode) {
-                            overlay.parentNode.removeChild(overlay);
-                        }
-                    });
-                }
-            }
-        });
-    }
+  
 </script>

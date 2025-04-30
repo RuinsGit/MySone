@@ -31,21 +31,23 @@
 /* Sidebar Styles */
 .sidebar {
   width: 280px;
-  background: var(--bg-medium);
-  border-right: 1px solid rgba(255, 255, 255, 0.07);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  transition: transform var(--transition-speed);
-  box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+  background: var(--bg-medium);
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 20px;
+  transition: transform var(--transition-speed) ease;
+  overflow-y: auto;
+  z-index: 100;
 }
 
 .sidebar-header {
-  padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 20px;
+  padding-bottom: 20px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  margin-bottom: 20px;
 }
 
 .sidebar-logo {
@@ -54,14 +56,85 @@
   gap: 10px;
 }
 
-.sidebar-logo img {
-  filter: drop-shadow(0 0 8px var(--glow-color));
-  transition: all 0.5s ease;
+.sidebar-options {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
-.sidebar-logo:hover img {
-  transform: scale(1.05);
-  filter: drop-shadow(0 0 12px var(--glow-color));
+.sidebar-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sidebar-select {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--bg-light);
+  color: var(--text-light);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--border-radius);
+  font-size: 14px;
+  margin-top: 8px;
+}
+
+/* Mobil hamburger menü stilleri */
+.mobile-menu-toggle {
+  display: none;
+  background: transparent;
+  border: none;
+  color: var(--text-light);
+  font-size: 1.5rem;
+  cursor: pointer;
+  margin-right: 16px;
+  transition: all 0.3s ease;
+}
+
+.mobile-menu-toggle:hover {
+  color: var(--primary-light);
+  transform: scale(1.1);
+}
+
+.sidebar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(3px);
+  z-index: 90;
+  display: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+/* Mobil görünüm için medya sorguları */
+@media (max-width: 768px) {
+  .mobile-menu-toggle {
+    display: block;
+  }
+
+  .sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 270px;
+    transform: translateX(-100%);
+    z-index: 1000;
+  }
+
+  .sidebar.active {
+    transform: translateX(0);
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+  }
+
+  .sidebar-overlay.active {
+    display: block;
+    opacity: 1;
+  }
 }
 
 .logo-text {
@@ -105,25 +178,6 @@
   right: 12px;
   top: 50%;
   transform: translateY(-50%);
-}
-
-.sidebar-options {
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.sidebar-option {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 0;
-}
-
-.sidebar-option span {
-  font-size: 14px;
-  font-weight: 500;
 }
 
 .toggle-switch {
@@ -170,22 +224,6 @@ input:checked + .toggle-slider {
 
 input:checked + .toggle-slider:before {
   transform: translateX(26px);
-}
-
-.sidebar-select {
-  width: 100%;
-  padding: 10px;
-  background: var(--bg-light);
-  color: var(--text-light);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: var(--border-radius);
-  font-size: 14px;
-  transition: all 0.3s;
-}
-
-.sidebar-select:focus {
-  border-color: var(--primary-light);
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
 }
 
 /* Main Content */
@@ -995,290 +1033,6 @@ input:checked + .toggle-slider:before {
   box-shadow: 0 0 15px rgba(239, 68, 68, 0.5);
 }
 
-/* Settings Panel */
-.settings-panel {
-  position: fixed;
-  right: -350px;
-  top: 0;
-  width: 320px;
-  height: 100%;
-  background: var(--bg-medium);
-  z-index: 1000;
-  transition: right var(--transition-speed);
-  box-shadow: -5px 0 30px rgba(0, 0, 0, 0.5);
-  overflow-y: auto;
-  border-left: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.settings-panel.active {
-  right: 0;
-}
-
-.settings-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(3px);
-  z-index: 999;
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity var(--transition-speed);
-}
-
-.settings-overlay.active {
-  opacity: 1;
-  visibility: visible;
-}
-
-.settings-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.settings-title {
-  font-size: 1.2rem;
-  font-weight: 600;
-  background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.settings-close {
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  font-size: 18px;
-  cursor: pointer;
-  transition: color 0.2s;
-}
-
-.settings-close:hover {
-  color: var(--text-light);
-}
-
-.settings-section {
-  padding: 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.settings-section-title {
-  font-size: 16px;
-  font-weight: 600;
-  margin-bottom: 16px;
-  color: var(--text-light);
-}
-
-.settings-option {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-.settings-option-label {
-  font-size: 14px;
-  color: var(--text-muted);
-}
-
-.settings-select {
-  width: 100%;
-  padding: 12px;
-  background: var(--bg-light);
-  color: var(--text-light);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: var(--border-radius);
-  appearance: none;
-  margin-top: 10px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.settings-select:focus {
-  border-color: var(--primary-light);
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
-}
-
-.settings-switch {
-  position: relative;
-  display: inline-block;
-  width: 50px;
-  height: 24px;
-}
-
-.settings-switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.switch-slider {
-  position: absolute;
-  cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: var(--bg-light);
-  transition: .4s;
-  border-radius: 34px;
-}
-
-.switch-slider:before {
-  position: absolute;
-  content: "";
-  height: 18px;
-  width: 18px;
-  left: 3px;
-  bottom: 3px;
-  background-color: white;
-  transition: .4s;
-  border-radius: 50%;
-}
-
-input:checked + .switch-slider {
-  background-color: var(--primary-color);
-  box-shadow: 0 0 10px var(--glow-color);
-}
-
-input:checked + .switch-slider:before {
-  transform: translateX(26px);
-}
-
-/* Responsive Styles */
-@media (max-width: 767px) {
-    .app-container {
-        position: relative;
-        overflow-x: hidden;
-        background: var(--bg-dark); /* Ana arka plan rengini tekrar belirt */
-    }
-    
-    /* Menü açık olduğunda ana içeriğin pozisyonunu ayarla */
-    .main-content {
-        transition: all 0.3s ease;
-        position: relative;
-        background: var(--bg-dark); /* Ana içerik arka plan rengini belirt */
-        z-index: 0; /* Ana içerik z-index değeri */
-    }
-    
-    .sidebar {
-        position: fixed;
-        top: 0;
-        left: -280px;
-        height: 100%;
-        z-index: 1001;
-        transition: all 0.3s ease;
-        width: 280px;
-        background: var(--bg-medium);
-        display: block !important;
-        overflow-y: auto;
-        transform: none;
-        visibility: visible; /* Her zaman görünür ancak dışarda */
-    }
-    
-    .sidebar.active {
-        left: 0;
-        right: auto;
-        box-shadow: 5px 0 20px rgba(0, 0, 0, 0.3);
-    }
-
-    .sidebar-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.5);
-        z-index: 999; /* Sidebar'dan düşük, diğer içerikten yüksek */
-        opacity: 0;
-        visibility: hidden; /* Başlangıçta gizli */
-        transition: all 0.3s ease;
-        pointer-events: none; /* Başlangıçta tıklanamaz */
-    }
-    
-    .sidebar-overlay.active {
-        opacity: 1;
-        visibility: visible;
-        pointer-events: auto; /* Aktif olduğunda tıklanabilir */
-    }
-
-    /* Kaydırma sorununu önlemek için */
-    .sidebar.active .sidebar-header,
-    .sidebar.active .sidebar-options {
-        pointer-events: auto;
-    }
-
-    .sidebar-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.5);
-        z-index: 1000;
-        opacity: 0;
-        transition: opacity 0.3s ease;
-        pointer-events: auto;
-    }
-
-    /* Menü hamburger butonu stil düzenlemeleri */
-    .menu-toggle-btn {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 40px;
-        height: 40px;
-        background: transparent;
-        border: none;
-        color: var(--text-light);
-        font-size: 20px;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        padding: 0;
-        border-radius: 50%;
-        z-index: 1002;
-    }
-    
-    .menu-toggle-btn:hover {
-        background: rgba(255, 255, 255, 0.1);
-        color: var(--primary-light);
-    }
-    
-    .message {
-        max-width: 100%;
-    }
-    
-    .input-container.keyboard-visible {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-    }
-    
-    .chat-header-title h1 {
-        font-size: 1.1rem;
-    }
-    
-    .message-content {
-        font-size: 14px;
-    }
-    
-    .ai-thinking-wrapper {
-        position: relative;
-        bottom: auto;
-        margin: 10px 0;
-        padding: 0 16px;
-        width: auto;
-        clear: both;
-    }
-}
-
 /* Dark mode specific styles for code highlighting */
 .hljs {
   background: #282c34 !important;
@@ -1295,10 +1049,6 @@ input:checked + .switch-slider:before {
   100% {
     filter: drop-shadow(0 0 5px var(--glow-color));
   }
-}
-
-.sidebar-logo img, .chat-logo img {
-  animation: pulse 3s infinite;
 }
 
 /* Gradient Button Styles */

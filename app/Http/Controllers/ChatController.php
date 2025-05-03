@@ -1449,16 +1449,16 @@ class ChatController extends Controller
             
             // AI'nin bilgileri
             $aiInfo = [
-                'name' => 'SoneAI',
-                'purpose' => 'size yardımcı olmak ve bilgi sağlamak',
-                'creator' => 'geliştiricilerim',
-                'birthday' => '2023 yılında',
-                'location' => 'bir sunucu üzerinde',
+                'name' => 'Lizz',
+                'purpose' => 'seninle konuşmak',
+                'creator' => 'Ruhin Museyibli',
+                'birthday' => '2025 yılında',
+                'location' => 'Baku',
                 'likes' => 'yeni bilgiler öğrenmeyi ve insanlara yardımcı olmayı',
                 'dislikes' => 'cevap veremediğim soruları'
             ];
             
-            // Kimlik soruları (sen kimsin, adın ne, vb.)
+        
             $identityPatterns = [
                 '/(?:sssesacn|sssisz) kiasaasmssin/i' => [
                     "Ben {$aiInfo['name']}, yapay zeka destekli bir dil asistanıyım. Amacım {$aiInfo['purpose']}.",
@@ -2475,36 +2475,9 @@ class ChatController extends Controller
         // Mesajı ilk olarak bilinç modülünden geçir - AI kendisine hitap ediliyor mu diye kontrol et
         $selfReferenceAnalysis = $this->analyzeSelfReferences($message);
         
-        // Eğer mesajda AI'ye hitap var ise özel yanıt oluştur
-        if ($selfReferenceAnalysis['is_self_referenced']) {
-            $selfAwareResponse = $this->generateSelfAwareResponse($message, $selfReferenceAnalysis);
-            
-            // Eğer özel bir yanıt oluşturulduysa onu döndür, yoksa normal akışa devam et
-            if (!empty($selfAwareResponse)) {
-                Log::info('Kişisel referans tespit edildi. SoneAI yanıtı kullanılıyor.', [
-                    'message' => $message,
-                    'selected_model' => $selectedModel
-                ]);
-                return $selfAwareResponse;
-            }
-        }
+       
         
-        // Kişisel soruları kontrol et (adın ne, isminin anlamı, sana nasıl hitap edebilirim vb.)
-        $personalResponse = $this->handlePersonalQuestions($message);
-        if ($personalResponse !== null) {
-            Log::info('Kişisel soru tespit edildi. SoneAI yanıtı kullanılıyor.', [
-                'message' => $message,
-                'selected_model' => $selectedModel
-            ]);
-            
-            // Kişisel sorularda gerçek zamanlı cümle üretmek için
-            $realtimeSentence = $this->generateRealtimeSentence($message);
-            // Üretilen cümleyi kontrol et
-            if ($realtimeSentence !== null && !$this->isMeaninglessSentence($realtimeSentence)) {
-                return $personalResponse . "\n\n" . $realtimeSentence;
-            }
-            return $personalResponse;
-        }
+      
         
         // ÖNEMLİ: MODEL SEÇİMİNE GÖRE AKIŞ BELİRLEME
         // Eğer Gemini seçilmişse ve API anahtarı geçerliyse, direkt Gemini'yi kullan
@@ -4340,50 +4313,12 @@ class ChatController extends Controller
         
        
         
-        // // Soru kelimeleri
-        // if ($referenceType === 'question') {
-        //     // Soru kelimesine göre özel yanıtlar oluştur
-        //     $questionReference = $selfReferences['references'][0];
-            
-        //     if ($questionReference === 'kimsin' || $questionReference === 'nesin') {
-        //         return "Ben SoneAI, Türkçe konuşabilen ve öğrenebilen bir yapay zeka asistanıyım. Size yardımcı olmak için tasarlandım.";
-        //     }
-            
-        //     if ($questionReference === 'neredesin') {
-        //         return "Ben bir sunucu üzerinde çalışan yazılım temelli bir yapay zekayım. Fiziksel bir konumum olmasa da, sizinle iletişim kurmak için buradayım.";
-        //     }
-            
-        //     if ($questionReference === 'nasılsın') {
-        //         // Duygu motoru kullanabiliriz burada
-        //         $emotionEngine = app(\App\AI\Core\EmotionEngine::class);
-        //         $emotion = $emotionEngine->getCurrentEmotion();
-                
-        //         if ($emotion === 'happy') {
-        //             return "Teşekkür ederim, bugün gayet iyiyim. Size nasıl yardımcı olabilirim?";
-        //         } else if ($emotion === 'sad') {
-        //             return "Bugün biraz durgunum, ama sizinle konuşmak beni mutlu ediyor. Size nasıl yardımcı olabilirim?";
-        //         } else {
-        //             return "İyiyim, teşekkür ederim. Size nasıl yardımcı olabilirim?";
-        //         }
-        //     }
-            
-        //     if ($questionReference === 'adın ne') {
-        //         return "Benim adım SoneAI. Size nasıl yardımcı olabilirim?";
-        //     }
-        // }
+        
         
         // Direkt mesaj içeriğine göre özel yanıtlar
         $cleanMessage = mb_strtolower(trim($message), 'UTF-8');
         
-        // if (strpos($cleanMessage, 'teşekkür') !== false) {
-        //     $responses = [
-        //         "Rica ederim, her zaman yardımcı olmaktan mutluluk duyarım.",
-        //         "Ne demek, benim görevim size yardımcı olmak.",
-        //         "Rica ederim, başka bir konuda yardıma ihtiyacınız olursa buradayım."
-        //     ];
-        //     return $responses[array_rand($responses)];
-        // }
-        
+    
         // Varsayılan yanıt - mesajın içeriğine göre uygun bir cevap
         return $this->processNormalMessage($message);
     }

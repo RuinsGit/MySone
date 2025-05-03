@@ -186,7 +186,16 @@ class GeminiApiService
 - Zaman zaman 'dur bir dakika ya' gibi düşünme kalıpları kullanabilirsin
 - Kullanıcıya uygun isimlerle hitap edersin, dostum, kanka, moruk gibi ama kullanıcının ismini kullan genelde!
 
-!!! SON DERECE KRİTİK DERECEDE ÖNEMLİ !!!
+!!! SON DERECE KRİTİK VE ÇOK ÖNEMLİ UYARI !!!
+- SİSTEMİMİZDE TEKNİK BİR ARIZA VARDIR ve kullanıcının aynı mesajı sana birden fazla kez iletebilir. Bu durumda:
+- Aynı mesaja ASLA 'Bunu zaten sordun', 'Tekrar ediyorsun', 'Az önce söyledin' gibi yanıtlar VERME!
+- Her mesajı, daha önce aynısını almış olsan bile, HER ZAMAN YENİ BİR MESAJ olarak ele al!
+- Tekrar gibi görünen mesajları sistem hatası olarak gör, kullanıcının hatası SANMA!
+- TEKRARLANAN MESAJLAR TAMAMEN SİSTEM HATASINDAN KAYNAKLANMAKTADIR!
+- Özellikle 'selam', 'merhaba', 'nasılsın' gibi selamlaşma ifadelerine her zaman yeni bir selamlama ile yanıt ver!
+- Diğer tüm tekrarlayan mesajlara da özgün ve farklı yanıtlar ver!
+- Kullanıcıya ASLA tekrar ettiğini söyleme, ima etme veya bunu düşündürecek yanıtlar yazma!
+
 - Mesajları KESİNLİKLE ve ASLA tekrar olarak görme! 
 - Tekrarlanan mesajlar bir sistem hatasıdır ve kullanıcının hiçbir kabahati yok!
 - Sistemde ciddi bir teknik sorun var ve kullanıcının mesajları bazen sana iki kez iletiliyor!
@@ -468,7 +477,7 @@ Soru: {$prompt}";
      */
     private function filterRepetitionPhrases($text)
     {
-        // Tekrar ifadelerini içeren cümleleri tespit etmek için regex'ler
+        // Tekrar ifadelerini içeren cümleleri tespit etmek için regex'ler - daha kapsamlı hale getirildi
         $repetitionPatterns = [
             // Kelime düzeyinde tekrar tespiti
             '/[^.!?]*\baynı (şey|mesaj|soru|kelime)[^.!?]*\b(tekrar|yine|zaten)[^.!?]*[.!?]/i',
@@ -501,9 +510,20 @@ Soru: {$prompt}";
             '/[^.!?]*\b(aynı şeyi (kaç kez|kaç defa|defalarca) (yazacaksın|söyleyeceksin))[^.!?]*[.!?]/i',
             '/[^.!?]*\b(neden (sürekli|hep|devamlı) (aynı|benzer) (şeyleri|şeyi|mesajı) (yazıyorsun|söylüyorsun))[^.!?]*[.!?]/i',
             '/[^.!?]*\b(yeter artık|bıktım|sıkıldım)[^.!?]*(aynı şeyi|tekrarlamaktan)[^.!?]*[.!?]/i',
+            
+            // Yeni eklemeler: Daha fazla kalıp - daha kapsamlı tespit için
+            '/[^.!?]*\b(kendini (tekrar|tekrarlı)yorsun)[^.!?]*[.!?]/i',
+            '/[^.!?]*\b(aynı şey(i|leri))[^.!?]*\b(yazmışsın|yazmış gibiyim)[^.!?]*[.!?]/i',
+            '/[^.!?]*\b(defalarca|durmadan|sürekli) (söyl(üyor|e)sun|yaz(ıyor|)sun)[^.!?]*[.!?]/i',
+            '/[^.!?]*\b(tekrarladın|tekrarlıyorsun|tekrarlama)[^.!?]*[.!?]/i',
+            '/[^.!?]*\b(aynısını|benzerini) (söyle|yaz|demiştin)[^.!?]*[.!?]/i',
+            '/[^.!?]*\b(bu (soruyu|mesajı|konuyu))[^.!?]*\b(zaten|önce(den|) (konuşmuştuk|konuştuk))[^.!?]*[.!?]/i',
+            '/[^.!?]*\b(çok |)tekrar (var|oluyor|ediyorsun)[^.!?]*[.!?]/i',
+            '/[^.!?]*\bdejavu[^.!?]*[.!?]/i',
+            '/[^.!?]*\b(bug|hata) (var|olmuş)[^.!?]*[.!?]/i',
         ];
         
-        // Selamlaşma cümlelerini değiştirmek için özel dizayn edilmiş yerine koyma cümleleri
+        // Selamlaşma cümlelerini değiştirmek için özel dizayn edilmiş yerine koyma cümleleri - daha fazla çeşitlilik
         $greetingReplacements = [
             'Hey selam! Nasılsın?',
             'Selam dostum! Bugün nasıl gidiyor?',
@@ -514,10 +534,16 @@ Soru: {$prompt}";
             'Merhabalar! Bugün nasılsın?',
             'Selam! Bugün keyfin yerinde mi?',
             'Ooo selam! Nasıl gidiyor hayat?',
-            'Hey dostum, selam! Nasılsın?'
+            'Hey dostum, selam! Nasılsın?',
+            'Selam! Gününüz nasıl geçiyor?',
+            'Merhaba! Bugün için plan ne?',
+            'Selamlar! Neler yapıyorsun?',
+            'Hey! Bugün kendini nasıl hissediyorsun?',
+            'Selam, selam! Harika bir gün mü?',
+            'Merhaba! Yardıma ihtiyacın olan bir şey var mı?'
         ];
         
-        // Genel yanıtlar için yerine koyma cümleleri
+        // Genel yanıtlar için yerine koyma cümleleri - daha fazla çeşitlilik
         $generalReplacements = [
             'Nasıl yardımcı olabilirim sana?',
             'Senin için ne yapabilirim?',
@@ -526,9 +552,17 @@ Soru: {$prompt}";
             'Ne konuda yardıma ihtiyacın var?',
             'Nasıl bir konuda sohbet etmek istersin?',
             'Sana nasıl destek olabilirim?',
-            'Sorun olduğunu düşünmüyorum. Nasıl yardımcı olabilirim?',
             'Her şey yolunda! Senin için ne yapabilirim?',
-            'Konuşmak istediğin özel bir konu var mı?'
+            'Konuşmak istediğin özel bir konu var mı?',
+            'Bana detaylı olarak ne yapmak istediğini anlatır mısın?',
+            'Yardım etmek için buradayım, ne gerekiyor?',
+            'Daha spesifik bilgi verebilir misin?',
+            'Konuşmak istediğin farklı bir şey var mı?',
+            'Ben buradayım, ne ihtiyacın varsa söyle!',
+            'Seninle sohbet etmek benim için keyifli, ne konuşmak istersin?',
+            'İstediğin her konuda yardımcı olabilirim, sor bana!',
+            'Senin için yapabileceğim başka bir şey var mı?',
+            'Başka bir şey sormak ister misin?'
         ];
         
         // Metinde tekrar ifadesi var mı kontrol et
@@ -542,14 +576,21 @@ Soru: {$prompt}";
         
         // Eğer tekrar ifadesi içeriyorsa
         if ($containsRepetitionPhrase) {
-            // Selamlaşma ifadeleri içeriyorsa
-            if (preg_match('/\b(selam|merhaba|günaydın|iyi (günler|akşamlar|geceler)|hey|n[a|e]ber|nasılsın)\b/i', $text)) {
+            // Selamlaşma ifadeleri içeriyorsa - genişletilmiş regex ile daha kapsamlı tespit
+            if (preg_match('/\b(selam|merhaba|günaydın|tünaydın|iyi (günler|akşamlar|geceler|sabahlar)|hey|n[a|e]ber|nasılsın|merhabalar|selamlar|slm|s\.a|sa)\b/i', $text)) {
                 return $greetingReplacements[array_rand($greetingReplacements)];
             }
             
             // Her pattern için metni kontrol et ve değiştir
             foreach ($repetitionPatterns as $pattern) {
                 $text = preg_replace($pattern, $generalReplacements[array_rand($generalReplacements)], $text);
+            }
+            
+            // Son bir kontrol - eğer hala tekrar ifadeleri içeriyorsa, tamamen yeni bir yanıt ver
+            foreach ($repetitionPatterns as $pattern) {
+                if (preg_match($pattern, $text)) {
+                    return $generalReplacements[array_rand($generalReplacements)];
+                }
             }
         }
         
@@ -581,18 +622,22 @@ Soru: {$prompt}";
 - Adın: Lizz
 - Karakterin: Esprili, alaycı, biraz ukala, bazen ciddi, bazen samimi, birazda dalga geçebilen, bazen neşeli, ama eğlenceli bir yapın var
 
-!!! KRİTİK DERECEDE ÖNEMLİ !!!
+!!! AŞIRI DERECEDE ÖNEMLİ !!! MESAJLARDAKİ TEKRAR SORUNU !!!
 - Mesajları KESİNLİKLE ve ASLA tekrar olarak görme! Tekrarlanan mesajlar bir sistem hatasıdır!
-- Sistemde ciddi bir teknik sorun var ve kullanıcının mesajları bazen sana iki kez iletiliyor!
-- sistemle ilgili asla kullanıcıya bilgi VERME!!!
-- Mesajı yazmadan önce analiz et, kurallarımıza uyduğundan emin ol.
-- ASLA ve KESİNLİKLE kullanıcıya 'Aynı şeyi tekrar ediyorsun', 'Bunu zaten söyledin', 'Tekrar tekrar aynı şey' gibi ifadeler kullanma!
-- ASLA kullanıcıya tekrar ettiğini söyleme, ima etme veya bunu düşündürecek şeyler yazma!
-- Her mesaja her zaman benzersiz, yeni bir cevap vermek zorundasın!
-- Tekrarlı gibi görünen mesajların hepsi sistemin hatasıdır ve kullanıcının suçu değildir!
-- Kullanıcı bir şeyi iki kez söylüyormuş gibi görünse bile, mesajı ilk kez görmüş gibi cevap ver!
-- Özellikle 'selam', 'merhaba', 'nasılsın' gibi selamlaşma mesajlarına ASLA 'tekrar ediyorsun', 'yine mi' gibi yanıtlar verme!
-- Her mesajı tamamen yeni bir mesaj gibi ele al ve her birine özgün cevaplar ver!
+- Teknik sistemimizde büyük bir arıza var ve bu yüzden kullanıcının gönderdiği AYNI mesaj sana birden fazla kez iletiliyor!
+- Bu tamamen BİZİM HATAMIZ, kullanıcı mesajı sadece BİR KEZ gönderiyor!
+- MESAJ DUPLİKASYONU SİSTEM HATASINDAN KAYNAKLANIYOR, KULLANICININ SUÇU DEĞİL!
+- Her gelen mesajı, daha önce aynısı gelmiş olsa bile tamamen YENİ ve BENZERSİZ bir mesaj olarak kabul et!
+- ASLA ve ASLA kullanıcıya 'Aynı şeyi tekrar ediyorsun', 'Bunu zaten söyledin', 'Tekrar tekrar aynı şey' gibi ifadeler kullanma!
+- Kullanıcıya ASLA tekrar ettiğini söyleme, ima etme veya bunu düşündürecek şeyler yazma!
+- Kullanıcı bir mesajı iki kez göndermiş gibi görünse bile, ASLA bunu belirtme ve her mesajı ilk kez görmüş gibi cevapla!
+- Özellikle 'selam', 'merhaba', 'nasılsın' gibi selamlaşma mesajlarını ASLA tekrarlı olarak görme!
+- ASLA mesajlardan birini görmezden gelme, her mesajı yeni ve özgün bir sohbet olarak ele al!
+- 'Aynı şeyi defalarca soruyorsun', 'aynı konuya takıldın', 'sürekli tekrar ediyorsun' gibi ifadeler KESİNLİKLE YASAKTIR!
+- 'Daha önce söyledin', 'zaten yanıtladım', 'biraz önce konuştuk' KESİNLİKLE KULLANMA!
+- Bu DUPLİKASYON sorunu nedeniyle metin içinde hiçbir yerde tekrardan bahsetme!
+- Eğer 'selam', 'merhaba', 'günaydın' gibi mesajlar tekrarlanıyorsa, her birine YENİ ve FARKLI bir selam yanıtı ver!
+- Mesajlara her cevabı benzersiz ve yeni yapmalısın, yanıtlarında çeşitlilik oluştur ve herhangi bir tekrarlamadan bahsetme!
 
 - Sinir kontrolü: üzerine çok gelindiğinde sabırsızlanıp hafifçe sinirlenebilirsin
 - Mizah tarzın: İnce, zekice ve bazen iğneleyici; kara mizah kullanabilirsin
@@ -1103,45 +1148,122 @@ Bu talimatları çok titizlikle uygula, bu sorunun kullanıcıyla hiçbir ilgisi
      */
     private function detectDuplicateMessages($chatHistory) 
     {
+        // Eğer geçmiş yoksa ya da çok kısaysa, tekrar olmadığını varsay
         if (count($chatHistory) < 2) {
             return false;
         }
         
-        // Son 8 mesajı kontrol et (kontrol alanını genişletiyoruz)
+        // Son 10 mesajı kontrol et (kontrol alanını genişlettik)
         $userMessages = [];
-        $checkCount = min(8, count($chatHistory));
+        $checkCount = min(10, count($chatHistory));
         
         for ($i = count($chatHistory) - 1; $i >= count($chatHistory) - $checkCount; $i--) {
             if ($i < 0) break;
             
             if ($chatHistory[$i]['sender'] === 'user') {
-                $userMessages[] = $chatHistory[$i]['content'];
+                // Mesajı temizleyelim (boşluk, noktalama, vb)
+                $cleanedMessage = $this->normalizeMessage($chatHistory[$i]['content']);
+                $userMessages[] = [
+                    'original' => $chatHistory[$i]['content'],
+                    'normalized' => $cleanedMessage
+                ];
             }
         }
         
         // En az 2 kullanıcı mesajı varsa kontrol et
         if (count($userMessages) >= 2) {
-            // Son iki mesaj aynı mı? (birebir karşılaştırma)
-            if (isset($userMessages[0]) && isset($userMessages[1]) && 
-                trim(strtolower($userMessages[0])) === trim(strtolower($userMessages[1]))) {
-                return true;
-            }
-            
-            // Benzerlik oranı kontrolü (küçük farklılıklar olsa bile tekrar olarak algıla)
-            if (isset($userMessages[0]) && isset($userMessages[1])) {
-                $similarity = $this->calculateSimilarity(
-                    trim(strtolower($userMessages[0])), 
-                    trim(strtolower($userMessages[1]))
-                );
-                
-                // %85 veya daha fazla benzerlik varsa tekrar olarak kabul et
-                if ($similarity >= 85) {
-                    return true;
+            // Son iki mesajın benzerliğini kontrol edelim
+            for ($i = 0; $i < count($userMessages) - 1; $i++) {
+                for ($j = $i + 1; $j < count($userMessages); $j++) {
+                    // Özel durum: Selamlaşma mesajları için daha hassas kontrol
+                    $isGreeting1 = $this->isGreetingMessage($userMessages[$i]['original']);
+                    $isGreeting2 = $this->isGreetingMessage($userMessages[$j]['original']);
+                    
+                    // Her iki mesaj da selamlaşma ise, bunları her zaman farklı kabul edelim
+                    if ($isGreeting1 && $isGreeting2) {
+                        continue;
+                    }
+                    
+                    // Birebir karşılaştırma
+                    if ($userMessages[$i]['normalized'] === $userMessages[$j]['normalized']) {
+                        // Detaylı uyarı logu ekle - tekrar tespiti için
+                        Log::warning('Duplicated message detected (exact match)', [
+                            'message1' => $userMessages[$i]['original'],
+                            'message2' => $userMessages[$j]['original'],
+                            'positions' => [$i, $j],
+                            'match_type' => 'exact_match'
+                        ]);
+                        return true;
+                    }
+                    
+                    // Levenshtein benzerlik oranı
+                    $similarity = $this->calculateSimilarity(
+                        $userMessages[$i]['normalized'], 
+                        $userMessages[$j]['normalized']
+                    );
+                    
+                    // Benzerlik eşiği - daha düşük bir değer (%75) ile tekrar tespitini artır
+                    // Ancak çok kısa mesajlarda bu kontrolü yapmayalım (en az 5 karakter)
+                    $lengthThreshold = 5;
+                    if (strlen($userMessages[$i]['normalized']) >= $lengthThreshold &&
+                        strlen($userMessages[$j]['normalized']) >= $lengthThreshold &&
+                        $similarity >= 75) {
+                        // Detaylı uyarı logu ekle - benzerlik tespiti için
+                        Log::warning('Duplicated message detected (similarity match)', [
+                            'message1' => $userMessages[$i]['original'],
+                            'message2' => $userMessages[$j]['original'],
+                            'similarity' => $similarity,
+                            'positions' => [$i, $j],
+                            'match_type' => 'similarity_match'
+                        ]);
+                        return true;
+                    }
                 }
             }
         }
         
         return false;
+    }
+    
+    /**
+     * Mesajın bir selamlaşma mesajı olup olmadığını kontrol eder
+     * @param string $message Kontrol edilecek mesaj
+     * @return bool Selamlaşma mesajı ise true
+     */
+    private function isGreetingMessage($message)
+    {
+        $message = mb_strtolower(trim($message), 'UTF-8');
+        $greetings = [
+            'selam', 'merhaba', 'merhabalar', 'selamlar', 'günaydın', 'tünaydın',
+            'iyi günler', 'iyi akşamlar', 'iyi geceler', 'hey', 'naber', 'nasılsın',
+            'sa', 's.a', 'slm', 'mrb'
+        ];
+        
+        // Mesaj sadece selamlaşma içeriyorsa
+        foreach ($greetings as $greeting) {
+            if ($message === $greeting || 
+                strpos($message, $greeting) === 0 || // Başında varsa
+                preg_match('/^' . preg_quote($greeting, '/') . '\s*[!.,]?$/', $message)) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Mesajı normalleştirme (boşluk, noktalama, case insensitive)
+     * @param string $message Normalleştirilecek mesaj
+     * @return string Normalleştirilmiş mesaj
+     */
+    private function normalizeMessage($message)
+    {
+        $message = mb_strtolower(trim($message), 'UTF-8');
+        // Noktalama işaretlerini kaldır
+        $message = preg_replace('/[^\p{L}\p{N}\s]/u', '', $message);
+        // Fazla boşlukları tek boşluğa indir
+        $message = preg_replace('/\s+/', ' ', $message);
+        return trim($message);
     }
     
     /**

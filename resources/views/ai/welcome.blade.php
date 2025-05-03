@@ -1,9 +1,76 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LIZZ AI - Hoşgeldiniz</title>
+    
+    <!-- SEO Meta Etiketleri -->
+    <title>{{ isset($seoSettings) && $seoSettings->site_title ? $seoSettings->site_title : 'LIZZ AI' }} - Hoşgeldiniz</title>
+    
+    @if(isset($seoSettings))
+        @if($seoSettings->meta_description)
+            <meta name="description" content="{{ $seoSettings->meta_description }}">
+        @endif
+        
+        @if($seoSettings->meta_keywords)
+            <meta name="keywords" content="{{ $seoSettings->meta_keywords }}">
+        @endif
+        
+        @if($seoSettings->google_verification)
+            <meta name="google-site-verification" content="{{ $seoSettings->google_verification }}">
+        @endif
+        
+        @if($seoSettings->canonical_self)
+            <link rel="canonical" href="{{ url()->current() }}">
+        @endif
+        
+        @if($seoSettings->noindex || $seoSettings->nofollow)
+            <meta name="robots" content="{{ $seoSettings->noindex ? 'noindex' : 'index' }},{{ $seoSettings->nofollow ? 'nofollow' : 'follow' }}">
+        @endif
+        
+        <!-- Open Graph / Facebook Meta Etiketleri -->
+        <meta property="og:type" content="website">
+        <meta property="og:url" content="{{ url()->current() }}">
+        <meta property="og:title" content="{{ $seoSettings->site_title ?? 'LIZZ AI' }} - Hoşgeldiniz">
+        @if($seoSettings->meta_description)
+            <meta property="og:description" content="{{ $seoSettings->meta_description }}">
+        @endif
+        @if($seoSettings->og_image)
+            <meta property="og:image" content="{{ asset($seoSettings->og_image) }}">
+        @endif
+        
+        <!-- Twitter Meta Etiketleri -->
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:url" content="{{ url()->current() }}">
+        <meta name="twitter:title" content="{{ $seoSettings->site_title ?? 'LIZZ AI' }} - Hoşgeldiniz">
+        @if($seoSettings->meta_description)
+            <meta name="twitter:description" content="{{ $seoSettings->meta_description }}">
+        @endif
+        @if($seoSettings->og_image)
+            <meta name="twitter:image" content="{{ asset($seoSettings->og_image) }}">
+        @endif
+        
+        <!-- Favicon -->
+        @if($seoSettings->favicon)
+            <link rel="icon" href="{{ asset($seoSettings->favicon) }}" type="image/x-icon">
+        @endif
+        
+        <!-- Head Script Eklentileri -->
+        @if($seoSettings->head_scripts)
+            {!! $seoSettings->head_scripts !!}
+        @endif
+        
+        <!-- Google Analytics -->
+        @if($seoSettings->google_analytics)
+            {!! $seoSettings->google_analytics !!}
+        @endif
+        
+        <!-- Google Tag Manager -->
+        @if($seoSettings->google_tag_manager)
+            {!! $seoSettings->google_tag_manager !!}
+        @endif
+    @endif
+    
     <style>
         body {
             margin: 0;
@@ -378,6 +445,10 @@
     </style>
 </head>
 <body>
+    @if(isset($seoSettings) && $seoSettings->body_start_scripts)
+        {!! $seoSettings->body_start_scripts !!}
+    @endif
+    
     <div id="particles-js"></div>
     
     <div class="welcome-container">
@@ -722,5 +793,9 @@
             retina_detect: true
         });
     </script>
+    
+    @if(isset($seoSettings) && $seoSettings->body_end_scripts)
+        {!! $seoSettings->body_end_scripts !!}
+    @endif
 </body>
 </html> 

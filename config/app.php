@@ -16,7 +16,8 @@ return [
     |
     */
 
-    'name' => env('APP_NAME', 'Laravel'),
+    'name' => env('APP_NAME', 'LIZZ AI'),
+    'favicon' => env('APP_FAVICON', '/favicon.ico'),
 
     /*
     |--------------------------------------------------------------------------
@@ -169,6 +170,7 @@ return [
         App\Providers\EventServiceProvider::class,
         App\Providers\RouteServiceProvider::class,
         App\Providers\AIServiceProvider::class,
+        App\Providers\SeoServiceProvider::class,
     ])->toArray(),
 
     /*

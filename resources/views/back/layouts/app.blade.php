@@ -373,6 +373,13 @@
                             <span class="nav-item-text">Mesaj Geçmişi</span>
                         </a>
                     </li>
+                    
+                    <li class="nav-item">
+                        <a href="{{ route('admin.seo.index') }}" class="nav-link {{ request()->routeIs('admin.seo.*') ? 'active' : '' }}">
+                            <i class="nav-icon fas fa-search fa-fw"></i>
+                            <span class="nav-item-text">SEO Ayarları</span>
+                        </a>
+                    </li>
 
                     <li class="nav-item mt-4">
                         <div class="nav-link theme-toggle" id="theme-toggle">

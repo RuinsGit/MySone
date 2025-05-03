@@ -100,6 +100,15 @@ Route::prefix('admin')->group(function () {
             Route::put('/{page}', [PageController::class, 'update'])->name('update');
             Route::delete('/{page}', [PageController::class, 'destroy'])->name('destroy');
         });
+        
+        // SEO ayarları için rotalar
+        Route::prefix('seo')->name('admin.seo.')->group(function () {
+            Route::get('/', [App\Http\Controllers\Admin\SeoController::class, 'index'])->name('index');
+            Route::post('/', [App\Http\Controllers\Admin\SeoController::class, 'update'])->name('update');
+            Route::get('/preview', [App\Http\Controllers\Admin\SeoController::class, 'preview'])->name('preview');
+            Route::post('/robots', [App\Http\Controllers\Admin\SeoController::class, 'updateRobots'])->name('update-robots');
+            Route::get('/upload-settings', [App\Http\Controllers\Admin\SeoController::class, 'checkUploadSettings'])->name('upload-settings');
+        });
     });
 });
 

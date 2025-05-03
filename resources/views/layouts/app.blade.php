@@ -6,9 +6,80 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>{{ config('app.name', 'SoneAI') }} - @yield('title', 'Yapay Zeka Asistan')</title>
+    <!-- SEO Meta Etiketleri -->
+    <title>{{ isset($seoSettings) && $seoSettings->site_title ? $seoSettings->site_title : config('app.name') }} {{ isset($seoSettings) && $seoSettings->title_separator ? $seoSettings->title_separator : '|' }} @yield('title', isset($seoSettings) && $seoSettings->default_title ? $seoSettings->default_title : 'Yapay Zeka Asistan')</title>
     
-    <link rel="icon" href="{{ asset('images/sone.png') }}" type="image/png">
+    @if(isset($seoSettings))
+        @if($seoSettings->meta_description)
+            <meta name="description" content="{{ $seoSettings->meta_description }}">
+        @endif
+        
+        @if($seoSettings->meta_keywords)
+            <meta name="keywords" content="{{ $seoSettings->meta_keywords }}">
+        @endif
+        
+        @if($seoSettings->google_verification)
+            <meta name="google-site-verification" content="{{ $seoSettings->google_verification }}">
+        @endif
+        
+        @if($seoSettings->canonical_self)
+            <link rel="canonical" href="{{ url()->current() }}">
+        @endif
+        
+        @if($seoSettings->noindex || $seoSettings->nofollow)
+            <meta name="robots" content="{{ $seoSettings->noindex ? 'noindex' : 'index' }},{{ $seoSettings->nofollow ? 'nofollow' : 'follow' }}">
+        @endif
+        
+        <!-- Open Graph / Facebook Meta Etiketleri -->
+        <meta property="og:type" content="website">
+        <meta property="og:url" content="{{ url()->current() }}">
+        <meta property="og:title" content="{{ $seoSettings->site_title ?? config('app.name') }}">
+        @if($seoSettings->meta_description)
+            <meta property="og:description" content="{{ $seoSettings->meta_description }}">
+        @endif
+        @if($seoSettings->og_image)
+            <meta property="og:image" content="{{ asset($seoSettings->og_image) }}">
+        @endif
+        
+        <!-- Twitter Meta Etiketleri -->
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:url" content="{{ url()->current() }}">
+        <meta name="twitter:title" content="{{ $seoSettings->site_title ?? config('app.name') }}">
+        @if($seoSettings->meta_description)
+            <meta name="twitter:description" content="{{ $seoSettings->meta_description }}">
+        @endif
+        @if($seoSettings->og_image)
+            <meta name="twitter:image" content="{{ asset($seoSettings->og_image) }}">
+        @endif
+        
+        <!-- Favicon -->
+        @if($seoSettings->favicon)
+            <link rel="icon" href="{{ asset($seoSettings->favicon) }}" type="image/x-icon">
+            <link rel="shortcut icon" href="{{ asset($seoSettings->favicon) }}" type="image/x-icon">
+            <link rel="apple-touch-icon" href="{{ asset($seoSettings->favicon) }}">
+        @else
+            <link rel="icon" href="{{ asset('images/sone.png') }}" type="image/png">
+            <link rel="shortcut icon" href="{{ asset('images/sone.png') }}" type="image/png">
+            <link rel="apple-touch-icon" href="{{ asset('images/sone.png') }}">
+        @endif
+        
+        <!-- Head Script Eklentileri -->
+        @if($seoSettings->head_scripts)
+            {!! $seoSettings->head_scripts !!}
+        @endif
+        
+        <!-- Google Analytics -->
+        @if($seoSettings->google_analytics)
+            {!! $seoSettings->google_analytics !!}
+        @endif
+        
+        <!-- Google Tag Manager -->
+        @if($seoSettings->google_tag_manager)
+            {!! $seoSettings->google_tag_manager !!}
+        @endif
+    @else
+        <link rel="icon" href="{{ asset('images/sone.png') }}" type="image/png">
+    @endif
 
     <!-- Fontlar -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -506,6 +577,10 @@
     @yield('styles')
 </head>
 <body>
+    @if(isset($seoSettings) && $seoSettings->body_start_scripts)
+        {!! $seoSettings->body_start_scripts !!}
+    @endif
+    
     <div id="app">
         <!-- Sidebar Backdrop (Mobile) -->
         <div class="sidebar-backdrop"></div>
@@ -663,5 +738,9 @@
 
     
     @yield('scripts')
+    
+    @if(isset($seoSettings) && $seoSettings->body_end_scripts)
+        {!! $seoSettings->body_end_scripts !!}
+    @endif
 </body>
 </html> 

@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'SoneAI - Yapay Zeka Sohbet')
+@section('title', 'Yapay Zeka Sohbet')
 
 @section('styles')
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">

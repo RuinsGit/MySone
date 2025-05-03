@@ -177,7 +177,7 @@
                                     <td>
                                         <div class="d-flex align-items-center">
                                             @if(!empty($visitor->avatar))
-                                                <img src="{{ $visitor->avatar }}" alt="{{ $visitor->name }}" class="me-2 rounded-circle" width="32" height="32">
+                                                <img src="{{ $visitor->avatar }}" alt="{{ $visitor->name }}" class="me-2 rounded-circle" width="32" height="32" style="object-fit: cover;">
                                             @else
                                                 <i class="fas fa-user-circle me-1 text-primary"></i>
                                             @endif

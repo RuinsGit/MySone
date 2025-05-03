@@ -533,18 +533,32 @@
             } else {
                 // Kullanıcı avatarı - Google'dan gelen avatar varsa kullan, yoksa baş harfini göster
                 @auth
-                if ("{{ auth()->check() && auth()->user()->avatar }}") {
-                    avatarEl.innerHTML = `<img src="{{ auth()->user()->avatar }}" alt="{{ auth()->user()->name }}" 
+                const userAvatar = "{{ auth()->user()->avatar }}";
+                const sessionAvatar = "{{ session('user_avatar') }}";
+                
+                if (userAvatar && userAvatar.trim() !== "") {
+                    avatarEl.innerHTML = `<img src="${userAvatar}" alt="{{ auth()->user()->name }}" 
                         style="background-size:cover;
                         background-position: center;
                         background-repeat: no-repeat;
                         border-radius: 50%;
                         width: 28px;
                         height: 28px;
+                        object-fit: cover;
+                        !important;">`;
+                } else if (sessionAvatar && sessionAvatar.trim() !== "") {
+                    avatarEl.innerHTML = `<img src="${sessionAvatar}" alt="{{ auth()->user()->name }}" 
+                        style="background-size:cover;
+                        background-position: center;
+                        background-repeat: no-repeat;
+                        border-radius: 50%;
+                        width: 28px;
+                        height: 28px;
+                        object-fit: cover;
                         !important;">`;
                 } else {
-                    avatarEl.innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;">
-                        {{ auth()->check() ? substr(auth()->user()->name, 0, 1) : 'K' }}</div>`;
+                    avatarEl.innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background-color:#4e73df;color:white;font-weight:bold;">
+                        {{ substr(auth()->user()->name, 0, 1) }}</div>`;
                 }
                 @else
                 avatarEl.innerHTML = `<i class="fas fa-user"></i>`;

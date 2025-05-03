@@ -180,7 +180,7 @@
                                     <input type="hidden" name="visitor_id" value="{{ $cleanVisitorId }}">
                                     <button type="submit" class="btn btn-link text-decoration-none p-0 border-0 text-start d-flex align-items-center">
                                         @if(!empty($avatar))
-                                            <img src="{{ $avatar }}" alt="{{ $userName }}" class="me-1 rounded-circle" width="24" height="24">
+                                            <img src="{{ $avatar }}" alt="{{ $userName }}" class="me-1 rounded-circle" width="24" height="24" style="object-fit: cover;">
                                         @else
                                             <i class="fas fa-user-circle me-1 text-primary"></i>
                                         @endif

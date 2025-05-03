@@ -108,17 +108,29 @@ class GoogleController extends Controller
             $authUser = Auth::user();
             if ($authUser) {
                 $authUser->name = $visitorName;
+                
+                // Avatar'ı da güncelle - Google'dan gelen avatar URL'sini kullan
+                if (!empty($user->avatar)) {
+                    $authUser->avatar = $user->avatar;
+                    // Ayrıca session'a da kaydet
+                    session(['user_avatar' => $user->avatar]);
+                }
+                
                 $authUser->save();
                 
-                \Log::info('Kullanıcı adı Google ile güncellendi', [
+                \Log::info('Kullanıcı bilgileri Google ile güncellendi', [
                     'user_id' => auth()->id(),
-                    'google_name' => $visitorName
+                    'google_name' => $visitorName,
+                    'google_avatar' => $user->avatar
                 ]);
+                
+                // Kullanıcının visitor_id'sini güncelle
+                $authUser->visitor_id = 'google_user_' . $authUser->id;
+                $authUser->save();
             }
             
-            // Google kullanıcıları için ortak bir visitor_id kullan
-            // Bu şekilde "deleted" sorununu tamamen çözeriz
-            $visitorId = 'google_common_id';
+            // Benzersiz visitor ID kullan - kullanıcı ID'si ile
+            $visitorId = 'google_user_' . auth()->id();
             
             // Session'a kaydet
             session(['visitor_id' => $visitorId]);
@@ -131,7 +143,7 @@ class GoogleController extends Controller
                 ['visitor_id' => $visitorId],
                 [
                     'name' => $visitorName,
-                    'avatar' => $user->avatar,
+                    'avatar' => $user->avatar ?? null,
                     'ip_address' => $deviceInfo['ip_address'],
                     'device_info' => json_encode($deviceInfo['device_info']),
                     'user_id' => auth()->id(),
@@ -139,11 +151,20 @@ class GoogleController extends Controller
                 ]
             );
             
+            // Visitor_names tablosuna kaydedildiğini doğrula
+            $visitorRecord = \DB::table('visitor_names')->where('visitor_id', $visitorId)->first();
+            \Log::info('Visitor tablosu kaydı güncellendi', [
+                'visitor_id' => $visitorId,
+                'name' => $visitorRecord->name ?? 'Kayıt bulunamadı',
+                'avatar' => $visitorRecord->avatar ?? 'Avatar bulunamadı'
+            ]);
+            
             \Log::info('Google kullanıcısının ziyaretçi bilgileri güncellendi', [
                 'visitor_id' => $visitorId,
                 'name' => $visitorName,
                 'user_id' => auth()->id(),
-                'google_id' => $user->id
+                'google_id' => $user->google_id,
+                'avatar' => $user->avatar
             ]);
         } catch (\Exception $e) {
             \Log::error('Google kullanıcısı ziyaretçi bilgileri güncelleme hatası: ' . $e->getMessage());

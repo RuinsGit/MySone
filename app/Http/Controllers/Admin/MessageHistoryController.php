@@ -200,23 +200,58 @@ class MessageHistoryController extends Controller
         ]);
         
         // Eğer ziyaretçi yoksa users tablosundan kontrol edelim
-        if (!$visitor && auth()->check()) {
-            $authUser = auth()->user();
-            
-            if ($authUser->visitor_id === $visitorId) {
-                $visitor = (object)[
-                    'id' => $authUser->id,
-                    'name' => $authUser->name,
-                    'avatar' => $authUser->avatar,
-                    'email' => $authUser->email,
-                    'visitor_id' => $authUser->visitor_id,
-                    'created_at' => $authUser->created_at,
-                    'updated_at' => $authUser->updated_at,
-                    'ip_address' => request()->ip(),
-                    'latitude' => $authUser->latitude,
-                    'longitude' => $authUser->longitude,
-                    'location_info' => $authUser->location_info
-                ];
+        if (!$visitor || empty($visitor->avatar)) {
+            // Users tablosunda ara - visitor_id kullanarak
+            $authUser = DB::table('users')
+                ->where('visitor_id', $visitorId)
+                ->orWhere('visitor_id', 'like', 'google_user_%')
+                ->first();
+                
+            // Eğer kullanıcı bulunursa veya oturum açık bir kullanıcı varsa
+            if ($authUser) {
+                if (!$visitor) {
+                    $visitor = (object)[
+                        'id' => $authUser->id,
+                        'name' => $authUser->name,
+                        'avatar' => $authUser->avatar,
+                        'email' => $authUser->email,
+                        'visitor_id' => $authUser->visitor_id,
+                        'created_at' => $authUser->created_at,
+                        'updated_at' => $authUser->updated_at,
+                        'ip_address' => request()->ip(),
+                        'latitude' => $authUser->latitude,
+                        'longitude' => $authUser->longitude,
+                        'location_info' => $authUser->location_info
+                    ];
+                } else {
+                    // Visitor varsa ve avatar yoksa, users tablosundaki avatarı kullan
+                    $visitor->avatar = $authUser->avatar;
+                    // Google girişinde adı da güncelle
+                    if (!empty($authUser->google_id)) {
+                        $visitor->name = $authUser->name;
+                    }
+                }
+            } elseif (auth()->check()) {
+                $authUser = auth()->user();
+                
+                if (!$visitor && $authUser->visitor_id === $visitorId) {
+                    $visitor = (object)[
+                        'id' => $authUser->id,
+                        'name' => $authUser->name,
+                        'avatar' => $authUser->avatar,
+                        'email' => $authUser->email,
+                        'visitor_id' => $authUser->visitor_id,
+                        'created_at' => $authUser->created_at,
+                        'updated_at' => $authUser->updated_at,
+                        'ip_address' => request()->ip(),
+                        'latitude' => $authUser->latitude,
+                        'longitude' => $authUser->longitude,
+                        'location_info' => $authUser->location_info
+                    ];
+                } elseif ($visitor && empty($visitor->avatar)) {
+                    // Visitor varsa ve avatar yoksa, users tablosundaki avatarı kullan
+                    $visitor->avatar = $authUser->avatar;
+                }
             }
         }
         

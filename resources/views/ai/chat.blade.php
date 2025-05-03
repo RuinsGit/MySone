@@ -77,6 +77,8 @@
                         <div class="user-avatar">
                             @if(auth()->user()->avatar)
                                 <img src="{{ auth()->user()->avatar }}" alt="{{ auth()->user()->name }}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">
+                            @elseif(session('user_avatar'))
+                                <img src="{{ session('user_avatar') }}" alt="{{ auth()->user()->name }}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">
                             @else
                                 {{ substr(auth()->user()->name, 0, 1) }}
                             @endif

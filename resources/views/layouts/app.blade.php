@@ -590,16 +590,16 @@
             <!-- Sidebar -->
             <div class="sidebar" id="sidebar">
                 <div class="sidebar-logo">
-                    <img src="{{ asset('images/sone.png') }}" alt="SoneAI Logo">
-                    <span class="logo-text">SoneAI</span>
+                    <img src="{{ asset('images/sone.png') }}" alt="LIZZ AI Logo">
+                    <span class="logo-text">LIZZ AI</span>
                 </div>
                 
                 <div class="sidebar-options">
                     <div class="sidebar-option">
                         <span class="option-label">AI Modeli</span>
                         <select class="sidebar-select" id="model-selector">
-                            <option value="soneai">SoneAI Standard</option>
-                            <option value="gemini" selected>SoneAI Turbo</option>
+                            <option value="soneai">LIZZ AI Basic</option>
+                            <option value="gemini" selected>LIZZ AI Turbo</option>
                         </select>
                     </div>
                     

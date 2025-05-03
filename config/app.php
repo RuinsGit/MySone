@@ -16,7 +16,7 @@ return [
     |
     */
 
-    'name' => env('APP_NAME', 'LIZZ AI'),
+    'name' => 'LIZZ AI',
     'favicon' => env('APP_FAVICON', '/favicon.ico'),
 
     /*

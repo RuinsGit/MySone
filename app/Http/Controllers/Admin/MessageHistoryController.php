@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\ChatMessage;
 use App\Models\Chat;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class MessageHistoryController extends Controller
 {
@@ -175,24 +176,106 @@ class MessageHistoryController extends Controller
      */
     public function viewUser(Request $request)
     {
-        $visitorId = $request->input('visitor_id');
+        $visitorId = $request->visitor_id;
         
-        // Boş veya deleted olarak gelen visitor_id kontrolü
-        if (empty($visitorId) || $visitorId === 'deleted') {
+        if (empty($visitorId)) {
             return redirect()->route('admin.message-history.index')
-                ->with('error', 'Geçersiz ziyaretçi ID\'si: ' . $visitorId);
-        }
-
-        // Özel karakterleri temizle
-        $cleanVisitorId = $this->cleanVisitorId($visitorId);
-        
-        // Ziyaretçinin varlığını kontrol et
-        if (!$this->checkIfVisitorExists($cleanVisitorId)) {
-            return redirect()->route('admin.message-history.index')
-                ->with('error', 'Belirtilen ID için ziyaretçi bulunamadı: ' . $cleanVisitorId);
+                ->with('error', 'Kullanıcı ID bulunamadı.');
         }
         
-        return $this->userHistory($cleanVisitorId);
+        // Visitor bilgilerini al
+        $visitor = DB::table('visitor_names')
+            ->where('visitor_id', $visitorId)
+            ->first();
+        
+        // Log visitor info
+        \Log::info("Visitor infos:", [
+            'visitor_id' => $visitorId,
+            'visitor_data' => $visitor,
+            'location' => $visitor ? [
+                'latitude' => $visitor->latitude ?? null,
+                'longitude' => $visitor->longitude ?? null,
+                'has_location' => isset($visitor->latitude) && isset($visitor->longitude)
+            ] : null
+        ]);
+        
+        // Eğer ziyaretçi yoksa users tablosundan kontrol edelim
+        if (!$visitor && auth()->check()) {
+            $authUser = auth()->user();
+            
+            if ($authUser->visitor_id === $visitorId) {
+                $visitor = (object)[
+                    'id' => $authUser->id,
+                    'name' => $authUser->name,
+                    'avatar' => $authUser->avatar,
+                    'email' => $authUser->email,
+                    'visitor_id' => $authUser->visitor_id,
+                    'created_at' => $authUser->created_at,
+                    'updated_at' => $authUser->updated_at,
+                    'ip_address' => request()->ip(),
+                    'latitude' => $authUser->latitude,
+                    'longitude' => $authUser->longitude,
+                    'location_info' => $authUser->location_info
+                ];
+            }
+        }
+        
+        // Mesajları getir
+        $messages = DB::table('chat_messages')
+            ->where(function($query) use ($visitorId) {
+                $query->where('metadata->visitor_id', 'like', $visitorId.'%')
+                    ->orWhere('metadata', 'like', '%"visitor_id":"'.$visitorId.'%');
+            })
+            ->orderBy('created_at', 'desc')
+            ->paginate(50);
+            
+        // Mesajların created_at alanını Carbon nesnesine dönüştür
+        $messages->getCollection()->transform(function($message) {
+            $message->created_at = Carbon::parse($message->created_at);
+            return $message;
+        });
+        
+        // Sohbetleri getir
+        $chats = DB::table('chats')
+            ->where(function($query) use ($visitorId) {
+                $query->where('context->visitor_id', 'like', $visitorId.'%')
+                    ->orWhere('context', 'like', '%"visitor_id":"'.$visitorId.'%');
+            })
+            ->orderBy('created_at', 'desc')
+            ->get();
+            
+        // Her sohbete ait mesaj sayısını hesapla ve tarih bilgilerini Carbon'a dönüştür
+        $chats = $chats->map(function($chat) {
+            $chat->message_count = DB::table('chat_messages')
+                ->where('chat_id', $chat->id)
+                ->count();
+            
+            // Tarih bilgilerini Carbon nesnesine dönüştür
+            $chat->created_at = $chat->created_at ? Carbon::parse($chat->created_at) : null;
+            $chat->updated_at = $chat->updated_at ? Carbon::parse($chat->updated_at) : null;
+            
+            return $chat;
+        });
+        
+        // İstatistikleri hesapla
+        $stats = [
+            'total_messages' => $messages->total(),
+            'user_messages' => $messages->filter(function($message) {
+                return $message->sender === 'user';
+            })->count(),
+            'ai_messages' => $messages->filter(function($message) {
+                return $message->sender === 'ai';
+            })->count(),
+            'chats_count' => $chats->count(),
+            'first_message' => $messages->last() ? (object)[
+                'created_at' => $messages->last()->created_at ? Carbon::parse($messages->last()->created_at) : null
+            ] : null,
+            'last_message' => $messages->first() ? (object)[
+                'created_at' => $messages->first()->created_at ? Carbon::parse($messages->first()->created_at) : null
+            ] : null
+        ];
+        
+        return view('admin.message_history.user_history', compact('visitor', 'messages', 'chats', 'stats', 'visitorId'));
     }
     
     private function cleanVisitorId($visitorId) 
@@ -579,7 +662,7 @@ class MessageHistoryController extends Controller
                 return true;
             }
             
-            // JSON_EXTRACT ile mesajlarda kontrol edelim
+            // JSON_EXTRACT ile chat_messages tablosunda metadata sütununu kontrol edelim
             $existsJson = ChatMessage::whereRaw('JSON_EXTRACT(metadata, "$.visitor_id") = ?', ['"' . $visitorId . '"'])
                 ->exists();
                 
@@ -588,7 +671,7 @@ class MessageHistoryController extends Controller
                 return true;
             }
             
-            // LIKE operatörü ile mesajlarda kontrol edelim
+            // LIKE operatörü ile chat_messages tablosunda metadata sütununu kontrol edelim
             $existsLike = ChatMessage::where('metadata', 'LIKE', '%"visitor_id":"' . $visitorId . '"%')
                 ->orWhere('metadata', 'LIKE', '%"visitor_id": "' . $visitorId . '"%')
                 ->exists();

@@ -7,6 +7,109 @@
         });
         hljs.highlightAll();
 
+        // Kullanıcı konum izni ve kontrolü
+        let userLocation = {
+            latitude: null,
+            longitude: null,
+            accuracy: null,
+            timestamp: null
+        };
+
+        // Konum izni iste
+        function requestLocationPermission() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    // Başarı durumunda
+                    function(position) {
+                        userLocation = {
+                            latitude: position.coords.latitude,
+                            longitude: position.coords.longitude,
+                            accuracy: position.coords.accuracy,
+                            timestamp: position.timestamp
+                        };
+                        // Konum bilgilerini localStorage'a kaydet
+                        localStorage.setItem('user_location', JSON.stringify(userLocation));
+                        console.log('✓ Konum bilgileri alındı:', userLocation);
+                        
+                        // Konum bilgilerini sunucuya da gönder (oturum doğru şekilde güncellenmesi için)
+                        updateServerWithLocation(userLocation);
+                    },
+                    // Hata durumunda
+                    function(error) {
+                        let errorMessage = '';
+                        switch(error.code) {
+                            case error.PERMISSION_DENIED:
+                                errorMessage = "Konum izni reddedildi."; 
+                                break;
+                            case error.POSITION_UNAVAILABLE:
+                                errorMessage = "Konum bilgisi kullanılamıyor."; 
+                                break;
+                            case error.TIMEOUT:
+                                errorMessage = "Konum bilgisi alınırken zaman aşımı."; 
+                                break;
+                            case error.UNKNOWN_ERROR:
+                                errorMessage = "Bilinmeyen bir hata oluştu."; 
+                                break;
+                        }
+                        console.warn('Konum izni hatası:', errorMessage, error);
+                        // Sadece hata kodunu kaydet
+                        localStorage.setItem('location_error', error.code);
+                        localStorage.setItem('location_error_message', errorMessage);
+                    },
+                    // Seçenekler
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 600000 // 10 dakika
+                    }
+                );
+            } else {
+                console.warn('Tarayıcınız konum desteği sunmuyor.');
+                localStorage.setItem('location_error', 'UNSUPPORTED');
+            }
+        }
+        
+        // Konum bilgilerini sunucuya gönder
+        function updateServerWithLocation(locationData) {
+            try {
+                if (!locationData || !locationData.latitude || !locationData.longitude) {
+                    console.warn('Güncellenecek konum bilgisi yok veya eksik!');
+                    return;
+                }
+                
+                const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                
+                // Konum bilgilerini API'ye gönder
+                fetch('/api/update-location', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': token
+                    },
+                    body: JSON.stringify({
+                        location: locationData,
+                        visitor_id: '{{ session('visitor_id') }}'
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        console.log('✓ Konum bilgileri sunucuya kaydedildi');
+                    } else {
+                        console.warn('! Konum bilgileri sunucuya kaydedilemedi:', data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('! Konum güncelleme hatası:', error);
+                });
+            } catch (error) {
+                console.error('! Konum güncelleme işlemi sırasında hata:', error);
+            }
+        }
+
+        // Sayfa yüklendiğinde konum izni iste
+        requestLocationPermission();
+
         // Bildirim sesi değişkenleri
         let notificationSound = new Audio('{{ asset('music/Ivory.mp3') }}');
         let isNotificationMuted = localStorage.getItem('notification_muted') === 'true';
@@ -292,6 +395,9 @@
                 // Dil seçimi (sadece masaüstü)
                 const language = codeLanguage ? codeLanguage.value : 'javascript';
                 
+                // Konum bilgilerini al
+                const locationData = localStorage.getItem('user_location');
+                
                 // İstek verisi
                 const requestData = {
                     message: message.trim(),
@@ -302,7 +408,8 @@
                     model: selectedModel,
                     is_first_message: isFirstMessage,
                     chat_history: chatHistory, // Sohbet geçmişini API'ye gönder
-                    visitor_name: visitorName // Kullanıcı adını da gönder
+                    visitor_name: visitorName, // Kullanıcı adını da gönder
+                    location: locationData ? JSON.parse(locationData) : null // Konum bilgilerini gönder
                 };
                 
                 // API isteği gönder
@@ -1529,6 +1636,9 @@
                 // Dil seçimi (sadece masaüstü)
                 const language = codeLanguage ? codeLanguage.value : 'javascript';
                 
+                // Konum bilgilerini al
+                const locationData = localStorage.getItem('user_location');
+                
                 // İstek verisi
                 const requestData = {
                     message: message.trim(),
@@ -1539,7 +1649,8 @@
                     model: selectedModel,
                     is_first_message: isFirstMessage,
                     chat_history: chatHistory, // Sohbet geçmişini API'ye gönder
-                    visitor_name: visitorName // Kullanıcı adını da gönder
+                    visitor_name: visitorName, // Kullanıcı adını da gönder
+                    location: locationData ? JSON.parse(locationData) : null // Konum bilgilerini gönder
                 };
                 
                 // API isteği gönder
@@ -2725,7 +2836,7 @@
                 const avatarElem = userDropdownToggle.querySelector('.user-avatar');
                 const avatarText = avatarElem ? avatarElem.textContent.trim() : 'R';
                 const userName = userDropdownToggle.querySelector('span') ? 
-                                 userDropdownToggle.querySelector('span').textContent.trim() : 'Ruhin';
+                                 userDropdownToggle.querySelector('span').textContent.trim() : 'Kullanıcı';
                 
                 // Modal içindeki öğeleri seç
                 const modalAvatar = document.querySelector('#userProfileModal .w-24');

@@ -15,6 +15,7 @@ use App\Http\Controllers\ApiTestController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Auth\GoogleController;
+use App\Http\Controllers\LocationController;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -284,3 +285,6 @@ Route::prefix('api-test')->group(function () {
     Route::post('/generate-code', [ApiTestController::class, 'testCodeGeneration']);
     Route::post('/chat-response', [ApiTestController::class, 'testChatResponse']);
 });
+
+// Konum güncelleme API'si
+Route::post('/api/update-location', [LocationController::class, 'updateLocation']);

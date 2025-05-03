@@ -561,9 +561,9 @@
             function startGuestLogin() {
                 // Random isim oluştur
                 const randomNames = [
-                    "Misafir1234", "YeniKullanıcı", "GeziCi", "ZiyaretÇi", "MisafirKonuk", 
-                    "GeçiciKullanıcı", "Anonim", "Gezgin", "MeraklıZiyaretçi", "YolcuX",
-                    "KeşfediciY", "HızlıGezgin", "MisafirDost", "YeniMisafir", "GeçerkenUğrayan"
+                    "Misafir", "YeniKullanıcı", "Gezici", "Ziyaretçi", "Konuk", 
+                    "GeçiciKullanıcı", "Anonim", "Gezgin", "MeraklıZiyaretçi", "Yolcu",
+                    "Keşfedici", "HızlıGezgin", "MisafirDost", "YeniMisafir", "GeçerkenUğrayan"
                 ];
                 
                 const randomName = randomNames[Math.floor(Math.random() * randomNames.length)] + Math.floor(Math.random() * 1000);

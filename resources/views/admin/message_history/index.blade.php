@@ -145,10 +145,33 @@
                                     
                                     // Avatar bilgisini al
                                     $avatar = null;
+                                    $userName = $message->visitor_name;
+                                    
+                                    // Önce users tablosundan kontrol et
+                                    $user = null;
                                     if ($cleanVisitorId) {
-                                        $avatar = \DB::table('visitor_names')
+                                        // Users tablosundan kullanıcıyı bulmaya çalış
+                                        $user = \DB::table('users')
                                             ->where('visitor_id', $cleanVisitorId)
-                                            ->value('avatar');
+                                            ->first();
+                                            
+                                        if ($user) {
+                                            $userName = $user->name;
+                                            $avatar = $user->avatar;
+                                        } else {
+                                            // User tablosunda bulunamadıysa visitor_names tablosuna bak
+                                            $visitorInfo = \DB::table('visitor_names')
+                                                ->where('visitor_id', $cleanVisitorId)
+                                                ->first();
+                                                
+                                            if ($visitorInfo) {
+                                                // Eğer visitor_names tablosunda name varsa
+                                                if (!empty($visitorInfo->name)) {
+                                                    $userName = $visitorInfo->name;
+                                                }
+                                                $avatar = $visitorInfo->avatar ?? null;
+                                            }
+                                        }
                                     }
                                 @endphp
                                 @if($visitorId)
@@ -157,16 +180,16 @@
                                     <input type="hidden" name="visitor_id" value="{{ $cleanVisitorId }}">
                                     <button type="submit" class="btn btn-link text-decoration-none p-0 border-0 text-start d-flex align-items-center">
                                         @if(!empty($avatar))
-                                            <img src="{{ $avatar }}" alt="{{ $message->visitor_name }}" class="me-1 rounded-circle" width="24" height="24">
+                                            <img src="{{ $avatar }}" alt="{{ $userName }}" class="me-1 rounded-circle" width="24" height="24">
                                         @else
                                             <i class="fas fa-user-circle me-1 text-primary"></i>
                                         @endif
-                                        {{ $message->visitor_name }}
+                                        {{ $userName }}
                                     </button>
                                 </form>
                                 @else
                                 <span class="text-muted d-flex align-items-center">
-                                    <i class="fas fa-user me-1"></i> {{ $message->visitor_name }}
+                                    <i class="fas fa-user me-1"></i> {{ $userName }}
                                 </span>
                                 @endif
                             @else
@@ -182,7 +205,7 @@
                         </td>
                         <td class="text-center">
                             <span class="badge bg-{{ $message->sender == 'user' ? 'primary' : 'success' }}">
-                                {{ $message->sender == 'user' ? ($message->visitor_name ?: 'Kullanıcı') : 'AI' }}
+                                {{ $message->sender == 'user' ? ($userName ?? ($message->visitor_name ?: 'Kullanıcı')) : 'AI' }}
                             </span>
                         </td>
                         <td>{{ \Illuminate\Support\Str::limit($message->content, 100) }}</td>
@@ -208,8 +231,16 @@
                                     }
                                     // Visitor ID'yi temizle
                                     $cleanVisitorId = $visitorId ? preg_replace('/[; ].*$/', '', $visitorId) : '';
+                                    
+                                    // Users veya visitor_names tablosunda bu ID'yi arayıp bulunamıyorsa
+                                    // $cleanVisitorId kullanılmalı
+                                    $userExists = false;
+                                    if ($cleanVisitorId) {
+                                        $userExists = \DB::table('users')->where('visitor_id', $cleanVisitorId)->exists() || 
+                                                    \DB::table('visitor_names')->where('visitor_id', $cleanVisitorId)->exists();
+                                    }
                                 @endphp
-                                @if($visitorId)
+                                @if($visitorId && $userExists)
                                 <form method="POST" action="{{ route('admin.message-history.view-user') }}" class="d-inline ms-1">
                                     @csrf
                                     <input type="hidden" name="visitor_id" value="{{ $cleanVisitorId }}">

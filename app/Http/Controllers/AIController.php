@@ -2006,18 +2006,119 @@ class AIController extends Controller
      */
     private function saveMessages($userMessage, $aiResponse, $chatId)
     {
+        // Konum bilgilerini ve ziyaretçi ID'sini al
+        $request = request();
+        $visitorId = null;
+        $location = null;
+        $locationInfo = null;
+        
+        // Lokasyon bilgilerini ve visitor_id bilgisini al
+        if ($request->has('location')) {
+            $location = $request->input('location');
+        }
+        
+        if ($request->has('visitor_name')) {
+            $visitorName = $request->input('visitor_name');
+        } else {
+            $visitorName = 'Kullanıcı';
+        }
+        
+        // IP adresini al
+        $ipAddress = $request->ip();
+        
+        // Visitor_id bilgisini al
+        $metadata = $request->input('metadata', []);
+        if (is_array($metadata) && isset($metadata['visitor_id'])) {
+            $visitorId = $metadata['visitor_id'];
+        } else {
+            // Visitor_id yoksa yeni oluştur
+            $visitorId = uniqid('visitor_', true);
+        }
+        
+        // Visitor bilgilerini güncelle veya oluştur
+        if ($visitorId) {
+            $visitor = DB::table('visitor_names')
+                ->where('visitor_id', $visitorId)
+                ->first();
+                
+            // Visitor kaydı yoksa oluştur
+            if (!$visitor) {
+                $deviceInfo = [];
+                if ($request->header('User-Agent')) {
+                    $deviceInfo['user_agent'] = $request->header('User-Agent');
+                }
+                
+                // Konum bilgisi varsa ekle
+                if ($location && isset($location['latitude']) && isset($location['longitude'])) {
+                    DB::table('visitor_names')->insert([
+                        'visitor_id' => $visitorId,
+                        'name' => $visitorName,
+                        'ip_address' => $ipAddress,
+                        'device_info' => json_encode($deviceInfo),
+                        'latitude' => $location['latitude'],
+                        'longitude' => $location['longitude'],
+                        'location_info' => json_encode($location),
+                        'created_at' => now(),
+                        'updated_at' => now()
+                    ]);
+                } else {
+                    DB::table('visitor_names')->insert([
+                        'visitor_id' => $visitorId,
+                        'name' => $visitorName,
+                        'ip_address' => $ipAddress,
+                        'device_info' => json_encode($deviceInfo),
+                        'created_at' => now(),
+                        'updated_at' => now()
+                    ]);
+                }
+            } 
+            // Varolan ziyaretçi kaydını güncelle
+            else if ($location && isset($location['latitude']) && isset($location['longitude'])) {
+                DB::table('visitor_names')
+                    ->where('visitor_id', $visitorId)
+                    ->update([
+                        'latitude' => $location['latitude'],
+                        'longitude' => $location['longitude'],
+                        'location_info' => json_encode($location),
+                        'updated_at' => now()
+                    ]);
+            }
+        }
+        
+        // Metadata hazırla
+        $messageMetadata = [
+            'visitor_id' => $visitorId,
+            'ip_address' => $ipAddress,
+        ];
+        
+        // Konum bilgisi varsa metadata'ya ekle
+        if ($location && isset($location['latitude']) && isset($location['longitude'])) {
+            $messageMetadata['location'] = [
+                'latitude' => $location['latitude'],
+                'longitude' => $location['longitude']
+            ];
+        }
+        
         // Kullanıcı mesajını kaydet
         ChatMessage::create([
             'chat_id' => $chatId,
             'content' => $userMessage,
-            'sender' => 'user'
+            'sender' => 'user',
+            'metadata' => $messageMetadata,
+            'visitor_id' => $visitorId,
+            'visitor_name' => $visitorName,
+            'ip_address' => $ipAddress
         ]);
         
         // AI mesajını kaydet
         ChatMessage::create([
             'chat_id' => $chatId,
             'content' => $aiResponse,
-            'sender' => 'ai'
+            'sender' => 'ai',
+            'metadata' => $messageMetadata,
+            'visitor_id' => $visitorId,
+            'visitor_name' => $visitorName,
+            'ip_address' => $ipAddress
         ]);
     }
     

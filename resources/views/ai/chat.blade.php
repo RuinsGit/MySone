@@ -41,33 +41,7 @@
         </div>
         
         <div class="sidebar-options">
-            <div class="sidebar-option">
-                <span>Yaratıcı Mod</span>
-                <label class="toggle-switch">
-                    <input type="checkbox" id="creative-toggle">
-                    <span class="toggle-slider"></span>
-                </label>
-            </div>
-            
-            <div class="sidebar-option">
-                <span>Kodlama Modu</span>
-                <label class="toggle-switch">
-                    <input type="checkbox" id="coding-toggle">
-                    <span class="toggle-slider"></span>
-                </label>
-            </div>
-            
-            <div id="language-settings" class="sidebar-option" style="display: none;">
-                <span>Kodlama Dili</span>
-                <select id="code-language" class="sidebar-select">
-                    <option value="javascript">JavaScript</option>
-                    <option value="php">PHP</option>
-                    <option value="python">Python</option>
-                    <option value="html">HTML</option>
-                    <option value="css">CSS</option>
-                    <option value="sql">SQL</option>
-                </select>
-            </div>
+       
             
             <div class="sidebar-option mt-6">
                 <button id="new-chat-btn" class="gradient-btn w-full">

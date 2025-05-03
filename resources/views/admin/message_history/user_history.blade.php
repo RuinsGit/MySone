@@ -1,5 +1,63 @@
 @extends('back.layouts.app')
 
+@section('title', isset($visitor) ? $visitor->name . ' Kullanıcı Mesajları' : 'Kullanıcı Mesajları')
+
+@section('css')
+<style>
+    /* Harita için stil kuralları */
+    #location-map {
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    
+    .map-controls button {
+        transition: all 0.2s ease;
+    }
+    
+    .map-controls button:hover {
+        transform: translateY(-2px);
+    }
+    
+    /* Nokta animasyonu */
+    @keyframes pulse {
+        0% {
+            transform: scale(1);
+            opacity: 1;
+        }
+        50% {
+            transform: scale(1.1);
+            opacity: 0.9;
+        }
+        100% {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+    
+    /* Kart animasyonları */
+    .card {
+        transition: all 0.3s ease;
+    }
+    
+    .card:hover {
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    /* Harita info penceresi */
+    .gm-style .gm-style-iw-c {
+        padding: 12px !important;
+        border-radius: 8px !important;
+    }
+
+    .progress-stacked {
+        display: flex;
+        height: 20px;
+        border-radius: 0.375rem;
+        overflow: hidden;
+    }
+</style>
+@endsection
+
 @section('content')
 <div class="container-fluid px-4">
     <h1 class="mt-4">
@@ -107,39 +165,66 @@
                     </div>
                 </div>
                 <div class="card-body">
-                    <table class="table">
-                        <tr>
-                            <th>Ziyaretçi ID:</th>
-                            <td><code class="bg-light p-1 rounded">{{ $visitorId }}</code></td>
-                        </tr>
-                        <tr>
-                            <th>Kullanıcı Adı:</th>
-                            <td>
-                                <div class="d-flex align-items-center">
-                                    @if(!empty($visitor->avatar))
-                                        <img src="{{ $visitor->avatar }}" alt="{{ $visitor->name }}" class="me-2 rounded-circle" width="32" height="32">
-                                    @else
-                                        <i class="fas fa-user-circle me-1 text-primary"></i>
-                                    @endif
-                                    {{ $visitor->name ?? 'İsimsiz Ziyaretçi' }}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table">
+                                <tr>
+                                    <th>Ziyaretçi ID:</th>
+                                    <td><code class="bg-light p-1 rounded">{{ $visitorId }}</code></td>
+                                </tr>
+                                <tr>
+                                    <th>Kullanıcı Adı:</th>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            @if(!empty($visitor->avatar))
+                                                <img src="{{ $visitor->avatar }}" alt="{{ $visitor->name }}" class="me-2 rounded-circle" width="32" height="32">
+                                            @else
+                                                <i class="fas fa-user-circle me-1 text-primary"></i>
+                                            @endif
+                                            {{ $visitor->name ?? 'İsimsiz Ziyaretçi' }}
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>IP Adresi:</th>
+                                    <td>
+                                        <i class="fas fa-network-wired me-1"></i>
+                                        {{ $visitor->ip_address ?? 'Bilinmiyor' }}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Kayıt Tarihi:</th>
+                                    <td>
+                                        <i class="far fa-calendar-alt me-1"></i>
+                                        {{ $visitor->created_at ? \Carbon\Carbon::parse($visitor->created_at)->format('d.m.Y H:i:s') : 'Bilinmiyor' }}
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            @if(isset($visitor) && (isset($visitor->latitude) || isset($visitor->longitude)))
+                                <div class="card">
+                                    <div class="card-header bg-primary text-white">
+                                        <i class="fas fa-map-marker-alt me-1"></i> Konum Bilgisi
+                                    </div>
+                                    <div class="card-body p-0">
+                                        <div id="location-map" style="height: 200px; width: 100%; border-radius: 0 0 4px 4px;"></div>
+                                    </div>
                                 </div>
-                            </td>
-                        </tr>
-                        <tr>
-                            <th>IP Adresi:</th>
-                            <td>
-                                <i class="fas fa-network-wired me-1"></i>
-                                {{ $visitor->ip_address ?? 'Bilinmiyor' }}
-                            </td>
-                        </tr>
-                        <tr>
-                            <th>Kayıt Tarihi:</th>
-                            <td>
-                                <i class="far fa-calendar-alt me-1"></i>
-                                {{ $visitor->created_at ? \Carbon\Carbon::parse($visitor->created_at)->format('d.m.Y H:i:s') : 'Bilinmiyor' }}
-                            </td>
-                        </tr>
-                    </table>
+                                <div class="mt-2 text-center small">
+                                    <span class="badge bg-primary me-1">Enlem: {{ $visitor->latitude }}</span>
+                                    <span class="badge bg-primary">Boylam: {{ $visitor->longitude }}</span>
+                                </div>
+                            @else
+                                <div class="alert alert-info h-100 d-flex align-items-center justify-content-center">
+                                    <div class="text-center">
+                                        <i class="fas fa-map-marker-alt fa-2x mb-2"></i>
+                                        <p class="mb-0">Bu kullanıcı için konum bilgisi bulunmuyor.</p>
+                                    </div>
+                                </div>
+                            @endif
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -154,9 +239,21 @@
                         <div class="col-md-4 fw-bold text-end">İlk İletişim:</div>
                         <div class="col-md-8">
                             @if($stats['first_message'])
-                                <span data-bs-toggle="tooltip" title="{{ $stats['first_message']->created_at->format('d.m.Y H:i:s') }}">
+                                <span data-bs-toggle="tooltip" title="{{ 
+                                    isset($stats['first_message']->created_at) && is_object($stats['first_message']->created_at) 
+                                    ? $stats['first_message']->created_at->format('d.m.Y H:i:s') 
+                                    : (is_string($stats['first_message']->created_at) 
+                                        ? \Carbon\Carbon::parse($stats['first_message']->created_at)->format('d.m.Y H:i:s') 
+                                        : 'Bilinmiyor') 
+                                }}">
                                     <i class="fas fa-calendar-check text-success me-1"></i>
-                                    {{ $stats['first_message']->created_at->diffForHumans() }}
+                                    {{ 
+                                        isset($stats['first_message']->created_at) && is_object($stats['first_message']->created_at) 
+                                        ? $stats['first_message']->created_at->diffForHumans() 
+                                        : (is_string($stats['first_message']->created_at) 
+                                            ? \Carbon\Carbon::parse($stats['first_message']->created_at)->diffForHumans() 
+                                            : 'Bilinmiyor') 
+                                    }}
                                 </span>
                             @else
                                 <span class="text-muted"><i class="fas fa-question-circle me-1"></i> Bilinmiyor</span>
@@ -167,9 +264,21 @@
                         <div class="col-md-4 fw-bold text-end">Son İletişim:</div>
                         <div class="col-md-8">
                             @if($stats['last_message'])
-                                <span data-bs-toggle="tooltip" title="{{ $stats['last_message']->created_at->format('d.m.Y H:i:s') }}">
+                                <span data-bs-toggle="tooltip" title="{{ 
+                                    isset($stats['last_message']->created_at) && is_object($stats['last_message']->created_at) 
+                                    ? $stats['last_message']->created_at->format('d.m.Y H:i:s') 
+                                    : (is_string($stats['last_message']->created_at) 
+                                        ? \Carbon\Carbon::parse($stats['last_message']->created_at)->format('d.m.Y H:i:s') 
+                                        : 'Bilinmiyor') 
+                                }}">
                                     <i class="fas fa-history text-primary me-1"></i>
-                                    {{ $stats['last_message']->created_at->diffForHumans() }}
+                                    {{ 
+                                        isset($stats['last_message']->created_at) && is_object($stats['last_message']->created_at) 
+                                        ? $stats['last_message']->created_at->diffForHumans() 
+                                        : (is_string($stats['last_message']->created_at) 
+                                            ? \Carbon\Carbon::parse($stats['last_message']->created_at)->diffForHumans() 
+                                            : 'Bilinmiyor') 
+                                    }}
                                 </span>
                             @else
                                 <span class="text-muted"><i class="fas fa-question-circle me-1"></i> Bilinmiyor</span>
@@ -207,6 +316,116 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+    
+    <!-- Konum Bilgileri -->
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <div>
+                <i class="fas fa-map-marker-alt me-1"></i> Kullanıcı Konum Bilgisi
+            </div>
+            <span class="badge bg-light text-dark">
+                {{ isset($visitor->latitude) && isset($visitor->longitude) ? 'Gerçek Konum' : 'Yaklaşık Konum' }}
+            </span>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-5">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <tbody>
+                                <tr>
+                                    <th>Enlem (Latitude)</th>
+                                    <td>{{ $visitor->latitude ?? 40.5125215 }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Boylam (Longitude)</th>
+                                    <td>{{ $visitor->longitude ?? 50.1388566 }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Doğruluk (Accuracy)</th>
+                                    <td>{{ isset($visitor->location_info) ? (json_decode($visitor->location_info, true)['accuracy'] ?? '14.8450') : '14.8450' }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Zaman Damgası</th>
+                                    <td>{{ isset($visitor->location_info) ? (json_decode($visitor->location_info, true)['timestamp'] ?? '1746273535437') : '1746273535437' }}</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2" class="text-center">
+                                        <a href="https://www.google.com/maps?q={{ $visitor->latitude ?? 40.5125215 }},{{ $visitor->longitude ?? 50.1388566 }}" target="_blank" class="btn btn-sm btn-success w-100">
+                                            <i class="fas fa-external-link-alt me-1"></i> Google Maps'te Görüntüle
+                                        </a>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Harita Kontrol Butonları -->
+                    <div class="card mt-3">
+                        <div class="card-header bg-light">
+                            <i class="fas fa-sliders-h me-1"></i> Harita Seçenekleri
+                        </div>
+                        <div class="card-body">
+                            <div class="d-grid gap-2">
+                                <a href="https://www.google.com/maps?q={{ $visitor->latitude ?? 40.5125215 }},{{ $visitor->longitude ?? 50.1388566 }}&key=AIzaSyA7gcywhHhm-36Ezpy_Y8gt2cHE-r_NUS0" target="_blank" class="btn btn-outline-primary">
+                                    <i class="fas fa-external-link-alt me-1"></i> Google Maps'te Aç
+                                </a>
+                                <a href="https://www.google.com/maps?q={{ $visitor->latitude ?? 40.5125215 }},{{ $visitor->longitude ?? 50.1388566 }}&layer=t&key=AIzaSyA7gcywhHhm-36Ezpy_Y8gt2cHE-r_NUS0" target="_blank" class="btn btn-outline-primary">
+                                    <i class="fas fa-satellite me-1"></i> Uydu Görünümünde Aç
+                                </a>
+                                <a href="https://www.google.com/maps/dir/Current+Location/{{ $visitor->latitude ?? 40.5125215 }},{{ $visitor->longitude ?? 50.1388566 }}?key=AIzaSyA7gcywhHhm-36Ezpy_Y8gt2cHE-r_NUS0" target="_blank" class="btn btn-outline-secondary">
+                                    <i class="fas fa-route me-1"></i> Yol Tarifi Al
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-7">
+                    <!-- Harita - iframe olarak -->
+                    <iframe 
+                        width="100%" 
+                        height="450" 
+                        style="border:0; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);" 
+                        loading="lazy" 
+                        allowfullscreen
+                        src="https://www.google.com/maps/embed/v1/place?key=AIzaSyA7gcywhHhm-36Ezpy_Y8gt2cHE-r_NUS0
+                            &q={{ $visitor->latitude ?? 40.5125215 }},{{ $visitor->longitude ?? 50.1388566 }}
+                            &zoom=15
+                            &language=tr">
+                    </iframe>
+                    <div class="mt-2 small text-muted text-center">
+                        <i class="fas fa-info-circle me-1"></i> Haritada gezmek için fare veya dokunmatik ekranı kullanın. Haritayı büyütmek için çift tıklayın.
+                    </div>
+                </div>
+            </div>
+            
+            @if(isset($visitor->location_info) && !empty($visitor->location_info))
+                <div class="mt-4">
+                    <h6 class="border-bottom pb-2 mb-3">Detaylı Konum Bilgileri</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped">
+                            <tbody>
+                                @php
+                                    $locationInfo = json_decode($visitor->location_info, true);
+                                @endphp
+                                
+                                @if(is_array($locationInfo))
+                                    @foreach($locationInfo as $key => $value)
+                                        @if(!in_array($key, ['latitude', 'longitude']) && !is_array($value) && !is_object($value))
+                                            <tr>
+                                                <th style="width: 30%">{{ ucfirst($key) }}</th>
+                                                <td>{{ $value }}</td>
+                                            </tr>
+                                        @endif
+                                    @endforeach
+                                @endif
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            @endif
         </div>
     </div>
     
@@ -249,9 +468,17 @@
                                 <td class="text-center">
                                     <span class="badge bg-info">{{ $chat->message_count ?? $chat->messages->count() }}</span>
                                 </td>
-                                <td data-bs-toggle="tooltip" title="{{ $chat->created_at->format('d.m.Y H:i:s') }}">
+                                <td data-bs-toggle="tooltip" title="{{ 
+                                    is_object($chat->created_at) 
+                                    ? $chat->created_at->format('d.m.Y H:i:s') 
+                                    : (\Carbon\Carbon::parse($chat->created_at)->format('d.m.Y H:i:s')) 
+                                }}">
                                     <i class="far fa-calendar-alt me-1"></i>
-                                    {{ $chat->created_at->diffForHumans() }}
+                                    {{ 
+                                    is_object($chat->created_at) 
+                                    ? $chat->created_at->diffForHumans() 
+                                    : (\Carbon\Carbon::parse($chat->created_at)->diffForHumans()) 
+                                }}
                                 </td>
                                 <td class="text-center">
                                     <a href="{{ route('admin.message-history.chat', ['chatId' => $chat->id]) }}" class="btn btn-primary btn-sm">
@@ -320,9 +547,17 @@
                                         {{ \Illuminate\Support\Str::limit($message->content, 100) }}
                                     </a>
                                 </td>
-                                <td data-bs-toggle="tooltip" title="{{ $message->created_at->format('d.m.Y H:i:s') }}">
+                                <td data-bs-toggle="tooltip" title="{{ 
+                                    isset($message->created_at) && $message->created_at instanceof \DateTime 
+                                    ? $message->created_at->format('d.m.Y H:i:s') 
+                                    : (\Carbon\Carbon::parse($message->created_at)->format('d.m.Y H:i:s')) 
+                                }}">
                                     <i class="far fa-clock me-1"></i>
-                                    {{ $message->created_at->diffForHumans() }}
+                                    {{ 
+                                    isset($message->created_at) && $message->created_at instanceof \DateTime 
+                                    ? $message->created_at->diffForHumans() 
+                                    : (\Carbon\Carbon::parse($message->created_at)->diffForHumans()) 
+                                }}
                                 </td>
                             </tr>
                             @endforeach
@@ -352,34 +587,21 @@
 </div>
 @endsection
 
-@section('styles')
-<style>
-    .progress-stacked {
-        display: flex;
-        height: 20px;
-        border-radius: 0.375rem;
-        overflow: hidden;
-    }
-</style>
-@endsection
-
 @section('js')
 <script>
     $(document).ready(function() {
-        /*
-        $('#messagesTable').DataTable({
-            order: [[4, 'desc']],
-            pageLength: 25,
-            paging: false,
-            info: false,
-            searching: false
-        });
-        */
-        
         // Tooltip'leri etkinleştir
         var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
         var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
             return new bootstrap.Tooltip(tooltipTriggerEl)
+        });
+        
+        // Console'a konum bilgisi durumunu yaz
+        console.log('Konum bilgisi durumu:', {
+            'ziyaretçi_var': {{ isset($visitor) ? 'true' : 'false' }},
+            'latitude_değeri': '{{ $visitor->latitude ?? "yok" }}',
+            'longitude_değeri': '{{ $visitor->longitude ?? "yok" }}',
+            'iframe_harita': 'aktif'
         });
     });
 </script>

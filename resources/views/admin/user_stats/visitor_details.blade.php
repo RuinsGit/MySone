@@ -1,4 +1,55 @@
-@extends('admin.layouts.app')
+@extends('back.layouts.app')
+
+@section('title', isset($visitor) ? $visitor->name . ' Ziyaretçi Detayları' : 'Ziyaretçi Detayları')
+
+@section('css')
+<style>
+    /* Harita için stil kuralları */
+    #location-map {
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    
+    .map-controls button {
+        transition: all 0.2s ease;
+    }
+    
+    .map-controls button:hover {
+        transform: translateY(-2px);
+    }
+    
+    /* Nokta animasyonu */
+    @keyframes pulse {
+        0% {
+            transform: scale(1);
+            opacity: 1;
+        }
+        50% {
+            transform: scale(1.1);
+            opacity: 0.9;
+        }
+        100% {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+    
+    /* Kart animasyonları */
+    .card {
+        transition: all 0.3s ease;
+    }
+    
+    .card:hover {
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    /* Harita info penceresi */
+    .gm-style .gm-style-iw-c {
+        padding: 12px !important;
+        border-radius: 8px !important;
+    }
+</style>
+@endsection
 
 @section('content')
 <div class="container-fluid px-4">
@@ -166,6 +217,120 @@
                                 <i class="fas fa-exclamation-triangle me-2"></i> Ziyaretçi bilgileri bulunamadı.
                             </div>
                         @endif
+                    @endif
+
+                    <!-- Konum Bilgileri -->
+                    @if(isset($visitor) && (isset($visitor->latitude) || isset($visitor->longitude)))
+                        <div class="card mt-4">
+                            <div class="card-header bg-primary text-white">
+                                <i class="fas fa-map-marker-alt me-1"></i> Kullanıcı Konum Bilgileri
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-5">
+                                        <div class="table-responsive">
+                                            <table class="table">
+                                                <tbody>
+                                                    <tr>
+                                                        <th>Enlem (Latitude)</th>
+                                                        <td>{{ $visitor->latitude ?? 'Bilinmiyor' }}</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <th>Boylam (Longitude)</th>
+                                                        <td>{{ $visitor->longitude ?? 'Bilinmiyor' }}</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <th>Son Güncelleme</th>
+                                                        <td>
+                                                            @if(isset($visitor->updated_at))
+                                                                {{ \Carbon\Carbon::parse($visitor->updated_at)->format('d.m.Y H:i') }}
+                                                                <div class="small text-muted">{{ \Carbon\Carbon::parse($visitor->updated_at)->diffForHumans() }}</div>
+                                                            @else
+                                                                <span class="text-muted">Bilinmiyor</span>
+                                                            @endif
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td colspan="2" class="text-center">
+                                                            <a href="https://www.google.com/maps?q={{ $visitor->latitude }},{{ $visitor->longitude }}" target="_blank" class="btn btn-sm btn-success w-100">
+                                                                <i class="fas fa-external-link-alt me-1"></i> Google Maps'te Görüntüle
+                                                            </a>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        
+                                        <!-- Harita Kontrol Butonları -->
+                                        @if(isset($visitor->latitude) && isset($visitor->longitude))
+                                        <div class="card mt-3">
+                                            <div class="card-header bg-light">
+                                                <i class="fas fa-sliders-h me-1"></i> Harita Ayarları
+                                            </div>
+                                            <div class="card-body">
+                                                <p class="small mb-2">Harita görünümünü değiştirin:</p>
+                                                <div class="btn-group w-100">
+                                                    <button id="map-type-roadmap" class="btn btn-sm btn-outline-primary">
+                                                        <i class="fas fa-road me-1"></i> Normal
+                                                    </button>
+                                                    <button id="map-type-satellite" class="btn btn-sm btn-outline-primary">
+                                                        <i class="fas fa-satellite me-1"></i> Uydu
+                                                    </button>
+                                                    <button id="map-type-hybrid" class="btn btn-sm btn-outline-primary">
+                                                        <i class="fas fa-globe me-1"></i> Karma
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        @endif
+                                    </div>
+                                    <div class="col-md-7">
+                                        @if(isset($visitor->latitude) && isset($visitor->longitude))
+                                            <div class="card shadow">
+                                                <div class="card-body p-0">
+                                                    <div id="location-map" style="height: 350px; width: 100%; border-radius: 4px;"></div>
+                                                </div>
+                                                <div class="card-footer bg-light py-2">
+                                                    <small class="text-muted">
+                                                        <i class="fas fa-info-circle me-1"></i> Haritada nokta üzerinde gezmek için fareyi kullanın. Haritayı büyütmek için çift tıklayın.
+                                                    </small>
+                                                </div>
+                                            </div>
+                                        @else
+                                            <div class="alert alert-info">
+                                                <i class="fas fa-info-circle me-2"></i> Harita görüntülemek için konum bilgileri yeterli değil.
+                                            </div>
+                                        @endif
+                                    </div>
+                                </div>
+                                
+                                @if(isset($visitor->location_info) && !empty($visitor->location_info))
+                                    <div class="mt-4">
+                                        <h6 class="border-bottom pb-2 mb-3">Detaylı Konum Bilgileri</h6>
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-striped">
+                                                <tbody>
+                                                    @php
+                                                        $locationInfo = json_decode($visitor->location_info, true);
+                                                    @endphp
+                                                    
+                                                    @if(is_array($locationInfo))
+                                                        @foreach($locationInfo as $key => $value)
+                                                            @if(!in_array($key, ['latitude', 'longitude']) && !is_array($value) && !is_object($value))
+                                                                <tr>
+                                                                    <th style="width: 30%">{{ ucfirst($key) }}</th>
+                                                                    <td>{{ $value }}</td>
+                                                                </tr>
+                                                            @endif
+                                                        @endforeach
+                                                    @endif
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
                     @endif
 
                     <!-- Cihaz Bilgileri -->
@@ -376,6 +541,105 @@ $(document).ready(function() {
             url: '//cdn.datatables.net/plug-ins/1.10.25/i18n/Turkish.json'
         }
     });
+    
+    // Konum haritası varsa yükle
+    @if(isset($visitor) && isset($visitor->latitude) && isset($visitor->longitude))
+    // Harita yükleme fonksiyonu
+    function initMap() {
+        // Konum koordinatları
+        var latitude = {{ $visitor->latitude }};
+        var longitude = {{ $visitor->longitude }};
+        var mapPosition = {lat: latitude, lng: longitude};
+        
+        // Harita oluştur
+        var map = new google.maps.Map(document.getElementById('location-map'), {
+            zoom: 14,
+            center: mapPosition,
+            mapTypeId: 'roadmap',
+            mapTypeControl: true,
+            mapTypeControlOptions: {
+                style: google.maps.MapTypeControlStyle.HORIZONTAL_BAR,
+                position: google.maps.ControlPosition.TOP_RIGHT
+            },
+            fullscreenControl: true,
+            streetViewControl: true,
+            zoomControl: true
+        });
+        
+        // Konum işaretleyici ekle
+        var marker = new google.maps.Marker({
+            position: mapPosition,
+            map: map,
+            title: '{{ addslashes($visitor->name ?? "Ziyaretçi") }} Konumu',
+            animation: google.maps.Animation.DROP,
+            icon: {
+                url: 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png'
+            }
+        });
+        
+        // Bilgi penceresi
+        var infoContent = '<div style="min-width: 200px; padding: 10px;">' +
+                         '<h5 style="margin: 0 0 10px 0; color: #3366cc;">{{ addslashes($visitor->name ?? "Ziyaretçi") }}</h5>' +
+                         '<p style="margin: 0; font-size: 13px;"><strong>IP Adresi:</strong> {{ $visitor->ip_address ?? "Bilinmiyor" }}</p>' +
+                         '<p style="margin: 0; font-size: 13px;"><strong>Enlem:</strong> {{ $visitor->latitude }}</p>' +
+                         '<p style="margin: 0; font-size: 13px;"><strong>Boylam:</strong> {{ $visitor->longitude }}</p>' +
+                         '<p style="margin: 5px 0 0 0; font-size: 12px; color: #666;">Son güncelleme: {{ isset($visitor->updated_at) ? \Carbon\Carbon::parse($visitor->updated_at)->format("d.m.Y H:i") : "Bilinmiyor" }}</p>' +
+                         '</div>';
+        
+        var infoWindow = new google.maps.InfoWindow({
+            content: infoContent
+        });
+        
+        // İşaretleyici tıklama olayı
+        marker.addListener('click', function() {
+            infoWindow.open(map, marker);
+        });
+        
+        // Haritayı ilk yüklendiğinde bilgi penceresini aç
+        infoWindow.open(map, marker);
+        
+        // Haritayı yeniden boyutlandır (responsive olması için)
+        google.maps.event.addDomListener(window, 'resize', function() {
+            google.maps.event.trigger(map, 'resize');
+            map.setCenter(mapPosition);
+        });
+        
+        // Harita tipini değiştirme butonları
+        document.getElementById('map-type-roadmap').addEventListener('click', function() {
+            map.setMapTypeId('roadmap');
+        });
+        
+        document.getElementById('map-type-satellite').addEventListener('click', function() {
+            map.setMapTypeId('satellite');
+        });
+        
+        document.getElementById('map-type-hybrid').addEventListener('click', function() {
+            map.setMapTypeId('hybrid');
+        });
+    }
+    
+    // Google Maps API yüklendikten sonra haritayı başlat
+    function loadGoogleMaps() {
+        if (typeof google !== 'undefined' && typeof google.maps !== 'undefined') {
+            // API zaten yüklü, haritayı doğrudan başlat
+            initMap();
+        } else {
+            // Google Maps API'sini yükle
+            var script = document.createElement('script');
+            script.src = 'https://maps.googleapis.com/maps/api/js?key=AIzaSyBVWaKrjvy3MaE7SQ74_uJiULgl1JY0H2s&callback=initMap';
+            script.async = true;
+            script.defer = true;
+            
+            // Callback fonksiyonunu global scope'a ekle
+            window.initMap = initMap;
+            
+            document.head.appendChild(script);
+        }
+    }
+    
+    // Sayfa yüklendiğinde haritayı yükle
+    loadGoogleMaps();
+    @endif
 });
 </script>
 @endsection
